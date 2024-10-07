@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
-use App\Interfaces\Orderable;
+use App\Models\Brand;
 use Illuminate\Support\Str;
+use App\Interfaces\Orderable;
 use App\Traits\IsTenantModel;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Product extends Model implements Orderable
 {
@@ -32,6 +33,17 @@ class Product extends Model implements Orderable
         'meta_description',
         'meta_keywords',
     ];
+
+    public function vehicleModel()
+    {
+        return $this->belongsTo(VehicleModel::class);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
 
     public function category()
     {

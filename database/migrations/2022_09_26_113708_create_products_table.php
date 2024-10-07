@@ -20,7 +20,16 @@ return new class extends Migration
                 $table->decimal('price', 10, 2);
                 $table->text('short_description');
                 $table->text('long_description');
-                $table->foreignId('category_id')->constrained('product_categories')->onUpdate('cascade')->onDelete('cascade');;
+                $table->foreignId('category_id')->constrained('product_categories')->onUpdate('cascade')->onDelete('cascade');
+                
+                // Relation avec Vehicle Model
+                $table->unsignedBigInteger('vehicle_model_id')->nullable();
+                $table->foreign('vehicle_model_id')->references('id')->on('vehicle_models')->onDelete('cascade');
+                
+                // Relation avec Brand
+                $table->unsignedBigInteger('brand_id')->nullable();
+                $table->foreign('brand_id')->references('id')->on('brands')->onDelete('cascade');
+                
                 $table->boolean('is_variable')->default(0);
                 $table->boolean('is_grouped')->default(0);
                 $table->boolean('is_simple')->default(1);
