@@ -19,19 +19,20 @@ class Product extends Model implements Orderable
 
     protected $table = 'products';
 
+ 
     protected $fillable = [
         'name',
-        'description',
+        'price',
         'short_description',
         'long_description',
-        'price',
         'category_id',
-        'featured_image',
-        'inventory_count',
-        'low_stock_threshold',
-        'meta_title',
-        'meta_description',
-        'meta_keywords',
+        'vehicle_model_id',
+        'brand_id',
+        'is_variable',
+        'is_grouped',
+        'is_simple',
+        'is_featured',
+        'featured_image'
     ];
 
     public function vehicleModel()
