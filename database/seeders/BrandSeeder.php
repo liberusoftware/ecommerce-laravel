@@ -9,25 +9,27 @@ class BrandSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     *
-     * @return void
      */
-    public function run()
+    public function run(): void
     {
-        // Liste des marques de véhicules à insérer
         $brands = [
-            ['name' => 'BMW'],
             ['name' => 'Toyota'],
-            ['name' => 'Nissan'],
-            ['name' => 'Ford'],
-            ['name' => 'Chevrolet'],
             ['name' => 'Honda'],
-            ['name' => 'Mercedes-Benz'],
-            ['name' => 'Volkswagen'],
+            ['name' => 'Nissan'],
             ['name' => 'Hyundai'],
-            ['name' => 'Kia'],
-            ['name' => 'Subaru'],
             ['name' => 'Mazda'],
+            ['name' => 'Ford'],
+            ['name' => 'Jeep'],
+            ['name' => 'Chevrolet'],
+            ['name' => 'Ram'],
+            ['name' => 'GMC'],
+            ['name' => 'Tesla'],
+            ['name' => 'Mercedes-Benz'],
+            ['name' => 'BMW'],
+            ['name' => 'Audi'],
+            ['name' => 'Lexus'],
+            ['name' => 'Harley-Davidson'],
+            ['name' => 'Yamaha'],
         ];
 
         DB::table('brands')->insert($brands);
