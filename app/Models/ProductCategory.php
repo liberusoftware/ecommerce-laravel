@@ -21,6 +21,7 @@ class ProductCategory extends Model
         'meta_title',
         'meta_description',
         'meta_keywords',
+        'status',
     ];
 
     public function products()
@@ -33,8 +34,12 @@ class ProductCategory extends Model
         return $this->belongsTo(static::class, 'parent_category_id');
     }
 
-    public function getSlugAttribute()
+    protected static function booted()
     {
-        return Str::slug($this->name);
+        static::saving(function ($category) {
+            if (!$category->slug) {
+                $category->slug = Str::slug($category->name);
+            }
+        });
     }
 }
