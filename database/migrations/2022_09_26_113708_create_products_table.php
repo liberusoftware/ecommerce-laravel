@@ -22,13 +22,9 @@ return new class extends Migration
                 $table->text('long_description');
                 $table->foreignId('category_id')->constrained('product_categories')->onUpdate('cascade')->onDelete('cascade');
                 
-                // Relation avec Vehicle Model
-                $table->unsignedBigInteger('vehicle_model_id')->nullable();
-                $table->foreign('vehicle_model_id')->references('id')->on('vehicle_models')->onDelete('cascade');
-                
-                // Relation avec Brand
-                $table->unsignedBigInteger('brand_id')->nullable();
-                $table->foreign('brand_id')->references('id')->on('brands')->onDelete('cascade');
+                $table->foreignId('vehicle_model_id')->nullable()->constrained('vehicle_models')->onDelete('cascade');
+
+                $table->foreignId('brand_id')->nullable()->constrained('brands')->onDelete('cascade');
                 
                 $table->boolean('is_variable')->default(0);
                 $table->boolean('is_grouped')->default(0);
