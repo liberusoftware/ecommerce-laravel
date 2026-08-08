@@ -1,5 +1,15 @@
 # Stable Release Implementation Tasks
 
+> **Partly superseded, and kept deliberately.** This is a *product-readiness* backlog: 18 feature workstreams and a cross-cutting checklist. [`MIGRATION_PLAN.md`](./MIGRATION_PLAN.md) is *structural conformance* and does not replace it — the two cover different work.
+>
+> Three workstreams **are** superseded and should be read against the newer documents rather than acted on directly:
+>
+> - **14) Tenancy, Stores, and Locations** → [`MIGRATION_PLAN.md` wave 1.5](./MIGRATION_PLAN.md#wave-15--stores-channels-and-the-tenant-scope) and [`CONFORMANCE.md` §6](./CONFORMANCE.md#6-security-findings). Its acceptance criterion *"Tenant A cannot access or mutate Tenant B data"* is currently **false on four surfaces**, which is more specific than this document knew.
+> - **15) Modules** → the `app/Modules/` scaffolding it refers to registers zero modules and is deleted in [wave 0](./MIGRATION_PLAN.md#wave-0--make-a-module-loadable-and-make-the-rules-enforceable). Module loading is [`MODULE_DEVELOPMENT.md`](./MODULE_DEVELOPMENT.md).
+> - **18) Installer and Docker** → [`INSTALLATION.md`](./INSTALLATION.md), plus the missing `docker.yml` workflow recorded in [`CONFORMANCE.md` §3.2](./CONFORMANCE.md#32-high).
+>
+> The other 15 workstreams stand.
+
 ## Purpose
 This document defines the minimum implementation tasks required for a stable customer release of the ecommerce platform.
 
