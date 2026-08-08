@@ -55,9 +55,20 @@ class AdminPanelTenancyTest extends TestCase
         return $team;
     }
 
-    public function test_every_admin_panel_list_page_mounts(): void
+    /**
+     * Over HTTP rather than through Livewire::test, and that is the whole point.
+     *
+     * Filament 5 registers the tenant scope as a global scope from its tenancy
+     * middleware — `BelongsToTenant` says so in as many words: "scoping is
+     * applied via global scopes registered after tenant identification in
+     * middleware". Mounting a page with Livewire::test skips that middleware, so
+     * no scope is ever registered and the page renders clean whether or not the
+     * table could survive being scoped. A first version of this test did exactly
+     * that and passed against the known-broken resources.
+     */
+    public function test_every_admin_panel_list_page_responds(): void
     {
-        $this->actingInAdminPanel();
+        $team = $this->actingInAdminPanel();
 
         $pages = [
             ListCategories::class, ListChatConversations::class, ListCoupons::class,
@@ -67,7 +78,8 @@ class AdminPanelTenancyTest extends TestCase
         ];
 
         foreach ($pages as $page) {
-            Livewire::test($page)->assertSuccessful();
+            $this->get($page::getUrl(tenant: $team))
+                ->assertSuccessful();
         }
     }
 }
