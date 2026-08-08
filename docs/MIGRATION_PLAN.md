@@ -193,7 +193,9 @@ The stores created for the other teams have **no channel**, so no hostname resol
 
 `teams`, `team_user`, `team_invitations` and `stores` are excluded: their `team_id` is the membership graph itself, Team-grained by definition.
 
-**3. Ship the tenant scope.** One global scope with two modes, rather than two scoping systems that must agree:
+**3. Ship the tenant scope.** — 🟡 *storefront mode and the 404 landed on the catalogue models; the remaining models and the panel mode follow*
+
+One global scope with two modes, rather than two scoping systems that must agree:
 
 | Context | Scope |
 | --- | --- |
@@ -203,6 +205,12 @@ The stores created for the other teams have **no channel**, so no hostname resol
 Panels keep `->tenant(Team::class, …)`. Switching them to `Store` tenancy would break every non-commerce resource, which is legitimately `Team`-grained; adding a store filter per resource is the original failure — scoping at the caller, remembered 105 times.
 
 **This step closes [#939](https://github.com/liberusoftware/ecommerce-laravel/issues/939), [#950](https://github.com/liberusoftware/ecommerce-laravel/issues/950) and [#952](https://github.com/liberusoftware/ecommerce-laravel/issues/952) at once.**
+
+**What landed first.** `IsStoreScoped` on `Product`, `ProductCategory` and `ProductCollection` — the catalogue, which is what all three issues name first and what the sitemap publishes. With it, the 404: an unconfigured hostname is an unscoped one, so refusing it is half the control rather than a separate rule. `/health` is the one exemption — a Kubernetes probe arrives on the pod's own address rather than a configured hostname, reads no tenant data, and 404ing it restarts healthy pods.
+
+**Writes stamp too, or the read scope is a bug.** A product created in a panel resolves no host, so nothing would set its `store_id` and it would vanish from the storefront that sells it. `StoreContext::forWrites()` uses the resolved store, and off a storefront falls back to *the only store when there is exactly one* — not a guess but the whole truth on a single-store deployment. With several stores and no resolved host the row is left unstamped rather than attributed to whichever sorts first.
+
+**The rest of the models follow.** Orders, customers, reviews, carts and the other ten tables carry `store_id` already; each needs its read paths checked before the scope goes on, and the panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
 
 **4. Rebuild the sitemap per channel.** One sitemap per resolved storefront, listing only that store's products. Rewritten rather than moved — the fix rebuilds it anyway, and it stays in the host as pure cross-module aggregation.
 
