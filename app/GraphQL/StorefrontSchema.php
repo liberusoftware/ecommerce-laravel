@@ -23,6 +23,17 @@ use GraphQL\Type\Schema;
  */
 class StorefrontSchema
 {
+    /**
+     * The ceiling on any list field that takes no pagination arguments.
+     *
+     * Depth and complexity limits bound the *shape* of a query, not the number
+     * of rows a field returns: `collections { products { id } }` is depth 3 and
+     * complexity well under the limit, and used to return the whole catalogue
+     * once per collection. `throttle:api` caps request count, not per-request
+     * cost, so nothing else bounded these.
+     */
+    private const MAX_LIST = 100;
+
     public function build(): Schema
     {
         $product = $this->productType();
@@ -51,7 +62,13 @@ class StorefrontSchema
                 ],
                 'collections' => [
                     'type' => Type::nonNull(Type::listOf(Type::nonNull($collection))),
-                    'resolve' => fn () => ProductCollection::query()->orderBy('name')->get(),
+                    // Products are eager-loaded rather than resolved per collection:
+                    // `Collection.products` was one query per collection.
+                    'resolve' => fn () => ProductCollection::query()
+                        ->with(['products' => fn ($q) => $q->orderBy('products.id')->limit(self::MAX_LIST)])
+                        ->orderBy('name')
+                        ->limit(self::MAX_LIST)
+                        ->get(),
                 ],
                 'me' => [
                     'type' => $user,
@@ -60,7 +77,7 @@ class StorefrontSchema
                 'orders' => [
                     'type' => Type::nonNull(Type::listOf(Type::nonNull($order))),
                     'resolve' => fn ($root, array $args, array $context) => ($u = $context['user'] ?? null)
-                        ? Order::where('user_id', $u->id)->latest('id')->get()
+                        ? Order::where('user_id', $u->id)->latest('id')->limit(self::MAX_LIST)->get()
                         : [],
                 ],
             ],
@@ -151,7 +168,11 @@ class StorefrontSchema
                 'slug' => Type::string(),
                 'products' => [
                     'type' => Type::nonNull(Type::listOf(Type::nonNull($product))),
-                    'resolve' => fn (ProductCollection $c) => $c->products()->get(),
+                    // Eager-loaded and already bounded by the `collections` query.
+                    // Loading here would be the N+1 back again.
+                    'resolve' => fn (ProductCollection $c) => $c->relationLoaded('products')
+                        ? $c->products
+                        : $c->products()->orderBy('products.id')->limit(self::MAX_LIST)->get(),
                 ],
             ],
         ]);
