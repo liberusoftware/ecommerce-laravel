@@ -86,7 +86,10 @@ class AppPanelProvider extends PanelProvider
                 Dashboard::class,
                 EditProfile::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/App/Widgets/Home'), for: 'App\\Filament\\App\\Widgets\\Home')
+            // Filament/App/Widgets, not Filament/App/Widgets/Home — the Home
+            // directory has never existed, so this discovered nothing and the one
+            // widget that lived here was unreachable.
+            ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\\Filament\\App\\Widgets')
             ->widgets([
                 AccountWidget::class,
                 // Widgets\FilamentInfoWidget::class,
