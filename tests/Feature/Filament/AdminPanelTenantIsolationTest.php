@@ -139,6 +139,9 @@ class AdminPanelTenantIsolationTest extends TestCase
                 'tenant: '.(Filament::getTenant()?->getKey() ?? 'none'),
                 'scopes on the model: '.implode(', ', array_keys($this->globalScopesOf($model)) ?: ['(none)']),
                 'resource registered: '.var_export(in_array($resource, $panel->getResources(), true), true),
+                'resource is scoped to tenant: '.var_export($resource::isScopedToTenant(), true),
+                'panel booted: '.var_export((new \ReflectionProperty(\Filament\FilamentManager::class, 'isCurrentPanelBooted'))
+                    ->getValue(app(\Filament\FilamentManager::class)), true),
             ]),
         );
 
