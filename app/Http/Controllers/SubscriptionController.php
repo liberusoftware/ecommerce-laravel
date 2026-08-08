@@ -6,6 +6,7 @@ use Exception;
 use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Cashier\Exceptions\IncompletePayment;
 use Stripe\Stripe;
 use Stripe\Plan;
@@ -21,9 +22,31 @@ class SubscriptionController extends Controller
         Stripe::setApiKey(config('services.stripe.secret'));
     }
 
+    /**
+     * The public pricing list.
+     *
+     * Cached, because this route is anonymous by design and called Stripe once
+     * per request: anyone could drive unlimited outbound API calls against the
+     * merchant's account by holding down refresh. An hour is fine — a plan list
+     * changes rarely, and a stale price for that long is not a billing decision,
+     * since the charge is made against the plan id at subscribe time.
+     *
+     * An unconfigured install returns an empty list rather than a 500. Stripe
+     * throws AuthenticationException when no key is set, which made /subscriptions
+     * a server error on every fresh checkout — including CI.
+     */
     public function viewAvailableSubscriptions()
     {
-        $plans = Plan::all();
+        if (blank(config('services.stripe.secret'))) {
+            return response()->json(['plans' => []]);
+        }
+
+        $plans = Cache::remember(
+            'stripe.plans',
+            now()->addHour(),
+            fn () => Plan::all()->toArray(),
+        );
+
         return response()->json(['plans' => $plans]);
     }
 
