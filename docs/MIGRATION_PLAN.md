@@ -270,7 +270,15 @@ The first cut of this got it wrong in the cautious direction: it refused the fal
 
 **The availability defects recorded on #950 close with it.** `collections`, `Collection.products` and `orders` returned unbounded lists — depth and complexity rules bound the *shape* of a query, not the row count, and `throttle:api` caps request count rather than per-request cost. All three are capped, and the nested products are eager-loaded, which retires the one-query-per-collection N+1 in the same change. No execution timeout yet; that needs a number nobody has picked.
 
-**4. Rebuild the sitemap per channel.** One sitemap per resolved storefront, listing only that store's products. Rewritten rather than moved — the fix rebuilds it anyway, and it stays in the host as pure cross-module aggregation.
+**4. Rebuild the sitemap per channel.** — ✅ *scoped by step 3, then canonicalised and bounded*
+
+One sitemap per resolved storefront, listing only that store's products. **Which** products it lists was settled by the store scope in step 3 and is covered by `StoreScopeTest`; what was left is the two questions scoping does not answer.
+
+**Which hostname the URLs are written on.** A storefront answers on several hostnames from day one — the apex, `www`, a custom merchant domain, a platform subdomain — and `route()` builds from whichever the crawler used. Two hostnames then publish two sitemaps naming the same pages by different absolute URLs: duplicate content, announced to the crawler in the one file whose whole job is telling it what to index. `Channel::primaryDomain()` had been written for exactly this and used nowhere; it is what the URLs are built on now. The scheme stays the request's, because a deployment behind TLS termination reports it through `TrustProxies` and a hard-coded one would publish `http` URLs from an `https` storefront.
+
+**How many URLs there are.** `Product::all()` was unbounded. The sitemap protocol's ceiling is 50,000 URLs per file and a crawler is entitled to ignore a file that exceeds it, so at 60,000 products the old sitemap did not merely render slowly — it published something that need not be read at all. The budget is spent in listing order, with the home page reserved first: a sitemap that omits the site is worse than no sitemap. `sitemap.max_urls` overrides the ceiling for a deployment that wants to sit further under it.
+
+Rewritten rather than moved — the fix rebuilds it anyway, and it stays in the host as pure cross-module aggregation.
 
 ### Rules this wave establishes
 
