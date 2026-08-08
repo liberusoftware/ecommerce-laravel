@@ -176,7 +176,7 @@ class OrderStoreScopeTest extends TestCase
 
         $this->actingAs($shopper)
             ->delete('http://mine.example.com/account', ['password' => 'password'])
-            ->assertRedirect();
+            ->assertOk();
 
         // Orders are kept for accounting and scrubbed in place, so the check is
         // on the personal data rather than on the row's absence.
