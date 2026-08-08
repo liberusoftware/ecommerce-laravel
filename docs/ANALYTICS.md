@@ -1,159 +1,237 @@
-# Analytics and Reporting Enhancement
+# Analytics and reporting
 
-This enhancement adds comprehensive analytics and reporting capabilities to the ecommerce admin dashboard.
+The admin analytics dashboard: what it shows, how to read it, how to extend it.
 
-## Features Added
+Merged from the former `ANALYTICS.md` and `ANALYTICS_GUIDE.md`, which documented the same feature twice.
 
-### 1. Analytics Service (`app/Services/AnalyticsService.php`)
+---
 
-A centralized service that provides data aggregation and analysis for:
+## What exists
 
-#### Sales Analytics
-- **getSalesTrends()**: Get sales trends by period (hourly, daily, weekly, monthly)
-- **getSalesMetrics()**: Get overall sales metrics including revenue, order count, average order value, and growth rates
-- **getTopProducts()**: Get top-selling products by revenue
-- **getRecentOrders()**: Get recent orders with customer information
+### `app/Services/AnalyticsService.php`
 
-#### Customer Analytics
-- **getCustomerDemographics()**: Get customer insights including:
-  - Geographic distribution (by city and state)
-  - Customer segmentation (by order count)
-  - Top customers by lifetime value
+The single aggregation point. Everything on the dashboard reads through it.
 
-#### Inventory Analytics
-- **getInventoryInsights()**: Get inventory metrics including:
-  - Low stock products
-  - Out of stock count
-  - Total inventory value
-  - Stock status distribution
+| Method | Returns |
+| --- | --- |
+| `getSalesTrends($period, $from, $to)` | Sales by period — `hourly`, `daily`, `weekly`, `monthly` |
+| `getSalesMetrics($from, $to)` | Revenue, order count, average order value, growth rate |
+| `getTopProducts($limit)` | Top sellers by revenue, with units sold |
+| `getRecentOrders()` | Latest orders with customer information |
+| `getCustomerDemographics()` | Geographic distribution by city and state, segmentation by order count, top customers by lifetime value |
+| `getInventoryInsights()` | Low stock, out-of-stock count, total inventory value, stock status distribution |
 
-### 2. Admin Dashboard Widgets
+### Widgets
 
-#### Sales Widgets
-- **SalesOverviewWidget**: Displays key metrics (revenue, orders, avg order value) with growth indicators
-- **SalesTrendsChart**: Line chart showing revenue and order trends over time
-- **TopProductsWidget**: Table showing top 10 products by revenue with units sold
+| Area | Widgets |
+| --- | --- |
+| Sales | `SalesOverviewWidget` (metrics with growth indicators), `SalesTrendsChart` (line), `TopProductsWidget` (table) |
+| Customers | `CustomerDemographicsWidget` (doughnut), `CustomerGrowthWidget` (line) |
+| Inventory | `InventoryStatsWidget`, `LowStockInventoryWidget` (table) |
+| Orders | `RecentOrdersWidget` (table, with status badges) |
 
-#### Customer Widgets
-- **CustomerDemographicsWidget**: Doughnut chart showing customer segmentation
-- **CustomerGrowthWidget**: Line chart showing new customer registrations over time
+They appear on the main dashboard and, in a fuller layout, on the Reports page (`app/Filament/Admin/Pages/Reports.php`) — header widgets for the key metrics, charts for trends, tables for detail.
 
-#### Inventory Widgets
-- **InventoryStatsWidget**: Overview of inventory value, low stock, and out of stock items
-- **LowStockInventoryWidget**: Table showing products below their stock threshold
+---
 
-#### Order Widgets
-- **RecentOrdersWidget**: Table showing latest orders with status badges
+## For administrators
 
-### 3. Enhanced Reports Page
+Log in at `/admin`; the key metrics are on the dashboard, and **Reports** in the sidebar has the full set.
 
-The Reports page (`app/Filament/Admin/Pages/Reports.php`) now displays a comprehensive analytics dashboard with:
-- Header widgets for key metrics (Sales Overview, Inventory Stats)
-- Charts showing trends (Sales Trends, Customer Demographics, Customer Growth)
-- Tables showing detailed data (Top Products, Low Stock, Recent Orders)
+### What the numbers mean
 
-## Usage
+**Sales Overview** — *Total Revenue* is the sum of **paid** orders in the last 30 days; *Total Orders* counts paid orders only; *Average Order Value* is revenue ÷ order count; *Growth %* compares against the preceding 30 days.
 
-### Accessing the Dashboard
+**Inventory Stats** — *Inventory Value* is quantity × price across products in stock; *Low Stock* is products below their own threshold; *Out of Stock* is zero inventory.
 
-1. Navigate to the Admin panel
-2. Click on "Reports" in the sidebar (chart icon)
-3. View comprehensive analytics and insights
+**Customer Segments** — by lifetime order count:
 
-### Dashboard Widgets
+| Segment | Orders |
+| --- | --- |
+| No Orders | registered, never purchased |
+| One-time Buyer | exactly 1 |
+| Regular Customer | 2–5 |
+| Loyal Customer | more than 5 |
 
-All widgets are automatically displayed on:
-- The main Dashboard page
-- The Reports page (with more detailed layout)
+**Unpaid orders are invisible everywhere.** Revenue, order counts and growth all filter on `payment_status = 'paid'`, so a dashboard that looks empty on a busy day usually means orders are not reaching paid status — not that nothing sold.
 
-### Customizing Analytics Period
+---
 
-The analytics service uses a default period of 30 days. To customize:
+## For developers
+
+### Calling the service
 
 ```php
 use App\Services\AnalyticsService;
 
-$analyticsService = app(AnalyticsService::class);
+$analytics = app(AnalyticsService::class);
 
-// Get sales trends for the last 7 days
-$trends = $analyticsService->getSalesTrends('daily', now()->subDays(7), now());
-
-// Get metrics for a specific date range
-$metrics = $analyticsService->getSalesMetrics(now()->startOfMonth(), now());
+$metrics      = $analytics->getSalesMetrics(now()->startOfMonth(), now());
+$trends       = $analytics->getSalesTrends('daily', now()->subDays(7), now());
+$topProducts  = $analytics->getTopProducts(20);
+$demographics = $analytics->getCustomerDemographics();
+$inventory    = $analytics->getInventoryInsights();
 ```
 
-## Technical Details
+The default window is 30 days; pass explicit dates to change it.
 
-### Dependencies
-- Filament v5.0 (for widgets and panels)
-- Laravel v12 (for database queries and collections)
-- Chart.js (automatically loaded by Filament for chart widgets)
+`$period` is validated by a `match` over `hourly` / `daily` / `weekly` / `monthly`, so it cannot be used to alter the SQL structure.
 
-### Database Tables Used
-- `orders`: Sales data and revenue
-- `order_items`: Product-level sales data
-- `customers`: Customer information and demographics
-- `products`: Product details and inventory
-- `analytics_events`: Detailed tracking events (already in place)
+### Adding a widget
 
-### Widget Configuration
-- Widgets are registered in `AdminPanelProvider`
-- Widget sort order is controlled by the `$sort` property
-- Widget column spans can be adjusted via the `$columnSpan` property
+Stats:
 
-### Performance Considerations
-- Queries use indexes on `order_date` and `payment_status` for optimal performance
-- Only paid orders are included in revenue calculations
-- Chart data is limited to recent periods to prevent memory issues
-- Table widgets support pagination for large datasets
+```php
+namespace App\Filament\Admin\Widgets;
 
-## Future Enhancements
+use Filament\Widgets\StatsOverviewWidget as BaseWidget;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 
-Potential additions for future iterations:
-- Date range filters on the Reports page
-- Export functionality (CSV/PDF)
-- Real-time updates using Livewire polling
-- Additional chart types (bar, radar, etc.)
-- Comparison periods (e.g., this month vs last month)
-- Custom report builder
-- Scheduled email reports
-- Geographic maps for customer distribution
-- Product category analytics
-- Payment method breakdown
-- Shipping method analytics
-- Abandoned cart analytics
-- Customer cohort analysis
+class MyStatsWidget extends BaseWidget
+{
+    protected static ?int $sort = 1;
 
-## Testing
+    protected function getStats(): array
+    {
+        return [
+            Stat::make('Metric Name', '123')
+                ->description('7.5% increase')
+                ->descriptionIcon('heroicon-m-arrow-trending-up')
+                ->color('success'),
+        ];
+    }
+}
+```
 
-To verify the analytics are working correctly:
+Chart:
 
-1. Ensure you have sample data in the database:
-   - Orders with `payment_status = 'paid'`
-   - Customers with various locations
-   - Products with inventory levels
+```php
+use Filament\Widgets\ChartWidget;
 
-2. Access the Reports page and verify:
-   - Sales metrics display correctly
-   - Charts render without errors
-   - Tables show relevant data
-   - Low stock alerts appear for products below threshold
+class MyChartWidget extends ChartWidget
+{
+    protected static ?string $heading = 'Chart Title';
 
-3. Check the browser console for any JavaScript errors
+    protected function getData(): array
+    {
+        return [
+            'datasets' => [['label' => 'Data Series', 'data' => [10, 20, 30, 40]]],
+            'labels' => ['Jan', 'Feb', 'Mar', 'Apr'],
+        ];
+    }
+
+    protected function getType(): string
+    {
+        return 'line'; // or 'bar', 'pie', 'doughnut'
+    }
+}
+```
+
+Table:
+
+```php
+use Filament\Tables;
+use Filament\Tables\Table;
+use Filament\Widgets\TableWidget as BaseWidget;
+
+class MyTableWidget extends BaseWidget
+{
+    public function table(Table $table): Table
+    {
+        return $table
+            ->heading('Table Title')
+            ->query(YourModel::query())
+            ->columns([
+                Tables\Columns\TextColumn::make('column_name')->label('Label')->sortable(),
+            ]);
+    }
+}
+```
+
+Register it in `AdminPanelProvider`:
+
+```php
+->widgets([
+    \App\Filament\Admin\Widgets\MyCustomWidget::class,
+])
+```
+
+Or attach it to one page:
+
+```php
+protected function getHeaderWidgets(): array
+{
+    return [\App\Filament\Admin\Widgets\MyWidget::class];
+}
+```
+
+Appearance is controlled by `$columnSpan` (1–12 or `'full'`), `$sort`, and `$maxHeight`.
+
+### Read the data through the service
+
+`SalesOverviewWidget` calls `AnalyticsService`; `TopProductsWidget` writes its own SQL. **The first is the pattern.** A widget with its own query is a second definition of a metric that has to be kept in step with the first, and there is nothing that will tell you when they diverge.
+
+---
+
+## Database
+
+### Recommended indexes
+
+```sql
+CREATE INDEX idx_orders_date_status        ON orders(order_date, payment_status);
+CREATE INDEX idx_order_items_order_product ON order_items(order_id, product_id);
+CREATE INDEX idx_customers_created         ON customers(created_at);
+CREATE INDEX idx_products_inventory        ON products(inventory_count, low_stock_threshold);
+```
+
+These are recommendations, not current state. Aggregate queries over `orders` and `order_items` are the ones that degrade first as data grows.
+
+### Required data
+
+- Orders with `payment_status = 'paid'` — for any revenue figure
+- Customers with `city` and `state` — for demographics
+- Products with `inventory_count` and `low_stock_threshold` — for stock alerts
+
+### Caching
+
+Nothing is cached today. The aggregate queries are the ones worth wrapping:
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+$metrics = Cache::remember('sales_metrics_30d', 300, fn () =>
+    app(AnalyticsService::class)->getSalesMetrics()
+);
+```
+
+---
+
+## Access and data exposure
+
+**The Reports page and every analytics widget expose customer names, email addresses, order values and full order detail to any user who can reach the admin panel.**
+
+Authentication is enforced on the panel, and `TeamsPermission` middleware runs — but that is panel access, not per-resource authorization. There are no `can*` overrides or `Gate::` calls anywhere in the 105 Filament classes ([`CONFORMANCE.md` §3.1](./CONFORMANCE.md#31-critical)), so **panel access is effectively full access to this data**.
+
+An earlier review of this feature concluded the access controls were adequate. That conclusion was drawn against the widgets alone and does not survive the wider audit; it is recorded here rather than left standing in a separate document.
+
+Output escaping is sound: Filament's `TextColumn` escapes automatically, chart data is JSON-encoded, and no widget emits raw HTML. Query construction is sound too — the `DB::raw()` sites carry only static aggregate expressions, and all user-supplied filters go through parameter binding.
+
+---
 
 ## Troubleshooting
 
-### No Data Showing
-- Verify database has orders with `payment_status = 'paid'`
-- Check date ranges (default is last 30 days)
-- Ensure customer and product relationships are set correctly
+**No data anywhere** — check for orders with `payment_status = 'paid'`; check the date range (default 30 days); check that customer and product relationships are populated.
 
-### Widgets Not Displaying
-- Clear application cache: `php artisan cache:clear`
-- Clear Filament cache: `php artisan filament:cache-clear`
-- Verify widgets are registered in `AdminPanelProvider`
+**A widget does not appear** — confirm it is registered in `AdminPanelProvider`, then `php artisan cache:clear` and `php artisan filament:cache-clear`.
 
-### Performance Issues
-- Add database indexes on frequently queried columns
-- Reduce the default time period in analytics queries
-- Consider adding Redis for caching aggregated data
+**Charts render empty but tables have rows** — usually a date-range mismatch rather than missing data. Check the browser console for JavaScript errors.
+
+**Slow** — add the indexes above, add caching, narrow the date range, and `->limit()` the query. In that order.
+
+---
+
+## Not implemented
+
+Recorded so nobody looks for them: date-range filters on the Reports page, CSV/PDF export, live updates, comparison periods, a custom report builder, scheduled email reports, geographic maps, category analytics, payment- and shipping-method breakdowns, abandoned-cart analytics, cohort analysis.
+
+There is also no analytics API. Exposing one would need the same tenant scoping as every other read path — see [`CONFORMANCE.md` §6](./CONFORMANCE.md#6-security-findings).

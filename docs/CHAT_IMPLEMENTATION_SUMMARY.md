@@ -1,5 +1,7 @@
 # Implementation Summary: Customer Support Chat System
 
+> **Held as named debt.** The live-chat feature belongs to the **CRM** product (`chat-and-bots`), which is documentation-only — no repository exists. This code stays in the host until it does; see [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943) and [`CONFORMANCE.md` §4.2](./CONFORMANCE.md#42-the-98-unmappable-files-were-an-artifact).
+
 ## Overview
 Successfully implemented a comprehensive live chat system for customer support with minimal changes to the existing codebase.
 
@@ -436,28 +438,6 @@ Filament Resources:
 - ✅ Relationship tests
 - ✅ Business logic tests
 - ⚠️ Integration tests (recommended for future)
-
-## Documentation Quality
-
-### User Documentation
-✅ **SHOPIFY_MAGENTO_FEATURES.md** (13KB)
-- Complete usage guide
-- Code examples for all features
-- Console command reference
-- API usage patterns
-- Configuration options
-
-✅ **README.md Updates**
-- Features overview section
-- Quick start commands
-- Admin panel access
-- Links to detailed docs
-
-### Developer Documentation
-- Inline PHPDoc comments
-- Method parameter descriptions
-- Return type documentation
-- Example usage in comments
 
 ## Integration & Compatibility
 
