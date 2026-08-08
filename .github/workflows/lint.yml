@@ -3,6 +3,10 @@ name: Lint
 on:
   pull_request:
     branches: [main]
+  # This repository drops pull_request synchronize events often enough that a
+  # pushed fix can sit with no run at all. workflow_dispatch is the way back in;
+  # it compares against main, which is what a PR to main would have used anyway.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -61,7 +65,8 @@ jobs:
         id: changed
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "${{ github.base_ref }}"
+          base="${{ github.base_ref }}"
+          git fetch --no-tags origin "${base:-main}"
           git diff --name-only --diff-filter=ACMR \
             "FETCH_HEAD...HEAD" -- '*.php' > changed.txt
           echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
