@@ -2,18 +2,26 @@
 
 namespace App\Providers\Filament;
 
-use Filament\Actions\Action;
-use Filament\Widgets\AccountWidget;
-use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use App\Filament\Admin\Resources\MenuItemResource;
 use App\Filament\Admin\Resources\MenuResource;
+use App\Filament\Admin\Widgets\CustomerDemographicsWidget;
+use App\Filament\Admin\Widgets\CustomerGrowthWidget;
+use App\Filament\Admin\Widgets\InventoryStatsWidget;
+use App\Filament\Admin\Widgets\LowStockInventoryWidget;
+use App\Filament\Admin\Widgets\RecentOrdersWidget;
+use App\Filament\Admin\Widgets\SalesOverviewWidget;
+use App\Filament\Admin\Widgets\SalesTrendsChart;
+use App\Filament\Admin\Widgets\TopProductsWidget;
 use App\Filament\App\Pages;
 use App\Filament\App\Pages\EditProfile;
 use App\Http\Middleware\TeamsPermission;
 use App\Models\Menu;
 use App\Models\MenuItem;
 use App\Models\Team;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
+use BezhanSalleh\FilamentShield\Resources\Roles\RoleResource;
 use Biostate\FilamentMenuBuilder\FilamentMenuBuilderPlugin;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -23,6 +31,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets;
+use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -30,10 +39,8 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 use Laravel\Jetstream\Features;
-use Laravel\Jetstream\Jetstream;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -67,14 +74,14 @@ class AdminPanelProvider extends PanelProvider
                 // Pages\ApiTokenManagerPage::class,
             ])->widgets([
                 AccountWidget::class,
-                \App\Filament\Admin\Widgets\SalesOverviewWidget::class,
-                \App\Filament\Admin\Widgets\SalesTrendsChart::class,
-                \App\Filament\Admin\Widgets\TopProductsWidget::class,
-                \App\Filament\Admin\Widgets\CustomerDemographicsWidget::class,
-                \App\Filament\Admin\Widgets\CustomerGrowthWidget::class,
-                \App\Filament\Admin\Widgets\InventoryStatsWidget::class,
-                \App\Filament\Admin\Widgets\LowStockInventoryWidget::class,
-                \App\Filament\Admin\Widgets\RecentOrdersWidget::class,
+                SalesOverviewWidget::class,
+                SalesTrendsChart::class,
+                TopProductsWidget::class,
+                CustomerDemographicsWidget::class,
+                CustomerGrowthWidget::class,
+                InventoryStatsWidget::class,
+                LowStockInventoryWidget::class,
+                RecentOrdersWidget::class,
                 // Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
@@ -133,11 +140,23 @@ class AdminPanelProvider extends PanelProvider
 
     public function boot(): void
     {
-       
+        /*
+         * Shield's RoleResource is registered into this panel by its plugin, and
+         * this panel is Team-tenanted on the `team` relationship. App\Models\Role
+         * has no such relationship — `config/permission.php` sets 'teams' => false,
+         * so roles are global here — and Filament throws a LogicException the
+         * moment anything queries Role inside the panel. That is every page in
+         * /admin, because the navigation resolves resources on each render.
+         *
+         * scopeToTenant(false) is Filament's own escape hatch for a resource that
+         * is genuinely shared across tenants, which a global role is. It cannot be
+         * set as a property here because the class belongs to the package.
+         */
+        RoleResource::scopeToTenant(false);
     }
 
     public function shouldRegisterMenuItem(): bool
     {
-        return true; //auth()->user()?->hasVerifiedEmail() && Filament::hasTenancy() && Filament::getTenant();
+        return true; // auth()->user()?->hasVerifiedEmail() && Filament::hasTenancy() && Filament::getTenant();
     }
 }
