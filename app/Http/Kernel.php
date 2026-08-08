@@ -10,6 +10,7 @@ use App\Http\Middleware\ResolveChannel;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TeamsPermission;
 use App\Http\Middleware\TrimStrings;
+use App\Http\Middleware\TrustHosts;
 use App\Http\Middleware\TrustProxies;
 use App\Http\Middleware\ValidateSignature;
 use App\Http\Middleware\VerifyCsrfToken;
@@ -40,7 +41,10 @@ class Kernel extends HttpKernel
      * @var array<int, class-string|string>
      */
     protected $middleware = [
-        // \App\Http\Middleware\TrustHosts::class,
+        // First, because everything after it reads the host it validates.
+        // Inert in local and under tests — Laravel only specifies trusted hosts
+        // outside them.
+        TrustHosts::class,
         TrustProxies::class,
         HandleCors::class,
         PreventRequestsDuringMaintenance::class,
