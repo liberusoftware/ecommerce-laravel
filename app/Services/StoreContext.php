@@ -14,6 +14,34 @@ use App\Models\Store;
  */
 class StoreContext
 {
+    private static bool $spanningAllStores = false;
+
+    /**
+     * Run a callback with the store scope suspended.
+     *
+     * Some work is about a person rather than about a storefront, and narrowing
+     * it to whichever host the request happened to arrive on makes it silently
+     * incomplete. A subject-access export that returns one store's orders is a
+     * wrong answer, not a partial one; an erasure that misses rows is a breach.
+     *
+     * Suspending it here rather than adding `withoutGlobalScope('store')` at
+     * each query is deliberate: these paths read through relations
+     * (`$user->customer`, `$user->wishlist()`) that no call-site opt-out
+     * reaches, and every model added to the scope later would need remembering
+     * again. That is the failure this whole trait exists to stop.
+     */
+    public static function acrossAllStores(callable $callback): mixed
+    {
+        $previous = self::$spanningAllStores;
+        self::$spanningAllStores = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$spanningAllStores = $previous;
+        }
+    }
+
     /**
      * The store a read is scoped to, or null when there is nothing to scope by.
      *
@@ -24,6 +52,10 @@ class StoreContext
      */
     public static function forReads(): ?int
     {
+        if (self::$spanningAllStores) {
+            return null;
+        }
+
         return ChannelResolver::current()?->store_id;
     }
 

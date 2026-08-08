@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Exceptions\InvalidOrderTransitionException;
 use App\Jobs\DispatchOutboundWebhook;
+use App\Traits\IsStoreScoped;
 use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Order extends Model
 {
     use HasFactory;
+    use IsStoreScoped;
     use IsTenantModel;
 
     public const STATUS_PENDING = 'pending';

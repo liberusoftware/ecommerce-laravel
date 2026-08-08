@@ -210,7 +210,18 @@ Panels keep `->tenant(Team::class, …)`. Switching them to `Store` tenancy woul
 
 **Writes stamp too, or the read scope is a bug.** A product created in a panel resolves no host, so nothing would set its `store_id` and it would vanish from the storefront that sells it. `StoreContext::forWrites()` uses the resolved store, and off a storefront falls back to *the only store when there is exactly one* — not a guess but the whole truth on a single-store deployment. With several stores and no resolved host the row is left unstamped rather than attributed to whichever sorts first.
 
-**The rest of the models follow.** Orders, customers, reviews, carts and the other ten tables carry `store_id` already; each needs its read paths checked before the scope goes on, and the panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
+**Orders and customers followed, with two exemptions.** Checking their read paths first is what the step called for, and it found two places where the request's host says nothing about which store the work is *about*:
+
+| Path | Why the host is the wrong answer |
+| --- | --- |
+| Inbound payment webhooks | Stripe posts to one configured endpoint. That hostname resolves to whichever store owns it, never to the store the charge belongs to. Scoped, a confirmation for any other store finds no order, takes the `null` branch and returns 200 — money captured, order left pending, nothing anywhere saying so. |
+| Subject access and erasure | Both are about a person, not a storefront, and both are reachable over HTTP from a storefront that resolves a store. A scoped export returns one merchant's slice and presents it as the whole record; a scoped erasure misses rows and still reports success. |
+
+`StoreContext::acrossAllStores()` suspends the scope for the duration of a callback, rather than `withoutGlobalScope('store')` at each query. These paths read through relations — `$user->customer`, `$user->wishlist()` — that no call-site opt-out reaches, and every model added to the scope later would need remembering again at each of them. **That is the failure the scope exists to stop, and an exemption written the other way would reintroduce it inside the fix.**
+
+`store_id` is not fillable on any scoped model. The trait's `creating` hook is its only writer, so no request can post its way into another store.
+
+**The rest of the models follow.** Reviews, carts, invoices and the other ten tables carry `store_id` already; each needs its own read paths checked the same way. The panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
 
 **The surfaces are covered at the surface.** [#950](https://github.com/liberusoftware/ecommerce-laravel/issues/950) and [#952](https://github.com/liberusoftware/ecommerce-laravel/issues/952) name the anonymous GraphQL endpoint and the Blade storefront, not the models, and a scope nothing exercises through the reported surface is a scope the next refactor removes. `/api/graphql` is now driven the way a caller drives it — real `Host`, no token — across the listing, `search`, a known id, and the nested `collections { products }` read, which reaches `Product` through a pivot and so is the path a caller-side fix would have missed. A `collection_items` row pointing at another store's product is a mis-stamped row, not permission: the nested read returns nothing for it.
 

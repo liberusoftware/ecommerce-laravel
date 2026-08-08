@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Notifications\OrderConfirmationNotification;
 use App\Notifications\OrderRefundedNotification;
+use App\Services\StoreContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -33,12 +34,20 @@ class StripeWebhookController extends Controller
 
         $charge = $event->data->object;
 
-        match ($event->type) {
-            'charge.succeeded' => $this->markPaid($charge),
-            'charge.failed' => $this->markFailed($charge),
-            'charge.refunded' => $this->reconcileRefund($charge),
-            default => null, // acknowledge and ignore everything else
-        };
+        // Across every store, deliberately. Stripe posts to one configured
+        // endpoint, so this request's host resolves to whichever store happens to
+        // own that hostname — not to the store the charge belongs to. Scoped, a
+        // payment confirmation for any other store would find no order, take the
+        // `null` branch, and return 200: money captured, order left pending, and
+        // nothing anywhere saying so. The charge id is the authority here.
+        StoreContext::acrossAllStores(function () use ($event, $charge) {
+            match ($event->type) {
+                'charge.succeeded' => $this->markPaid($charge),
+                'charge.failed' => $this->markFailed($charge),
+                'charge.refunded' => $this->reconcileRefund($charge),
+                default => null, // acknowledge and ignore everything else
+            };
+        });
 
         return response()->json(['received' => true]);
     }
