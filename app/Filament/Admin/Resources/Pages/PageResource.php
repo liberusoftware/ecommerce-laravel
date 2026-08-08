@@ -57,7 +57,7 @@ class PageResource extends Resource
                             ->required()
                             ->options(Page::getStatuses())
                             ->default(Page::STATUS_DRAFT),
-                    ])
+                    ]),
             ]);
     }
 
