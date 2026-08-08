@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\AbandonedCart;
 use App\Models\ABTest;
 use App\Models\ABTestAssignment;
-use App\Models\AbandonedCart;
 use App\Models\AnalyticsEvent;
 use App\Models\CartRecoveryAttempt;
 use App\Models\CartRecoveryCampaign;
