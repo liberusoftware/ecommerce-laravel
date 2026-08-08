@@ -77,9 +77,18 @@ class AdminPanelTenancyTest extends TestCase
             ListUsers::class,
         ];
 
+        // Collected rather than asserted one at a time: the first failure would
+        // otherwise hide the rest, and the point is the whole set.
+        $failures = [];
+
         foreach ($pages as $page) {
-            $this->get($page::getUrl(tenant: $team))
-                ->assertSuccessful();
+            $response = $this->get($page::getUrl(tenant: $team));
+
+            if ($response->getStatusCode() >= 300) {
+                $failures[] = class_basename($page).' -> '.$response->getStatusCode();
+            }
         }
+
+        $this->assertSame([], $failures, "Admin panel list pages that do not respond 2xx:\n".implode("\n", $failures));
     }
 }
