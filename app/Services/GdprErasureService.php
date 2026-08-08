@@ -27,9 +27,17 @@ class GdprErasureService
 
     private const REDACTED = 'REDACTED';
 
+    /**
+     * Erasure spans every store, whatever host the request arrived on.
+     *
+     * This is reachable over HTTP from a storefront, and a storefront resolves a
+     * store. Scoped, an erasure would silently miss the person's rows at every
+     * other merchant and still report success — a breach that looks like a
+     * completed request.
+     */
     public function erase(User $user): void
     {
-        DB::transaction(function () use ($user) {
+        StoreContext::acrossAllStores(fn () => DB::transaction(function () use ($user) {
             $customer = $user->customer;
 
             $this->scrubOrders($user, $customer?->id);
@@ -73,7 +81,7 @@ class GdprErasureService
                 'two_factor_secret' => null,
                 'two_factor_recovery_codes' => null,
             ])->save();
-        });
+        }));
     }
 
     private function scrubOrders(User $user, ?int $customerId): void
