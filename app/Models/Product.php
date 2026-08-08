@@ -47,6 +47,11 @@ class Product extends Model implements Orderable
         'suggested_price',
         'minimum_price',
         'is_featured',
+
+        // Fillable so the API write paths can stamp the creating admin's team.
+        // No validator accepts it from request input, so it cannot be set by a
+        // caller — see Api\Concerns\OwnsTeamResources.
+        'team_id',
     ];
 
     protected $casts = [
