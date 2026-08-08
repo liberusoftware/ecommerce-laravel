@@ -23,6 +23,7 @@ use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Http\Middleware\SetCacheHeaders;
 use Illuminate\Auth\Middleware\Authorize;
 use App\Http\Middleware\RedirectIfAuthenticated;
+use App\Http\Middleware\ResolveChannel;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use App\Http\Middleware\ValidateSignature;
@@ -63,12 +64,14 @@ class Kernel extends HttpKernel
             VerifyCsrfToken::class,
             SubstituteBindings::class,
             TeamsPermission::class,
+            ResolveChannel::class,
         ],
 
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             ThrottleRequests::class.':api',
             SubstituteBindings::class,
+            ResolveChannel::class,
         ],
     ];
 
