@@ -183,7 +183,15 @@ Three decisions collided:
 
 That initial-channel migration is not the fallback this wave rules out. A fallback answers for hosts nobody configured; this configures the host the deployment already answers on, which on a single-store deployment is the whole truth. It refuses to run if any store or channel already exists, so it can never claim hostnames from a deployment set up by hand.
 
-**2. Backfill `store_id` alone.** On a today-single-store deployment this is a constant, so it needs no rehearsal — which is exactly why it can be separated from wave 2 without breaking that wave's rehearse-once discipline.
+**2. Backfill `store_id` alone.** — ✅ **done**
+
+On a today-single-store deployment this is a constant, so it needs no rehearsal — which is exactly why it can be separated from wave 2 without breaking that wave's rehearse-once discipline.
+
+It was **derived from `team_id`** rather than written as a constant. The 16 tables that carry `team_id` gained a nullable `store_id`, filled from the row's own team; every team without a store got one first. On a single-team deployment the two approaches agree, and on a deployment that already has several teams the constant would have handed one merchant's rows to another. Rows with a null `team_id` keep a null `store_id` — they belong to nobody rather than to whoever sorts first.
+
+The stores created for the other teams have **no channel**, so no hostname resolves to them. A merchant whose storefront has not been configured is unreachable, rather than served from somebody else's domain.
+
+`teams`, `team_user`, `team_invitations` and `stores` are excluded: their `team_id` is the membership graph itself, Team-grained by definition.
 
 **3. Ship the tenant scope.** One global scope with two modes, rather than two scoping systems that must agree:
 
