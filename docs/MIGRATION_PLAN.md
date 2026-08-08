@@ -246,14 +246,11 @@ The tenant is read as Jetstream's `current_team_id` rather than through the Fila
 
 **Every store the team owns, not one of them.** A team may own several storefronts and the panel offers no store selector, so scoping to a single store would hide half a merchant's catalogue from them.
 
-Two cases the mode has to get right, and both are about *not* answering:
+**A team with no store leaves the scope inert.** Nothing to scope by is not the same as scoping to nothing, and the latter blanks the panel of a merchant onboarded before their storefront is configured.
 
-| Case | Behaviour |
-| --- | --- |
-| The team owns no store | The scope stays inert. Nothing to scope by is not the same as scoping to nothing — the latter blanks the panel of a merchant onboarded before their storefront is configured. |
-| The team owns several | A write is left unstamped. There is no answer, and the alternative is attributing the row to whichever store sorts first. |
+**Writes ask the team first, then fall back.** `forWrites()` prefers the single store the panel user's team owns — with several stores on the deployment it is the only thing that can answer — and drops through to the deployment-wide shortcut when their team owns none. That is not borrowing another merchant's store: **the shortcut only ever answers when the whole deployment has exactly one store**, a single-tenant install, where there is no other merchant to borrow from and the alternative is a row invisible to the one storefront there is. Add a second store and the shortcut goes quiet, so a team that owns several — or none — leaves the row unstamped rather than attributed to whichever sorts first.
 
-**The write path needed the same care, in the other direction.** `forWrites()` no longer falls through to the single-store shortcut once a panel team is known. On a deployment with exactly one store, a panel user whose team owns none would otherwise have had their rows stamped with a store their team does not own — a leak written rather than read, and the harder kind to notice, since nothing on the storefront looks wrong until a competitor's product appears in it.
+The first cut of this got it wrong in the cautious direction: it refused the fallback once a panel team was known, which left every row a store-less team created invisible on a single-store install. CI caught it as two API failures, which is the shape this class of mistake takes — the scope reads correctly and the data quietly stops arriving.
 
 **The surfaces are covered at the surface.** [#950](https://github.com/liberusoftware/ecommerce-laravel/issues/950) and [#952](https://github.com/liberusoftware/ecommerce-laravel/issues/952) name the anonymous GraphQL endpoint and the Blade storefront, not the models, and a scope nothing exercises through the reported surface is a scope the next refactor removes. `/api/graphql` is now driven the way a caller drives it — real `Host`, no token — across the listing, `search`, a known id, and the nested `collections { products }` read, which reaches `Product` through a pivot and so is the path a caller-side fix would have missed. A `collection_items` row pointing at another store's product is a mis-stamped row, not permission: the nested read returns nothing for it.
 
