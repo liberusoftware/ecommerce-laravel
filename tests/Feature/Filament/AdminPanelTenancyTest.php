@@ -85,7 +85,8 @@ class AdminPanelTenancyTest extends TestCase
             $response = $this->get($page::getUrl(tenant: $team));
 
             if ($response->getStatusCode() >= 300) {
-                $failures[] = class_basename($page).' -> '.$response->getStatusCode();
+                $failures[] = class_basename($page).' -> '.$response->getStatusCode()
+                    .($response->exception ? ' :: '.$response->exception::class.': '.$response->exception->getMessage() : '');
             }
         }
 
