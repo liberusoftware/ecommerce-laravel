@@ -73,10 +73,17 @@ A worker is required for normal operation, not just for throughput. Dropshipping
 php artisan queue:work --tries=3
 ```
 
-Two things worth knowing about the current queue configuration:
+One thing worth knowing about the current queue configuration:
 
-- **`after_commit` is `false` on all four connections** (`config/queue.php:42,51,62,71`), and `dispatchAfterCommit` is never used — while two checkout paths dispatch webhooks from inside open transactions. A job can therefore run against a transaction that has not committed yet.
-- **`SendWebhookDelivery` hand-rolls its own retry** (`:14`) and re-dispatches itself rather than failing. Its failures never reach `failed_jobs`, so they are invisible to Horizon and to `queue:failed`.
+**`SendWebhookDelivery` hand-rolls its own retry** (`:14`) and re-dispatches itself rather than throwing, so a failed delivery never reaches `failed_jobs` and `queue:failed` will not show it. That is deliberate — a failing receiver must not bubble an exception into the order transition that triggered it — and it does not make failures invisible, only differently placed: every attempt is written to `webhook_deliveries` with its status code and `success`, and `webhooks:retry-failed` re-queues any `(endpoint, order, event)` tuple that never succeeded inside a 24-hour window. **Watch that table, not `failed_jobs`.**
+
+### `after_commit` — corrected
+
+An earlier revision of this document claimed that `after_commit` being `false` on all four connections was a fault, because "two checkout paths dispatch webhooks from inside open transactions". **That is wrong**, and the correction matters because the claim would send someone hunting a race that does not exist.
+
+`false` is Laravel's shipped default, not a local choice. And no dispatch happens inside a transaction: both checkouts close their `DB::transaction` — which covers only order creation and stock reservation — before charging, and every `transitionTo` call in the codebase, which is what fires the outbound webhook, runs after that closure has returned. `queueDropship` is likewise called from outside it.
+
+The [`CONFORMANCE.md`](./CONFORMANCE.md) snapshot still carries the original claim, by design: it is dated and superseded rather than revised.
 
 ---
 
