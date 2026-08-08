@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -37,6 +38,33 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) {
                 $blueprint->foreignId('team_id')->nullable()->constrained()->cascadeOnDelete();
             });
+        }
+
+        $this->attributeExistingRows();
+    }
+
+    /**
+     * Existing rows go to the only team, when there is exactly one.
+     *
+     * That is not a default dressed up: on a single-team deployment there is no
+     * other merchant the rows could belong to, and the alternative is a panel
+     * that shows a merchant none of their own discounts or menus the morning
+     * after deploying. The same reasoning `StoreContext::forWrites()` uses for
+     * the only store, held to the same bound — add a second team and this goes
+     * quiet, leaving the rows unattributed for a human to place.
+     */
+    private function attributeExistingRows(): void
+    {
+        $teamIds = DB::table('teams')->orderBy('id')->limit(2)->pluck('id');
+
+        if ($teamIds->count() !== 1) {
+            return;
+        }
+
+        foreach (self::TABLES as $table) {
+            if (Schema::hasTable($table) && Schema::hasColumn($table, 'team_id')) {
+                DB::table($table)->whereNull('team_id')->update(['team_id' => $teamIds->first()]);
+            }
         }
     }
 

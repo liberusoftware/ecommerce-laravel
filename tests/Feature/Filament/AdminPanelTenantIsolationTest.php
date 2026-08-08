@@ -39,6 +39,8 @@ class AdminPanelTenantIsolationTest extends TestCase
         $this->discountFor($mine, 'MINE-ONLY');
         $this->discountFor($theirs, 'THEIRS-ONLY');
 
+        $this->enterAdminPanel($mine);
+
         $response = $this->get(DiscountResource::getUrl(tenant: $mine));
 
         $response->assertOk();
@@ -52,6 +54,8 @@ class AdminPanelTenantIsolationTest extends TestCase
 
         $this->menuFor($mine, 'mine-only-menu');
         $this->menuFor($theirs, 'theirs-only-menu');
+
+        $this->enterAdminPanel($mine);
 
         $response = $this->get(MenuResource::getUrl(tenant: $mine));
 
@@ -82,29 +86,41 @@ class AdminPanelTenantIsolationTest extends TestCase
     }
 
     /**
-     * Signs in as an owner of the first team and puts the admin panel in that
-     * tenant, then returns both teams.
+     * Two merchants and a signed-in owner of the first — and deliberately no
+     * Filament panel yet.
      *
-     * Authorization is allowed wholesale so this isolates the TENANCY wiring
-     * rather than the Shield permission layer — the same reasoning the sibling
-     * tenancy tests give.
+     * Entering the panel is what makes Filament register its own `creating`
+     * hook, which associates the *current tenant* with every new record of a
+     * tenant-scoped resource's model. Build the fixtures inside that and both
+     * merchants' rows are stamped with the same team, so the isolation
+     * assertion passes or fails on the fixture rather than on the scope. The
+     * first version of this test did exactly that and reported a leak that was
+     * its own doing.
      *
      * @return array{0: Team, 1: Team}
      */
     private function twoMerchants(): array
     {
+        // Authorization allowed wholesale so this isolates the TENANCY wiring
+        // rather than the Shield permission layer — the same reasoning the
+        // sibling tenancy tests give.
         Gate::before(fn () => true);
         Role::findOrCreate('super_admin', 'web');
 
         $user = User::factory()->withPersonalTeam()->create()->assignRole('super_admin');
-        $mine = $user->ownedTeams()->first();
-        $theirs = Team::factory()->create();
 
         $this->actingAs($user);
-        Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Filament::setTenant($mine);
 
-        return [$mine, $theirs];
+        return [$user->ownedTeams()->first(), Team::factory()->create()];
+    }
+
+    /**
+     * The panel has to be current before `getUrl()` can name a route on it.
+     */
+    private function enterAdminPanel(Team $team): void
+    {
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+        Filament::setTenant($team);
     }
 
     /**
