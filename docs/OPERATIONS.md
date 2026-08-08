@@ -97,10 +97,6 @@ The queue worker is not running, or the DropXL call is failing.
 3. If the key looks correct but resolves empty at runtime, run `php artisan config:clear` — the key is read through `config('services.stripe.secret')`, so a stale cached config serves the old value.
 4. Review the logs for API errors.
 
-### `/products/compare` returns a 500
-
-It will. `routes/web.php:188-191` registers four product-compare routes whose controller methods are all commented out at `Frontend/ProductController.php:222-259`. There is no configuration that fixes this; the routes need removing or the methods restoring.
-
 ### A configuration value is empty in production but fine locally
 
 Check for `env()` outside `config/`. Under `config:cache`, `env()` returns `null` everywhere except during config loading, so the symptom is an empty value in production and a correct one locally.
@@ -109,11 +105,16 @@ Check for `env()` outside `config/`. Under `config:cache`, `env()` returns `null
 
 ### A widget or resource does not appear
 
-Three known causes, all wiring rather than permissions:
+One known cause remains, and it is wiring rather than permissions.
 
-- `app/Filament/Resources/` (149 lines) is discovered by **neither** panel — both discover only `Filament/Admin/Resources` and `Filament/App/Resources`.
-- `App/Widgets/SocialLinksWidget.php` never loads: `AppPanelProvider.php:89` points at a directory that does not exist.
-- `MenuResource` is registered **twice** inside one panel.
+`app/Filament/Resources/CustomerSegmentResource` is discovered by **neither** panel — both discover only `Filament/Admin/Resources` and `Filament/App/Resources`, and this sits directly under `Filament/Resources`.
+
+**Moving it is not the fix.** Both panels are tenant-scoped on `Team`, and `customer_segments` carries no `team_id` — so relocating the resource reproduces [#958](https://github.com/liberusoftware/ecommerce-laravel/issues/958) exactly, on a third table. It lands after the tenant scope does, in [wave 1.5](./MIGRATION_PLAN.md#wave-15--stores-channels-and-the-tenant-scope).
+
+Two entries previously listed here have been resolved:
+
+- **`SocialLinksWidget`** — deleted. `AppPanelProvider` pointed `discoverWidgets` at `Filament/App/Widgets/Home`, a directory that has never existed, so the widget never loaded; it also rendered a view that was never written and fell back to links belonging to a different Liberu product. Discovery now points at `Filament/App/Widgets`, so a widget placed there loads.
+- **`MenuResource` registered twice** — not a defect. `FilamentMenuBuilderPlugin::register()` calls `$panel->resources([...])` with the same class that `discoverResources` finds, but `Panel::getResources()` returns `array_unique($this->resources)`, so the duplicate is dropped before anything reads it.
 
 ---
 

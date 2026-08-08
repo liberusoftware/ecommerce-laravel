@@ -75,7 +75,28 @@ The small faults that needed nobody's permission. Landed ahead of the rest of wa
 
 `DropxlServiceTest` was updated in the same change: its `setUp` sets config rather than calling `putenv`, which is both the path the service now reads and the one that survives `config:cache`.
 
-**Not done, and not a quick win:** the four product-compare routes at `routes/web.php:188-191`, whose controller methods are commented out. Deleting them removes a feature someone intended; restoring them needs a real fix, because the routes pass `{category}/{product}` while the commented methods take a single `$id` — restored as written, they would compare categories. That is a product decision, not a cleanup.
+### Product comparison — deleted, with the reasoning
+
+Held back from the first pass as a product decision: four registered routes that were guaranteed 500s, because their controller methods sat commented out. Deleting looked like removing a feature someone intended.
+
+Reading the rest of it settled the question. **Nothing was salvageable**, and nothing was reachable:
+
+- The route signatures pass `{category}/{product}`; the commented methods take a single `$id`. Restored as written, they would have compared categories.
+- `compare.blade.php`'s empty state — the state the page is in until something adds to it — links `route('products.list')`. **No route of that name exists**, so the page raised `RouteNotFoundException` before rendering.
+- Its populated state prints `$product->category`, a `belongsTo` relation, and reads `$product->image_url`, which is neither a column nor an accessor.
+- **No view anywhere linked to it.** There is no add-to-compare control in the storefront, so the only way to reach any of it was to type the URL.
+
+So the feature did not exist: it was a broken view, four routes to methods that were not there, and no entry point. Restoring it means writing it, which is a product decision that can be taken later against a clean slate. Deleted: the four routes, `resources/views/products/compare.blade.php`, and the commented-out block at the foot of `Frontend/ProductController.php` — which also carried dead `create`/`update`/`delete` methods superseded by Filament.
+
+### Two Filament wiring faults
+
+Both from [`OPERATIONS.md`](./OPERATIONS.md#a-widget-or-resource-does-not-appear).
+
+`AppPanelProvider` discovered widgets in `Filament/App/Widgets/Home`, a directory that has never existed, so `SocialLinksWidget` never loaded. The widget also rendered a view that was never written, and fell back to hardcoded links for a different Liberu product. Deleted; discovery now points at `Filament/App/Widgets`.
+
+`MenuResource` being "registered twice" — recorded in the conformance snapshot — **is not a defect**. The plugin registers the same class that discovery finds, and `Panel::getResources()` returns `array_unique($this->resources)`.
+
+`app/Filament/Resources/CustomerSegmentResource` stays where it is for now. It is discovered by neither panel, but both panels are tenant-scoped and `customer_segments` has no `team_id`, so moving it reproduces [#958](https://github.com/liberusoftware/ecommerce-laravel/issues/958) on a third table. It follows the tenant scope in wave 1.5.
 
 ### Not gated on wave 0
 

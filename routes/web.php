@@ -184,12 +184,6 @@ Route::middleware('auth')->group(function () {
 Route::get('/product/{product}/ratings/average', [RatingController::class, 'calculateAverageRating'])->name('ratings.average');
 Route::post('/ratings', [RatingController::class, 'store'])->middleware('auth')->name('ratings.store');
 
-// New comparison routes
-Route::post('/product/{category}/{product}/compare', [ProductController::class, 'addToCompare'])->name('products.addToCompare');
-Route::get('/products/compare', [ProductController::class, 'compare'])->name('products.compare');
-Route::delete('/product/{category}/{product}/compare', [ProductController::class, 'removeFromCompare'])->name('products.removeFromCompare');
-Route::delete('/products/compare/clear', [ProductController::class, 'clearCompare'])->name('products.clearCompare');
-
 Route::middleware('auth')->group(function () {
     Route::get('/download/{product}', [DownloadController::class, 'generateSecureLink'])->name('download.generate-link');
     Route::get('/download/file/{product}', [DownloadController::class, 'serveFile'])->name('download.serve-file');
