@@ -64,13 +64,16 @@ npm install && npm run build
 php artisan serve
 ```
 
-### ⚠ Do not run `db:seed` against a production database
+### ⚠ Seeding twice duplicates data
 
-`DatabaseSeeder` runs `DummyDataSeeder` inside its baseline chain, so seeding creates sample products. Ten of the thirteen writing seeders are also non-idempotent — running them twice duplicates data rather than reconciling it.
+Ten of the thirteen writing seeders are non-idempotent — running them twice duplicates rows rather than reconciling them. Seed once, on a fresh database.
 
-`UserSeeder` additionally prints the generated admin password to stdout. On a shared or logged terminal, treat that password as compromised and rotate it.
+Two related faults have been fixed and are worth knowing about if you are on an older checkout:
 
-Both are recorded as findings in [`CONFORMANCE.md` §3.2–3.3](./CONFORMANCE.md#32-high) and fixed in wave 0 of the [migration plan](./MIGRATION_PLAN.md#wave-0--make-a-module-loadable-and-make-the-rules-enforceable).
+- **`DummyDataSeeder` used to sit in the baseline chain**, so `db:seed --force` created sample products in production. It now runs only outside production.
+- **`UserSeeder` used to print the generated admin password to stdout** unconditionally, and CI runs `db:seed --force` on every push. It now prints only under `APP_ENV=local`. **If you seeded a production or CI database before this change, treat that password as compromised and rotate it.**
+
+Recorded in [`CONFORMANCE.md` §3.2–3.3](./CONFORMANCE.md#32-high), which is a snapshot and still describes the pre-fix state by design.
 
 ---
 
@@ -94,7 +97,7 @@ Laravel Sail also works for local development: `./vendor/bin/sail up -d`.
 2. Test with Stripe's test cards. `4242 4242 4242 4242`, any future expiry, any CVC, any postcode.
 3. For webhooks, install the [Stripe CLI](https://stripe.com/docs/stripe-cli), set `STRIPE_WEBHOOK_SECRET`, and forward events to `/stripe/webhook`.
 
-**Set the keys in `.env`, not in a cached config path you then change.** `SubscriptionController.php:21` reads its key through `env()` inside the constructor, which under `config:cache` resolves to `null` rather than the configured value.
+Keys are read through `config('services.stripe.*')`, so run `php artisan config:clear` after changing `.env` on a host with a cached config.
 
 ---
 
@@ -110,7 +113,7 @@ For local testing, point `DROPXL_API_URL` at a mock endpoint returning:
 { "success": true, "data": { "id": "dropxl-123", "reference": "DLX-123" } }
 ```
 
-`DropxlService.php:23` reads its API key via `env()` in the constructor, with the same `config:cache` caveat as Stripe above.
+The API URL and key are read through `config('services.dropxl.url')` and `config('services.dropxl.key')`, both fed from `DROPXL_API_URL` and `DROPXL_API_KEY`.
 
 ---
 

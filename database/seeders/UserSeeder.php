@@ -32,7 +32,11 @@ class UserSeeder extends Seeder
         $role = Role::where('name', 'super_admin')->firstOrFail();
         $adminUser->assignRole($role);
 
-        // Print passwords to console
-        $this->command->info("Admin password: {$adminPassword}");
+        // Only ever printed on a developer's own machine. `install.yml` runs
+        // `db:seed --force`, so printing unconditionally put a working admin
+        // password into a CI log on every push.
+        if (app()->environment('local')) {
+            $this->command->info("Admin password: {$adminPassword}");
+        }
     }
 }
