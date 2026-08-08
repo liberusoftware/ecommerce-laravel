@@ -2,6 +2,37 @@
 
 namespace Tests\Feature;
 
+use App\Models\ABTest;
+use App\Models\ABTestAssignment;
+use App\Models\AbandonedCart;
+use App\Models\AnalyticsEvent;
+use App\Models\CartRecoveryAttempt;
+use App\Models\CartRecoveryCampaign;
+use App\Models\CustomerGroup;
+use App\Models\CustomerMetric;
+use App\Models\CustomerSegment;
+use App\Models\Discount;
+use App\Models\GiftCard;
+use App\Models\GiftCardTransaction;
+use App\Models\GiftRegistry;
+use App\Models\GiftRegistryItem;
+use App\Models\GiftRegistryPurchase;
+use App\Models\InventoryAdjustment;
+use App\Models\InventoryItem;
+use App\Models\InventoryLevel;
+use App\Models\InventoryLocation;
+use App\Models\Menu;
+use App\Models\MenuItem;
+use App\Models\ProductInteraction;
+use App\Models\ProductOption;
+use App\Models\ProductPerformance;
+use App\Models\ProductRecommendation;
+use App\Models\ProductTaxonomyValue;
+use App\Models\ProductVariant;
+use App\Models\RecommendationRule;
+use App\Models\SeoSetting;
+use App\Models\TaxonomyAttribute;
+use App\Models\TaxonomyCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -39,37 +70,37 @@ class TenantModelSchemaTest extends TestCase
      * @var list<class-string<Model>>
      */
     private const MISSING_TEAM_ID = [
-        \App\Models\ABTest::class,
-        \App\Models\ABTestAssignment::class,
-        \App\Models\AbandonedCart::class,
-        \App\Models\AnalyticsEvent::class,
-        \App\Models\CartRecoveryAttempt::class,
-        \App\Models\CartRecoveryCampaign::class,
-        \App\Models\CustomerGroup::class,
-        \App\Models\CustomerMetric::class,
-        \App\Models\CustomerSegment::class,
-        \App\Models\Discount::class,
-        \App\Models\GiftCard::class,
-        \App\Models\GiftCardTransaction::class,
-        \App\Models\GiftRegistry::class,
-        \App\Models\GiftRegistryItem::class,
-        \App\Models\GiftRegistryPurchase::class,
-        \App\Models\InventoryAdjustment::class,
-        \App\Models\InventoryItem::class,
-        \App\Models\InventoryLevel::class,
-        \App\Models\InventoryLocation::class,
-        \App\Models\Menu::class,
-        \App\Models\MenuItem::class,
-        \App\Models\ProductInteraction::class,
-        \App\Models\ProductOption::class,
-        \App\Models\ProductPerformance::class,
-        \App\Models\ProductRecommendation::class,
-        \App\Models\ProductTaxonomyValue::class,
-        \App\Models\ProductVariant::class,
-        \App\Models\RecommendationRule::class,
-        \App\Models\SeoSetting::class,
-        \App\Models\TaxonomyAttribute::class,
-        \App\Models\TaxonomyCategory::class,
+        ABTest::class,
+        ABTestAssignment::class,
+        AbandonedCart::class,
+        AnalyticsEvent::class,
+        CartRecoveryAttempt::class,
+        CartRecoveryCampaign::class,
+        CustomerGroup::class,
+        CustomerMetric::class,
+        CustomerSegment::class,
+        Discount::class,
+        GiftCard::class,
+        GiftCardTransaction::class,
+        GiftRegistry::class,
+        GiftRegistryItem::class,
+        GiftRegistryPurchase::class,
+        InventoryAdjustment::class,
+        InventoryItem::class,
+        InventoryLevel::class,
+        InventoryLocation::class,
+        Menu::class,
+        MenuItem::class,
+        ProductInteraction::class,
+        ProductOption::class,
+        ProductPerformance::class,
+        ProductRecommendation::class,
+        ProductTaxonomyValue::class,
+        ProductVariant::class,
+        RecommendationRule::class,
+        SeoSetting::class,
+        TaxonomyAttribute::class,
+        TaxonomyCategory::class,
     ];
 
     public function test_tenant_models_have_a_team_id_column(): void
