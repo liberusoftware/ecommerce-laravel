@@ -1,5 +1,7 @@
 # Chat System Quick Reference Guide
 
+> **Held as named debt.** The live-chat feature belongs to the **CRM** product (`chat-and-bots`), which is documentation-only — no repository exists. This code stays in the host until it does; see [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943) and [`CONFORMANCE.md` §4.2](./CONFORMANCE.md#42-the-98-unmappable-files-were-an-artifact).
+
 ## For Developers
 
 ### Quick Start
@@ -378,8 +380,8 @@ php artisan migrate:status
 ### Getting Help
 
 - Check `docs/CHAT_SYSTEM.md` for detailed documentation
-- See `docs/ARCHITECTURE_DIAGRAM.md` for system overview
-- Review `docs/IMPLEMENTATION_SUMMARY.md` for technical details
+- See `docs/CHAT_ARCHITECTURE_DIAGRAM.md` for system overview
+- Review `docs/CHAT_IMPLEMENTATION_SUMMARY.md` for technical details
 - Look at existing code in `app/Services/ChatService.php` for examples
 
 ### Contributing

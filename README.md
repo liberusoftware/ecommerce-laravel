@@ -81,21 +81,9 @@ Powered by **Filament 5**, the admin panel provides resources for managing:
 
 ---
 
-## Installation
+## Requirements and quick start
 
-### Requirements
-
-- PHP 8.5+
-- Composer
-- Node.js 20+
-- A database: MySQL, MariaDB or PostgreSQL
-- Docker (optional)
-
-### Option 1 — Automated script (recommended)
-
-The repository ships with an interactive setup script that guides you through environment configuration, dependency installation, database migration and seeding in one step.
-
-**Command line:**
+PHP 8.5+ · Composer · Node.js 20+ · MySQL, MariaDB or PostgreSQL · Docker (optional)
 
 ```bash
 git clone https://github.com/liberu-ecommerce/ecommerce-laravel.git
@@ -104,89 +92,21 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-The script will prompt you to copy `.env.example` to `.env`, confirm your database credentials, run `composer install`, generate the application key, run migrations and seed the database, and optionally start the development server — all interactively.
-
-**Graphical installer:**
-
-If a graphical installer package is available for your platform, it can be downloaded from the [Releases](https://github.com/liberu-ecommerce/ecommerce-laravel/releases) page. Run it and follow the on-screen prompts to configure and install the application without using the terminal.
-
-### Option 2 — Manual step-by-step
-
-```bash
-git clone https://github.com/liberu-ecommerce/ecommerce-laravel.git
-cd ecommerce-laravel
-composer install
-cp .env.example .env
-php artisan key:generate
-```
-
-Configure `.env` — update database credentials and add your payment/dropshipping keys:
-
-```env
-DB_DATABASE=your_database
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-
-STRIPE_KEY=pk_test_xxx
-STRIPE_SECRET=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-
-DROPXL_API_KEY=Bearer xxx
-DROPXL_API_URL=https://api.dropxl.com
-```
-
-Run migrations and seed:
-
-```bash
-php artisan migrate --seed
-npm install && npm run build
-```
-
-Start the development server:
-
-```bash
-php artisan serve
-# or with Docker / Sail:
-# ./vendor/bin/sail up -d
-```
-
-### Option 3 — Docker
-
-```bash
-git clone https://github.com/liberu-ecommerce/ecommerce-laravel.git
-cd ecommerce-laravel
-cp .env.example .env          # update DB_ and app values
-docker-compose up -d
-docker-compose exec app php artisan migrate --seed
-```
+`setup.sh` is interactive: it copies `.env.example`, confirms database credentials, installs dependencies, generates the key, migrates and seeds. Manual and Docker installs, Stripe configuration and the DropXL setup are in [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
 
 ---
 
-## Stripe Setup and Testing
+## Documentation
 
-1. Add Stripe keys to `.env` (see above).
-2. Use Stripe test cards in checkout:
-   - Card number: `4242 4242 4242 4242` — any future expiry, any CVC, any ZIP.
-3. For webhooks, install the [Stripe CLI](https://stripe.com/docs/stripe-cli), set `STRIPE_WEBHOOK_SECRET` and forward events to `/stripe/webhook`.
-
----
-
-## Dropshipping (DropXL)
-
-DropXL integration is configurable via `config/dropshipping.php`. On checkout, select "Ship directly to recipient (Drop shipping)" to route the order through DropXL. Supplier order placement is queued after a successful payment; `orders` will include `supplier_id` and `supplier_reference`.
-
-For local testing, point `DROPXL_API_URL` to a mock endpoint returning:
-
-```json
-{ "success": true, "data": { "id": "dropxl-123", "reference": "DLX-123" } }
-```
-
----
-
-## Troubleshooting
-
-- **Orders stuck at `supplier_queued`** — verify the queue worker is running (`php artisan queue:work --tries=3`) and check `storage/logs/laravel.log`.
-- **Stripe charges fail** — validate `STRIPE_SECRET` in `.env`, confirm the publishable key is present in `config/services.php`, and review the logs for API errors.
+| Document | Covers |
+| --- | --- |
+| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Manual and Docker installs, Stripe, DropXL |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Console commands, the admin panels, queues, troubleshooting |
+| [`docs/MODULE_DEVELOPMENT.md`](docs/MODULE_DEVELOPMENT.md) | Building, testing, promoting and releasing a module |
+| [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) | Where this repository stands against the Liberu standards |
+| [`docs/MIGRATION_PLAN.md`](docs/MIGRATION_PLAN.md) | The ordered plan from here to the modular target |
+| [`docs/adr/`](docs/adr/) | Architecture decision records |
+| [`CONTEXT.md`](CONTEXT.md) | Domain glossary — merchant, team, store, channel, tenant |
 
 ---
 
@@ -246,64 +166,3 @@ The MIT licence is one of the most permissive open-source licences available. In
 - ℹ️ **No warranty** — the software is provided "as is"; the authors accept no liability for damages arising from its use.
 
 Choosing MIT means you can adopt Liberu Ecommerce as the foundation for a commercial product without legal concerns, while still benefiting from community improvements and contributions.
-
----
-
-## Advanced Features (Latest from Shopify & Magento 2)
-
-This platform now includes enterprise-grade features inspired by the latest Shopify and Magento 2 (Adobe Commerce) releases:
-
-### Customer Intelligence
-- **Customer Segmentation** - Target customers based on behavior, LTV, and purchase history with rule-based conditions
-- **Customer Analytics & LTV** - Track lifetime value, retention scores, and predictive analytics
-- **Customer Metrics Dashboard** - Comprehensive customer behavior tracking and analysis
-
-### AI-Powered Personalization
-- **Product Recommendations** - Collaborative filtering, personalized, trending, and "also bought" suggestions
-- **Product Interaction Tracking** - Track views, cart adds, purchases for better insights
-- **Recommendation Engine** - Multiple recommendation types with scoring algorithms
-
-### Product Management
-- **Product Taxonomy** - Hierarchical categorization with custom attributes for better organization
-- **Product Performance Analytics** - Track views, conversions, and return rates per product
-- **Multi-location Inventory** - Advanced inventory management across multiple locations
-
-### Marketing & Conversion
-- **A/B Testing Framework** - Built-in testing with variant assignment and conversion tracking
-- **Abandoned Cart Recovery** - Automated campaigns with email/SMS triggers and discount codes
-- **Conversion Funnel Analytics** - Track customer journey and optimize conversion paths
-
-### Customer Experience
-- **Gift Registry** - Complete registry system for weddings, baby showers, and other events
-- **Loyalty & Rewards Program** - Points, tiers, and reward redemptions (from WooCommerce features)
-- **B2B Wholesale Pricing** - Tiered pricing, quote requests, and wholesale groups (from WooCommerce features)
-
-### Operations
-- **Product Bundles** - Create product kits with special pricing (from WooCommerce features)
-- **Refund & Return Management** - Full RMA system with inventory restocking (from WooCommerce features)
-- **Multi-currency Support** - Currency management with exchange rates (from WooCommerce features)
-- **Tax Management** - Location-based tax calculation (from WooCommerce features)
-
-📚 **Detailed Documentation**: See [SHOPIFY_MAGENTO_FEATURES.md](docs/SHOPIFY_MAGENTO_FEATURES.md) and [WOOCOMMERCE_FEATURES.md](docs/WOOCOMMERCE_FEATURES.md) for complete feature guides.
-
-### Console Commands
-
-```bash
-# Calculate customer segments
-php artisan segments:calculate
-
-# Generate product recommendations
-php artisan recommendations:generate
-
-# Update customer metrics (LTV, retention, etc.)
-php artisan metrics:update-customers
-```
-
-### Admin Panel
-
-Filament admin resources are available for managing:
-- Customer Segments (/admin/customer-segments)
-- Gift Registries
-- A/B Tests
-- Cart Recovery Campaigns
-- And all other features...
