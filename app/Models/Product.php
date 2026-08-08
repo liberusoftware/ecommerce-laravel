@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Interfaces\Orderable;
 use App\Notifications\ProductBackInStockNotification;
 use App\Services\TaxCalculator;
+use App\Traits\IsStoreScoped;
 use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ use Illuminate\Support\Str;
 class Product extends Model implements Orderable
 {
     use HasFactory;
+    use IsStoreScoped;
     use IsTenantModel;
     use SoftDeletes;
 

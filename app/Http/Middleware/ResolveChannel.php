@@ -12,12 +12,15 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Carries the resolved channel on the request, for the storefront and the API.
  *
- * It does not yet refuse an unresolved host. That rule — an unresolved host is
- * a 404, with no default-merchant fallback — belongs with the tenant scope it
- * protects: 404ing before there is a scope guards nothing, and would take the
- * storefront down in every environment whose hostname is not configured yet.
- * The order is deliberate, and it is the same one wave 2 uses: get the data in
- * place first, then turn on the control that reads it.
+ * An unresolved host is a 404, with no default-merchant fallback. That rule is
+ * half of the control: the scope narrows a resolved host to its own store, and
+ * this refuses a host that resolves to none — otherwise an unconfigured
+ * hostname is an unscoped one, which is the leak with extra steps.
+ *
+ * Single-merchant deployments and local development configure their one
+ * channel's domain, `localhost` included; the initial-channel migration does it
+ * for them. *A configured fallback is exactly how `default(1)` produced the mess
+ * wave 2 is unpicking.*
  *
  * Panels are not in this stack. They resolve a Team through Filament tenancy and
  * list their own middleware rather than using the `web` group.
@@ -28,10 +31,17 @@ class ResolveChannel
 
     public function handle(Request $request, Closure $next): Response
     {
-        $request->attributes->set(
-            ChannelResolver::ATTRIBUTE,
-            $this->resolve($request->getHost()),
-        );
+        $channel = $this->resolve($request->getHost());
+
+        $request->attributes->set(ChannelResolver::ATTRIBUTE, $channel);
+
+        // The one exemption. `/health` is a Kubernetes liveness and readiness
+        // probe, and probes arrive on the pod's own address rather than on any
+        // configured hostname. 404ing it would restart healthy pods, and it
+        // reads no tenant data — it reports whether the database answers.
+        if ($channel === null && ! $request->is('health')) {
+            abort(404);
+        }
 
         return $next($request);
     }
