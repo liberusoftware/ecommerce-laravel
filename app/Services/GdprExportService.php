@@ -29,7 +29,20 @@ use App\Models\User;
  */
 class GdprExportService
 {
+    /**
+     * The export spans every store, whatever host the request arrived on.
+     *
+     * Subject access is about a person, not about a storefront. Scoped to the
+     * host the request happened to land on, this would return one merchant's
+     * slice and present it as the whole record — a wrong answer rather than a
+     * partial one.
+     */
     public function export(User $user): array
+    {
+        return StoreContext::acrossAllStores(fn () => $this->everything($user));
+    }
+
+    private function everything(User $user): array
     {
         $customer = $user->customer;
 
