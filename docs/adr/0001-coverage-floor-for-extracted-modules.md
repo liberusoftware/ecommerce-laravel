@@ -12,4 +12,4 @@ Setting the floor from each module's measured coverage at extraction time was re
 
 ## Consequences
 
-A module can be released while below the standard's bar, so the coverage badge on an extracted module means less than the same badge on a greenfield one. The floor is a floor: it never moves down, and an upstream issue against §24 records the divergence rather than hiding it.
+A module can be released while below the standard's bar, so the coverage badge on an extracted module means less than the same badge on a greenfield one. The floor is a floor: it never moves down, and [an upstream issue against §24](https://github.com/liberusoftware/documentation/issues/22) records the divergence rather than hiding it.

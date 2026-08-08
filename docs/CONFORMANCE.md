@@ -425,53 +425,59 @@ Not deviations, but decisions that give something up. Each is here so nobody red
 
 ## 8. Upstream gaps
 
-Every deviation above is also a disagreement with something upstream, and disagreements that live only in this repository's ADRs become this repository's permanent problem. Eighteen issues across four repositories, plus one per foundation package for the missing view layer.
+Every deviation above is also a disagreement with something upstream, and disagreements that live only in this repository's ADRs become this repository's permanent problem.
+
+**All of these are filed.** Twenty-three issues across nine repositories, as of 2026-08-08, tracked from here as [#961](https://github.com/liberusoftware/ecommerce-laravel/issues/961).
 
 ### 8.1 `liberusoftware/documentation`
 
-| Gap |
-| --- |
-| **§9's `module-` prefix on presentation adapters contradicts all 40 published packages.** `module-blog-filament` the repository publishes `liberusoftware/blog-filament`. → ADR 0004 |
-| **`CI.md` §Release policy's `v1.2.3` example contradicts the fleet's workflow triggers**, which are `['[0-9]+.[0-9]+.[0-9]+']`. → ADR 0005 |
-| **`THEMES.md` §3.2 forbids gitignoring `/themes`** and names an ADR + migration plan as the only instrument for changing it. → ADR 0010 |
-| **`MODULES.md` §30's definition of done is circular** — one bullet requires the repository whose creation it is gating |
-| **`MODULES.md` §24's `--min=100` is unreachable for code extracted from an untested host.** → ADR 0001 |
-| **`ECOMMERCE.md` names six modules "Commerce …" inside the Ecommerce product**, producing `module-ecommerce-commerce-core` stutter repositories |
-| **`BOILERPLATE.md` is physically triplicated** — the full `## Canonical Application Foundation Scope … ## 20` run appears three times (lines 3–329, 330–656, 657–982) under one H1 |
-| **`THEMES.md` §5's module-default-view step is unexercised fleet-wide.** `theme-default`'s views directory holds one `.gitkeep`, and no foundation module has a `resources/views` at all |
+| Issue | Gap |
+| --- | --- |
+| [#18](https://github.com/liberusoftware/documentation/issues/18) | **§9's `module-` prefix on presentation adapters contradicts all 40 published packages.** `module-blog-filament` the repository publishes `liberusoftware/blog-filament`. → ADR 0004 |
+| [#19](https://github.com/liberusoftware/documentation/issues/19) | **`CI.md` §Release policy's `v1.2.3` example contradicts the fleet's workflow triggers**, which are `['[0-9]+.[0-9]+.[0-9]+']`. → ADR 0005 |
+| [#20](https://github.com/liberusoftware/documentation/issues/20) | **`THEMES.md` §3.2 forbids gitignoring `/themes`** and names an ADR + migration plan as the only instrument for changing it. → ADR 0010 |
+| [#21](https://github.com/liberusoftware/documentation/issues/21) | **`MODULES.md` §30's definition of done is circular** — one bullet requires the repository whose creation it is gating |
+| [#22](https://github.com/liberusoftware/documentation/issues/22) | **`MODULES.md` §24's `--min=100` is unreachable for code extracted from an untested host.** → ADR 0001 |
+| [#23](https://github.com/liberusoftware/documentation/issues/23) | **`ECOMMERCE.md` names six modules "Commerce …" inside the Ecommerce product**, producing `module-ecommerce-commerce-core` stutter repositories |
+| [#24](https://github.com/liberusoftware/documentation/issues/24) | **`BOILERPLATE.md` is physically triplicated** — the full `## Canonical Application Foundation Scope … ## 20` run appears three times (lines 3–329, 330–656, 657–982) under one H1 |
+| [#25](https://github.com/liberusoftware/documentation/issues/25) | **`THEMES.md` §5's module-default-view step is unexercised fleet-wide.** `theme-default`'s views directory holds one `.gitkeep`, and no foundation module has a `resources/views` at all |
 
 ### 8.2 `liberusoftware/.github`
 
-| Gap |
-| --- |
-| `package-tests.yml` to invoke Composer scripts rather than binaries, and upload to Codecov |
-| Tagged releases, so callers can pin instead of `@main` |
-| `package-compatibility.yml` to gain the declared min/current PHP × Laravel matrix |
-| A fourth reusable workflow for themes' `visual.yml` (`THEMES.md` §18.1). **No theme in the fleet has one** |
+| Issue | Gap |
+| --- | --- |
+| [#6](https://github.com/liberusoftware/.github/issues/6) | `package-tests.yml` to invoke Composer scripts rather than binaries, and upload to Codecov |
+| [#7](https://github.com/liberusoftware/.github/issues/7) | Tagged releases, so callers can pin instead of `@main` |
+| [#8](https://github.com/liberusoftware/.github/issues/8) | `package-compatibility.yml` to gain the declared min/current PHP × Laravel matrix |
+| [#9](https://github.com/liberusoftware/.github/issues/9) | A fourth reusable workflow for themes' `visual.yml` (`THEMES.md` §18.1). **No theme in the fleet has one** |
 
 ### 8.3 `liberusoftware/boilerplate-scripts`
 
-| Gap |
-| --- |
-| The nightly dependency-graph check command — whole-graph acyclicity in the host is a *lagging* detector, so a nightly `fleet`-driven `composer.json` check runs ahead of it and **files an issue rather than only reddening a cron** |
-| The `fleet promote` command — the eight-step operation in [`MODULE_DEVELOPMENT.md` §6.2](./MODULE_DEVELOPMENT.md#62-what-promotion-does) |
-| **`bin` is wrong.** `publish-components` was deleted in `a7461a4` but is still declared; `fleet`, `measure-coverage` and `set-coverage-thresholds` are undeclared |
+| Issue | Gap |
+| --- | --- |
+| [#1](https://github.com/liberusoftware/boilerplate-scripts/issues/1) | The nightly dependency-graph check — whole-graph acyclicity in the host is a *lagging* detector, so a nightly `fleet`-driven `composer.json` check runs ahead of it and **files an issue rather than only reddening a cron** |
+| [#2](https://github.com/liberusoftware/boilerplate-scripts/issues/2) | The `fleet promote` command — the eight-step operation in [`MODULE_DEVELOPMENT.md` §6.2](./MODULE_DEVELOPMENT.md#62-what-promotion-does) |
+| [#3](https://github.com/liberusoftware/boilerplate-scripts/issues/3) | **`bin` is wrong.** `publish-components` was deleted in `a7461a4` but is still declared; `fleet`, `measure-coverage` and `set-coverage-thresholds` are undeclared |
+| [#4](https://github.com/liberusoftware/boilerplate-scripts/issues/4) | **The repository generator.** ~1,930 provisioned stubs across seven products carry: a `tests.yml` badge with no `.github/` directory, a `Latest release` badge against repositories with no releases, four unqualified claims per README about a repository containing one Markdown file, and a `composer require` line that is the repository slug — provably a paste, since `module-crm-crm-core`'s README reads `# Crm: Crm Core Core Module`. §6.3 and §7 forbid all four |
 
 Both command contributions are **timeboxed with a host-script fallback**. A third party does not get a veto over this schedule.
 
 ### 8.4 `liberusoftware/boilerplate-laravel`
 
-| Gap |
-| --- |
-| Confirm the committed `modules/` tree — **726 tracked files**, while the same code is also installed from VCS — is monorepo residue rather than intended vendoring. Its `release.yml` guards the duplication with `git diff --exit-code --stat -- modules themes`, a check that exists only because the duplication does |
+| Issue | Gap |
+| --- | --- |
+| [#653](https://github.com/liberusoftware/boilerplate-laravel/issues/653) | Confirm the committed `modules/` tree — **726 tracked files**, while the same code is also installed from VCS — is monorepo residue rather than intended vendoring. Its `release.yml` guards the duplication with `git diff --exit-code --stat -- modules themes`, a check that exists only because the duplication does |
 
-### 8.5 The fleet
+### 8.5 Per-package
 
-| Gap |
-| --- |
-| **`v`-prefixed tags bypassed `install.yml` and `compatibility.yml`.** `module-analytics-core`'s `v1.0.4` published having silently skipped both release gates |
-| **The repository generator.** ~1,930 provisioned stubs across seven products carry: a `tests.yml` badge with no `.github/` directory, a `Latest release` badge against repositories with no releases, four unqualified claims per README about a repository containing one Markdown file, and a `composer require` line that is the repository slug — provably a paste, since `module-crm-crm-core`'s README reads `# Crm: Crm Core Core Module`. §6.3 and §7 forbid all four |
-| **One issue per foundation package for the missing view layer** — the §5 chain cannot resolve a module default view for a package that ships none |
+| Issue | Gap |
+| --- | --- |
+| [`module-analytics-core` #1](https://github.com/liberusoftware/module-analytics-core/issues/1) | **`v1.0.4` published having skipped `install.yml` and `compatibility.yml`**, because the workflows trigger on bare tags only |
+| [`module-application` #1](https://github.com/liberusoftware/module-application/issues/1) | **No CSP shipped**, so adoption drops this repository's 9-directive `Content-Security-Policy-Report-Only`. → ADR 0002 |
+| [`module-identity-core` #2](https://github.com/liberusoftware/module-identity-core/issues/2) | **No `Password::defaults()` policy**, so adoption drops `min(12)` + mixed case + numbers + symbols + the production HIBP check. → ADR 0003 |
+| [`module-identity-core` #1](https://github.com/liberusoftware/module-identity-core/issues/1) · [`module-profiles` #1](https://github.com/liberusoftware/module-profiles/issues/1) · [`module-organizations-teams` #1](https://github.com/liberusoftware/module-organizations-teams/issues/1) | **Ships no views**, so `THEMES.md` §5's module-default-view step cannot resolve. This is why the host keeps 21 auth, profile and teams views indefinitely |
+
+**One upstream item is not filed**: the team resolver `organizations-teams` needs for [ADR 0006](./adr/0006-late-bound-host-model-resolution.md). It is a contribution rather than a defect report, and it lands with wave 1.
 
 ### 8.6 One number that frames all of it
 
