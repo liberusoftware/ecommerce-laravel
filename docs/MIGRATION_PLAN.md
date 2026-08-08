@@ -221,7 +221,13 @@ Panels keep `->tenant(Team::class, …)`. Switching them to `Store` tenancy woul
 
 `store_id` is not fillable on any scoped model. The trait's `creating` hook is its only writer, so no request can post its way into another store.
 
-**The rest of the models follow.** Reviews, carts, invoices and the other ten tables carry `store_id` already; each needs its own read paths checked the same way. The panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
+**Then the checkout path — coupons and carts.** A coupon is a merchant's money, and the lookup was by code alone against a table every merchant shares, so a code issued by one merchant discounted baskets at another. A cart is the same defect, quieter: items added on one storefront appearing on another means a shopper checks out a competitor's basket.
+
+`exists:products,id` in the cart's request rules still spans every merchant — **validation rules do not run through Eloquent, so no global scope reaches them.** The model lookup behind the rule does, which is what turns adding a foreign product into a 404 rather than a cart row pointing at something this storefront does not sell. Worth remembering wherever an `exists` rule is the only check.
+
+**`coupons.code` is globally unique**, so no two merchants can issue the same code today. The scope is right regardless; the index grain is wrong and belongs with wave 2's other grain corrections, not here.
+
+**The rest of the models follow.** Reviews, invoices, wishlists and the other eight tables carry `store_id` already; each needs its own read paths checked the same way. The panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
 
 **The surfaces are covered at the surface.** [#950](https://github.com/liberusoftware/ecommerce-laravel/issues/950) and [#952](https://github.com/liberusoftware/ecommerce-laravel/issues/952) name the anonymous GraphQL endpoint and the Blade storefront, not the models, and a scope nothing exercises through the reported surface is a scope the next refactor removes. `/api/graphql` is now driven the way a caller drives it — real `Host`, no token — across the listing, `search`, a known id, and the nested `collections { products }` read, which reaches `Product` through a pivot and so is the path a caller-side fix would have missed. A `collection_items` row pointing at another store's product is a mis-stamped row, not permission: the nested read returns nothing for it.
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\IsStoreScoped;
 use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class Coupon extends Model
 {
     use HasFactory;
+    use IsStoreScoped;
     use IsTenantModel;
 
     protected $fillable = [
