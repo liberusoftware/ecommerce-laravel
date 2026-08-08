@@ -31,3 +31,7 @@ rr
 /storage/rector
 
 /.idea
+
+# Agent worktree checkouts. The committed agent configuration is AGENTS.md,
+# CLAUDE.md and docs/agents/ — this directory is scratch.
+/.claude/
