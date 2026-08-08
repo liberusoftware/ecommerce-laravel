@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Exception;
 use App\Services\SubscriptionService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Cashier\Exceptions\IncompletePayment;
-use Stripe\Stripe;
 use Stripe\Plan;
+use Stripe\Stripe;
 
 class SubscriptionController extends Controller
 {
-   
     private $subscriptionService;
 
     public function __construct(SubscriptionService $subscriptionService)
@@ -61,7 +60,8 @@ class SubscriptionController extends Controller
 
         try {
             $user->newSubscription('default', $request->plan)
-                 ->create($request->payment_method);
+                ->create($request->payment_method);
+
             return response()->json(['success' => true]);
         } catch (IncompletePayment $exception) {
             return response()->json(['success' => false, 'error' => $exception->getMessage()], 402);
@@ -78,6 +78,7 @@ class SubscriptionController extends Controller
 
         try {
             $user->subscription('default')->swap($request->plan);
+
             return response()->json(['success' => true]);
         } catch (Exception $exception) {
             return response()->json(['success' => false, 'error' => $exception->getMessage()], 400);
@@ -90,14 +91,12 @@ class SubscriptionController extends Controller
 
         try {
             $user->subscription('default')->cancel();
+
             return response()->json(['success' => true]);
         } catch (Exception $exception) {
             return response()->json(['success' => false, 'error' => $exception->getMessage()], 400);
         }
     }
-
-
-    
 
     public function createPaypalSubscription(Request $request)
     {
