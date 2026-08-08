@@ -33,8 +33,26 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     use HasProfilePhoto {
         HasProfilePhoto::profilePhotoUrl as getPhotoUrl;
     }
-    use HasRoles;
-    use HasTeams;
+
+    /*
+     * Both traits declare teams(), which is a fatal error unless resolved —
+     * `spatie/laravel-permission` gained the method in 8.x, and the bump to
+     * ^8.3 stopped the application booting at all.
+     *
+     * Jetstream's wins, because it is the one this application means:
+     * allTeams(), currentTeam, switchTeam, Filament tenancy on both panels and
+     * canAccessPanel all read it, and `teams` rows carry Jetstream's shape.
+     *
+     * Spatie's is dropped rather than aliased. Its teams feature is off
+     * (config/permission.php sets 'teams' => false), under which its own
+     * implementation returns a `whereRaw('1 = 0')` no-op that exists only so
+     * model introspection does not break — and nothing inside the package
+     * calls it.
+     */
+    use HasRoles, HasTeams {
+        HasTeams::teams insteadof HasRoles;
+    }
+
     use Notifiable;
 
     // use SetsProfilePhotoFromUrl;

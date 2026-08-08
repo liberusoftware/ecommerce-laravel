@@ -26,8 +26,14 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
             DefaultTeamSeeder::class,
             UserSeeder::class,
-            DummyDataSeeder::class,
-            MenuSeeder::class,
         ]);
+
+        // Sample products, orders and customers. This sat in the baseline
+        // chain, so `db:seed --force` created demo data in production.
+        if (! app()->isProduction()) {
+            $this->call(DummyDataSeeder::class);
+        }
+
+        $this->call(MenuSeeder::class);
     }
 }
