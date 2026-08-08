@@ -41,25 +41,13 @@ class AdminPanelTenantIsolationTest extends TestCase
 
         $this->enterAdminPanel($mine);
 
-        // Three steps, so a failure says which link broke rather than only that
-        // the page listed too much: the scope is registered on the model at
-        // Panel::boot, it filters the resource's own query, and the page the
-        // merchant actually opens shows the result of that.
-        $this->assertTrue(
-            Discount::hasGlobalScope(Filament::getPanel('admin')->getTenancyScopeName()),
-            'Filament registered no tenancy global scope on Discount.',
-        );
-
-        $this->assertSame(
-            ['MINE-ONLY'],
-            DiscountResource::getEloquentQuery()->pluck('title')->all(),
-            'The resource query is not filtered to the current tenant.',
-        );
-
         $response = $this->get(DiscountResource::getUrl(tenant: $mine));
 
         $response->assertOk();
         $response->assertSee('MINE-ONLY');
+
+        $this->assertScopeReached(DiscountResource::class, Discount::class, 'title', 'MINE-ONLY');
+
         $response->assertDontSee('THEIRS-ONLY');
     }
 
@@ -76,6 +64,9 @@ class AdminPanelTenantIsolationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('mine-only-menu');
+
+        $this->assertScopeReached(MenuResource::class, Menu::class, 'name', 'mine-only-menu');
+
         $response->assertDontSee('theirs-only-menu');
     }
 
@@ -127,6 +118,29 @@ class AdminPanelTenantIsolationTest extends TestCase
         $this->actingAs($user);
 
         return [$user->ownedTeams()->first(), Team::factory()->create()];
+    }
+
+    /**
+     * Which link in the chain broke, asserted after the request rather than
+     * before it — `SetUpPanel` is what boots the panel, and booting is what
+     * registers the scope, so nothing is registered until a request has been
+     * through.
+     *
+     * @param  class-string  $resource
+     * @param  class-string<Model>  $model
+     */
+    private function assertScopeReached(string $resource, string $model, string $column, string $expected): void
+    {
+        $this->assertTrue(
+            $model::hasGlobalScope(Filament::getPanel('admin')->getTenancyScopeName()),
+            "Filament registered no tenancy global scope on {$model}.",
+        );
+
+        $this->assertSame(
+            [$expected],
+            $resource::getEloquentQuery()->pluck($column)->all(),
+            "{$resource} does not filter its own query to the current tenant.",
+        );
     }
 
     /**
