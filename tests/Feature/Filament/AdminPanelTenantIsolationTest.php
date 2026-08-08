@@ -39,9 +39,7 @@ class AdminPanelTenantIsolationTest extends TestCase
         $this->discountFor($mine, 'MINE-ONLY');
         $this->discountFor($theirs, 'THEIRS-ONLY');
 
-        $this->enterAdminPanel($mine);
-
-        $response = $this->get(DiscountResource::getUrl(tenant: $mine));
+        $response = $this->get("/admin/{$mine->id}/discounts");
 
         $response->assertOk();
         $response->assertSee('MINE-ONLY');
@@ -58,9 +56,7 @@ class AdminPanelTenantIsolationTest extends TestCase
         $this->menuFor($mine, 'mine-only-menu');
         $this->menuFor($theirs, 'theirs-only-menu');
 
-        $this->enterAdminPanel($mine);
-
-        $response = $this->get(MenuResource::getUrl(tenant: $mine));
+        $response = $this->get("/admin/{$mine->id}/menus");
 
         $response->assertOk();
         $response->assertSee('mine-only-menu');
@@ -162,15 +158,6 @@ class AdminPanelTenantIsolationTest extends TestCase
         $property = new \ReflectionProperty(Model::class, 'globalScopes');
 
         return $property->getValue()[$model] ?? [];
-    }
-
-    /**
-     * The panel has to be current before `getUrl()` can name a route on it.
-     */
-    private function enterAdminPanel(Team $team): void
-    {
-        Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Filament::setTenant($team);
     }
 
     /**
