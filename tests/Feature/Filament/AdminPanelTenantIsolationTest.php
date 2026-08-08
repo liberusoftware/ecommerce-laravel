@@ -41,6 +41,21 @@ class AdminPanelTenantIsolationTest extends TestCase
 
         $this->enterAdminPanel($mine);
 
+        // Three steps, so a failure says which link broke rather than only that
+        // the page listed too much: the scope is registered on the model at
+        // Panel::boot, it filters the resource's own query, and the page the
+        // merchant actually opens shows the result of that.
+        $this->assertTrue(
+            Discount::hasGlobalScope(Filament::getPanel('admin')->getTenancyScopeName()),
+            'Filament registered no tenancy global scope on Discount.',
+        );
+
+        $this->assertSame(
+            ['MINE-ONLY'],
+            DiscountResource::getEloquentQuery()->pluck('title')->all(),
+            'The resource query is not filtered to the current tenant.',
+        );
+
         $response = $this->get(DiscountResource::getUrl(tenant: $mine));
 
         $response->assertOk();
