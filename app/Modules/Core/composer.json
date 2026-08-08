@@ -1,0 +1,14 @@
+{
+    "name": "liberusoftware/ecommerce-core",
+    "description": "Core module for Liberu E-commerce",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\Modules\\Core\\": ""
+        }
+    }
+}
