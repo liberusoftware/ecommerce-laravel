@@ -21,9 +21,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * out where a query genuinely spans stores, and it has to be written down,
  * which is the point.
  *
- * Off a resolved host — panels, console, queues — the scope is inert. It is not
- * the only control in those contexts: panels are Team-scoped by Filament
- * tenancy, and the API write paths check ownership directly.
+ * In a panel the scope narrows to the stores the user's team owns — every one
+ * of them, because a merchant in the panel is working across their business
+ * rather than one shopfront. That is a second control, not the control: panel
+ * *resources* are already Team-scoped by Filament tenancy. What it covers is
+ * where that scoping does not reach — relation managers, widgets, custom pages,
+ * and any bare `Model::query()` written in a panel.
+ *
+ * Off a host and off a panel — console, queues — the scope is inert, because
+ * scoping to nothing there means an empty catalogue rather than a safe one.
  *
  * Requires `store_id` on the table. Applying it to a model without one produces
  * exactly the failure #958 was: a query naming a column that is not there.
@@ -33,15 +39,9 @@ trait IsStoreScoped
     public static function bootIsStoreScoped(): void
     {
         static::addGlobalScope('store', function (Builder $query) {
-            $storeId = StoreContext::forReads();
-
-            if ($storeId === null) {
-                return;
-            }
-
             // Qualified, because this runs inside joins and subqueries where a
             // bare `store_id` is ambiguous.
-            $query->where($query->getModel()->getTable().'.store_id', $storeId);
+            StoreContext::applyTo($query, $query->getModel()->getTable().'.store_id');
         });
 
         static::creating(function (Model $model) {
