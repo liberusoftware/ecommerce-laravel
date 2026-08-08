@@ -35,8 +35,17 @@ class AuthorizationHardeningTest extends TestCase
         // and the API writes are now ownership-checked (#939). These tests are
         // about the role gate, not the ownership one, so the admin is put in
         // team 1 — where the rows they act on land — to keep the two apart.
-        Team::firstOrCreate(['id' => 1], ['name' => 'default', 'personal_team' => false, 'user_id' => $admin->id]);
-        $admin->teams()->syncWithoutDetaching([1 => ['role' => 'admin']]);
+        // Team::create would drop id and user_id — neither is fillable. The
+        // factory writes unguarded, which is why the other suites can pass both.
+        $team = Team::find(1) ?? Team::factory()->create([
+            'id' => 1,
+            'name' => 'default',
+            'user_id' => $admin->id,
+        ]);
+
+        // Membership rather than ownership, since admin() is called more than
+        // once per test and only the first caller can own team 1.
+        $admin->teams()->syncWithoutDetaching([$team->id => ['role' => 'admin']]);
 
         return $admin;
     }
