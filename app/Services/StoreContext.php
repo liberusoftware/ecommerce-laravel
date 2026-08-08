@@ -75,19 +75,21 @@ class StoreContext
             return (int) $storeId;
         }
 
+        // The panel user's own team answers first: with several stores on the
+        // deployment it is the only thing that can, and it is right even when
+        // the shortcut below would also have produced an answer.
+        //
+        // Falling through when their team owns none is not the same as
+        // borrowing another team's store. The shortcut only answers when the
+        // whole deployment has exactly one store — a single-tenant install,
+        // where there is no other merchant to borrow from and the alternative
+        // is a row invisible to the one storefront there is.
         $teamId = self::panelTeamId();
 
-        if ($teamId !== null) {
-            // The panel user's own team answers for them. Falling through to
-            // the single-store shortcut below would stamp the row with a store
-            // their team does not own — a leak created by a write rather than
-            // a read, and the harder kind to notice.
-            return self::theOnlyStoreOf($teamId);
+        if ($teamId !== null && ($storeId = self::theOnlyStoreOf($teamId)) !== null) {
+            return $storeId;
         }
 
-        // No host and no panel: on a single-store deployment the only store is
-        // not a guess, it is the whole truth, and it is what keeps a product
-        // created by a seeder visible on the storefront that sells it.
         return self::theOnlyStoreOf(null);
     }
 

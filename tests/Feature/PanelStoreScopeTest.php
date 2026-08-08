@@ -109,22 +109,39 @@ class PanelStoreScopeTest extends TestCase
     }
 
     /**
-     * The dangerous case: a team with no store of its own, on a deployment
-     * where exactly one store exists. The single-store shortcut would stamp the
-     * row with a store this team does not own — a leak written rather than
-     * read, and the harder kind to notice.
+     * A team with no store of its own, on a deployment that has exactly one.
+     *
+     * That is not borrowing another merchant's store: the shortcut only ever
+     * answers on a single-tenant install, where there is no other merchant to
+     * borrow from and the alternative is a row invisible to the one storefront
+     * there is. With a second store on the deployment the shortcut goes quiet,
+     * which the multi-store cases above cover.
      */
-    public function test_a_panel_user_whose_team_owns_no_store_does_not_borrow_somebody_elses(): void
+    public function test_a_teams_lack_of_a_store_falls_back_to_the_only_one_there_is(): void
     {
         $onlyStore = Store::query()->firstOrFail();
-        $storeless = Team::factory()->create();
 
-        $this->actingAs(User::factory()->create(['current_team_id' => $storeless->id]));
+        $this->actingAs(User::factory()->create([
+            'current_team_id' => Team::factory()->create()->id,
+        ]));
 
-        $product = Product::factory()->create(['store_id' => null]);
+        $this->assertSame((int) $onlyStore->id, (int) Product::factory()->create()->store_id);
+    }
 
-        $this->assertNotSame((int) $onlyStore->id, (int) $product->store_id);
-        $this->assertNull($product->store_id);
+    /**
+     * The same store-less team once a second merchant exists: no answer, and
+     * the row is left unstamped rather than attributed to whichever store sorts
+     * first.
+     */
+    public function test_a_storeless_teams_row_is_unstamped_once_the_deployment_has_more_than_one_store(): void
+    {
+        $this->merchant();
+
+        $this->actingAs(User::factory()->create([
+            'current_team_id' => Team::factory()->create()->id,
+        ]));
+
+        $this->assertNull(Product::factory()->create(['store_id' => null])->store_id);
     }
 
     /**
