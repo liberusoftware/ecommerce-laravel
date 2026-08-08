@@ -131,9 +131,19 @@ class AdminPanelTenantIsolationTest extends TestCase
      */
     private function assertScopeReached(string $resource, string $model, string $column, string $expected): void
     {
+        $panel = Filament::getPanel('admin');
+
         $this->assertTrue(
-            $model::hasGlobalScope(Filament::getPanel('admin')->getTenancyScopeName()),
-            "Filament registered no tenancy global scope on {$model}.",
+            $model::hasGlobalScope($panel->getTenancyScopeName()),
+            implode("\n", [
+                "Filament registered no tenancy global scope on {$model}.",
+                'panel has tenancy: '.var_export($panel->hasTenancy(), true),
+                'tenancy scope name: '.$panel->getTenancyScopeName(),
+                'current panel: '.(Filament::getCurrentPanel()?->getId() ?? 'none'),
+                'tenant: '.(Filament::getTenant()?->getKey() ?? 'none'),
+                'scopes on the model: '.implode(', ', array_keys($this->globalScopesOf($model)) ?: ['(none)']),
+                'resource registered: '.var_export(in_array($resource, $panel->getResources(), true), true),
+            ]),
         );
 
         $this->assertSame(
@@ -141,6 +151,17 @@ class AdminPanelTenantIsolationTest extends TestCase
             $resource::getEloquentQuery()->pluck($column)->all(),
             "{$resource} does not filter its own query to the current tenant.",
         );
+    }
+
+    /**
+     * @param  class-string<Model>  $model
+     * @return array<string, mixed>
+     */
+    private function globalScopesOf(string $model): array
+    {
+        $property = new \ReflectionProperty(Model::class, 'globalScopes');
+
+        return $property->getValue()[$model] ?? [];
     }
 
     /**
