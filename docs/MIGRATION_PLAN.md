@@ -227,7 +227,20 @@ Panels keep `->tenant(Team::class, …)`. Switching them to `Store` tenancy woul
 
 **`coupons.code` is globally unique**, so no two merchants can issue the same code today. The scope is right regardless; the index grain is wrong and belongs with wave 2's other grain corrections, not here.
 
-**The rest of the models follow.** Reviews, invoices, wishlists and the other eight tables carry `store_id` already; each needs its own read paths checked the same way. The panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
+**The sweep finished, and is now checked rather than trusted.** Articles, reviews, ratings, invoices, wishlists, groups and downloadable products took the scope; their read paths all run through storefront requests, so none needed an exemption.
+
+Two do not take it, and the reasons are recorded next to the rule rather than in a commit message:
+
+| Model | Why not |
+| --- | --- |
+| `PaymentMethod` | A shopper's saved payment method belongs to the **person**, not the merchant. The column is there because a blanket migration put one on every table with a `team_id`, not because the data is store-grained. Scoped, their card would vanish the moment they shopped on another storefront. |
+| `Channel` | Resolving a channel is what *produces* the scope. Scoping channels by the store a channel resolves is circular — nothing would resolve, so nothing would ever be in scope. |
+
+`images` has no model, so there is nothing to scope.
+
+**`StoreScopeCoverageTest` is the ratchet.** Scoping at the caller failed because it had to be remembered every time; a sweep across sixteen tables has that same shape one level up, and the model that gets missed is the leak. So it is asserted in both directions — a table with `store_id` whose model is unscoped fails, and a scoped model whose table has no `store_id` fails, that second one being #958 exactly: a query naming a column that is not there, breaking only on the paths nobody tested. The exemption list can shrink; adding to it means writing down why.
+
+**Still outstanding in this step:** the panel mode — `whereIn` the tenant's stores — which is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
 
 **The surfaces are covered at the surface.** [#950](https://github.com/liberusoftware/ecommerce-laravel/issues/950) and [#952](https://github.com/liberusoftware/ecommerce-laravel/issues/952) name the anonymous GraphQL endpoint and the Blade storefront, not the models, and a scope nothing exercises through the reported surface is a scope the next refactor removes. `/api/graphql` is now driven the way a caller drives it — real `Host`, no token — across the listing, `search`, a known id, and the nested `collections { products }` read, which reaches `Product` through a pivot and so is the path a caller-side fix would have missed. A `collection_items` row pointing at another store's product is a mis-stamped row, not permission: the nested read returns nothing for it.
 
