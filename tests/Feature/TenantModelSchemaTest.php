@@ -39,7 +39,37 @@ class TenantModelSchemaTest extends TestCase
      * @var list<class-string<Model>>
      */
     private const MISSING_TEAM_ID = [
-        // Filled from the run this test's first commit produced — see the PR.
+        \App\Models\ABTest::class,
+        \App\Models\ABTestAssignment::class,
+        \App\Models\AbandonedCart::class,
+        \App\Models\AnalyticsEvent::class,
+        \App\Models\CartRecoveryAttempt::class,
+        \App\Models\CartRecoveryCampaign::class,
+        \App\Models\CustomerGroup::class,
+        \App\Models\CustomerMetric::class,
+        \App\Models\CustomerSegment::class,
+        \App\Models\Discount::class,
+        \App\Models\GiftCard::class,
+        \App\Models\GiftCardTransaction::class,
+        \App\Models\GiftRegistry::class,
+        \App\Models\GiftRegistryItem::class,
+        \App\Models\GiftRegistryPurchase::class,
+        \App\Models\InventoryAdjustment::class,
+        \App\Models\InventoryItem::class,
+        \App\Models\InventoryLevel::class,
+        \App\Models\InventoryLocation::class,
+        \App\Models\Menu::class,
+        \App\Models\MenuItem::class,
+        \App\Models\ProductInteraction::class,
+        \App\Models\ProductOption::class,
+        \App\Models\ProductPerformance::class,
+        \App\Models\ProductRecommendation::class,
+        \App\Models\ProductTaxonomyValue::class,
+        \App\Models\ProductVariant::class,
+        \App\Models\RecommendationRule::class,
+        \App\Models\SeoSetting::class,
+        \App\Models\TaxonomyAttribute::class,
+        \App\Models\TaxonomyCategory::class,
     ];
 
     public function test_tenant_models_have_a_team_id_column(): void
