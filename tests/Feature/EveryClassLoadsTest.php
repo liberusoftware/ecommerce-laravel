@@ -54,7 +54,10 @@ class EveryClassLoadsTest extends TestCase
             'Each name is printed before it is loaded, so the tail below ends on the',
             'class that killed the process, followed by whatever PHP managed to say:',
             '',
-            '  '.implode("\n  ", array_slice($output, -5) ?: ['(no output — the probe never started)']),
+            // Wide enough that the class name survives: PHP prints its own
+            // message and a stack trace after it, and a short tail shows only
+            // the trace — which names the autoloader, never the class.
+            '  '.implode("\n  ", array_slice($output, -20) ?: ['(no output — the probe never started)']),
             '',
             'Two things produce this fatal: two traits declaring the same method with',
             'no `insteadof`, and an override that narrows a parameter the parent left',
