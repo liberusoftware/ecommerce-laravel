@@ -29,6 +29,17 @@ class PageResource extends Resource
 {
     protected static ?string $model = Page::class;
 
+    /*
+     * Not tenant-scoped: `pages` has no `team_id` and the model has no `team`
+     * relationship. CMS content moves out of this repository entirely (#942), so
+     * giving it a tenant grain here would be work thrown away.
+     *
+     * Declared as a property rather than set with `scopeToTenant()`, which
+     * writes one storage slot shared by every resource that does not redeclare
+     * it — see App\Filament\Admin\Resources\RoleResource.
+     */
+    protected static bool $isScopedToTenant = false;
+
     protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?int $navigationSort = 4;

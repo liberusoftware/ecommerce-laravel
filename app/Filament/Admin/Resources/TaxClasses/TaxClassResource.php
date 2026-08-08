@@ -19,6 +19,18 @@ class TaxClassResource extends Resource
 {
     protected static ?string $model = TaxClass::class;
 
+    /*
+     * Not tenant-scoped: `tax_classes` has no `team_id` and the model has no
+     * `team` relationship. Tax classes are jurisdiction data rather than a
+     * merchant's own — the EU VAT rates seeder fills them — and every merchant
+     * on the deployment reads the same set.
+     *
+     * Declared as a property rather than set with `scopeToTenant()`, which
+     * writes one storage slot shared by every resource that does not redeclare
+     * it — see App\Filament\Admin\Resources\RoleResource.
+     */
+    protected static bool $isScopedToTenant = false;
+
     protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-calculator';
 
     protected static string | \UnitEnum | null $navigationGroup = 'Settings';

@@ -20,6 +20,18 @@ class ChatConversationResource extends Resource
 {
     protected static ?string $model = ChatConversation::class;
 
+    /*
+     * Not tenant-scoped: `chat_conversations` has no `team_id` and the model has
+     * no `team` relationship, so Filament would raise a LogicException on every
+     * query rather than isolate anything. A conversation belongs to the person
+     * having it.
+     *
+     * Declared as a property rather than set with `scopeToTenant()`, which
+     * writes one storage slot shared by every resource that does not redeclare
+     * it — see App\Filament\Admin\Resources\RoleResource.
+     */
+    protected static bool $isScopedToTenant = false;
+
     protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
     protected static string | \UnitEnum | null $navigationGroup = "Customer Support";

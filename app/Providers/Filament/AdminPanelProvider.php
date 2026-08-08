@@ -19,7 +19,6 @@ use App\Models\Menu;
 use App\Models\MenuItem;
 use App\Models\Team;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
-use BezhanSalleh\FilamentShield\Resources\Roles\RoleResource;
 use Biostate\FilamentMenuBuilder\FilamentMenuBuilderPlugin;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -136,23 +135,6 @@ class AdminPanelProvider extends PanelProvider
         }
 
         return $panel;
-    }
-
-    public function boot(): void
-    {
-        /*
-         * Shield's RoleResource is registered into this panel by its plugin, and
-         * this panel is Team-tenanted on the `team` relationship. App\Models\Role
-         * has no such relationship — `config/permission.php` sets 'teams' => false,
-         * so roles are global here — and Filament throws a LogicException the
-         * moment anything queries Role inside the panel. That is every page in
-         * /admin, because the navigation resolves resources on each render.
-         *
-         * scopeToTenant(false) is Filament's own escape hatch for a resource that
-         * is genuinely shared across tenants, which a global role is. It cannot be
-         * set as a property here because the class belongs to the package.
-         */
-        RoleResource::scopeToTenant(false);
     }
 
     public function shouldRegisterMenuItem(): bool
