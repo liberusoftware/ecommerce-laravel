@@ -58,9 +58,24 @@ Nothing can be extracted before this wave. A module ships **no `extra.laravel.pr
 | `spatie/laravel-permission` `^8.0` support upstream in `roles-permissions` | This repo is on `^8.3`, the reference app on `^7.0`. **Downgrading a security-relevant dependency to match a module is the wrong direction of travel** |
 | Vendor rename `liberu-eccommerce` → `liberusoftware` | Free today — 0 downloads, 0 dependents, no tags. It stops being free the moment anything depends on it. [ADR 0009](./adr/0009-vendor-rename-to-liberusoftware.md) |
 
-### Also in wave 0, because they are one-line and shipping today
+### Also in wave 0, because they are one-line and shipping today — ✅ **done**
 
-The three faults in [`CONFORMANCE.md` §3.3](./CONFORMANCE.md#33-three-faults-that-are-small-mechanical-and-shipping-today) — the admin password printed into CI logs, `env()` in constructors, the committed `error_log` — plus the two deletions (`ScreeningDataEncryptor`, `app/database/seeders/MenuSeeder.php`) and the unreferenced `PermissionsSeeder`. None of them needs a wave; they need someone to do them.
+The small faults that needed nobody's permission. Landed ahead of the rest of wave 0, since none of them depends on the packaging mechanism existing.
+
+| Fault | Fix |
+| --- | --- |
+| `UserSeeder.php:36` printed a generated admin password, and `install.yml:85` runs `db:seed --force` | Printed only under `app()->environment('local')` |
+| `DummyDataSeeder` sat in `DatabaseSeeder`'s baseline chain, so `db:seed --force` created demo data in production | Called only when `! app()->isProduction()`, in the same position |
+| `DropxlService.php:23` and `SubscriptionController.php:21` read keys via `env()` in constructors — `null` under `config:cache` | Read `config('services.dropxl.*')` and `config('services.stripe.secret')`. `services.dropxl` added; **no `env()` call remains outside `config/`** |
+| `error_log` committed at the root, leaking `/home/liberu/projects/ecommerce-laravel` | Deleted and gitignored |
+| `ScreeningDataEncryptor` — property-rental leftover, encrypts fields absent from this schema | Deleted |
+| `app/database/seeders/MenuSeeder.php` — no `<?php` tag, no class | Deleted |
+| `PermissionsSeeder` — 17 lines, unreferenced, calls a `permissions:sync` command that does not exist | Deleted |
+| `TeamServiceProvider` — bound 11 nonexistent `FamilyTree365\LaravelGedcom\*` classes on every boot, registered in production | Deleted, with its `config/app.php` registration |
+
+`DropxlServiceTest` was updated in the same change: its `setUp` sets config rather than calling `putenv`, which is both the path the service now reads and the one that survives `config:cache`.
+
+**Not done, and not a quick win:** the four product-compare routes at `routes/web.php:188-191`, whose controller methods are commented out. Deleting them removes a feature someone intended; restoring them needs a real fix, because the routes pass `{category}/{product}` while the commented methods take a single `$id` — restored as written, they would compare categories. That is a product decision, not a cleanup.
 
 ### Not gated on wave 0
 

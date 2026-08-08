@@ -18,7 +18,7 @@ class SubscriptionController extends Controller
     public function __construct(SubscriptionService $subscriptionService)
     {
         $this->subscriptionService = $subscriptionService;
-        Stripe::setApiKey(env('STRIPE_SECRET'));
+        Stripe::setApiKey(config('services.stripe.secret'));
     }
 
     public function viewAvailableSubscriptions()

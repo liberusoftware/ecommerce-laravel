@@ -94,7 +94,7 @@ The queue worker is not running, or the DropXL call is failing.
 
 1. Validate `STRIPE_SECRET` in `.env`.
 2. Confirm the publishable key is present in `config/services.php`.
-3. If the key looks correct but resolves empty at runtime, check whether `config:cache` is active — `SubscriptionController.php:21` reads it via `env()` in the constructor, which returns `null` under a cached config.
+3. If the key looks correct but resolves empty at runtime, run `php artisan config:clear` — the key is read through `config('services.stripe.secret')`, so a stale cached config serves the old value.
 4. Review the logs for API errors.
 
 ### `/products/compare` returns a 500
@@ -103,7 +103,9 @@ It will. `routes/web.php:188-191` registers four product-compare routes whose co
 
 ### A configuration value is empty in production but fine locally
 
-Check for `env()` outside `config/`. Under `config:cache`, `env()` returns `null` everywhere except during config loading. Two known sites: `DropxlService.php:23` and `SubscriptionController.php:21`.
+Check for `env()` outside `config/`. Under `config:cache`, `env()` returns `null` everywhere except during config loading, so the symptom is an empty value in production and a correct one locally.
+
+**There are currently no such sites** — `DropxlService` and `SubscriptionController` were the two, and both now read through `config()`. This entry stays because the failure is silent and the mistake is easy to reintroduce.
 
 ### A widget or resource does not appear
 
