@@ -4,8 +4,8 @@ namespace App\Filament\Admin\Resources\ChatConversations\Pages;
 
 use App\Filament\Admin\Pages\ChatAgentDashboard;
 use App\Filament\Admin\Resources\ChatConversations\ChatConversationResource;
-use Filament\Resources\Pages\ListRecords;
 use Filament\Actions\Action;
+use Filament\Resources\Pages\ListRecords;
 
 class ListChatConversations extends ListRecords
 {
