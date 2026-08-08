@@ -2,19 +2,19 @@
 
 namespace App\Filament\Admin\Resources\ChatConversations;
 
-use App\Models\ChatConversation;
 use App\Filament\Admin\Resources\ChatConversations\Pages\ListChatConversations;
 use App\Filament\Admin\Resources\ChatConversations\Pages\ViewChatConversation;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DateTimePicker;
+use App\Models\ChatConversation;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 
 class ChatConversationResource extends Resource
 {
@@ -32,9 +32,9 @@ class ChatConversationResource extends Resource
      */
     protected static bool $isScopedToTenant = false;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
-    protected static string | \UnitEnum | null $navigationGroup = "Customer Support";
+    protected static string|\UnitEnum|null $navigationGroup = 'Customer Support';
 
     protected static ?string $navigationLabel = 'Chat Conversations';
 

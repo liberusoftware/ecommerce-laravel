@@ -2,7 +2,6 @@
 
 namespace App\Filament\Admin\Resources\TaxClasses;
 
-use App\Filament\Admin\Resources\TaxClasses\Pages;
 use App\Models\TaxClass;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -31,9 +30,9 @@ class TaxClassResource extends Resource
      */
     protected static bool $isScopedToTenant = false;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-calculator';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calculator';
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
+    protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 
     protected static ?int $navigationSort = 10;
 
@@ -46,17 +45,17 @@ class TaxClassResource extends Resource
                         Forms\Components\TextInput::make('name')
                             ->required()
                             ->maxLength(255),
-                        
+
                         Forms\Components\TextInput::make('slug')
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
-                        
+
                         Forms\Components\Textarea::make('description')
                             ->rows(3)
                             ->maxLength(65535)
                             ->columnSpanFull(),
-                        
+
                         Forms\Components\Toggle::make('is_active')
                             ->default(true),
                     ])
@@ -71,18 +70,18 @@ class TaxClassResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                
+
                 Tables\Columns\TextColumn::make('slug')
                     ->searchable()
                     ->sortable(),
-                
+
                 Tables\Columns\TextColumn::make('taxRates_count')
                     ->counts('taxRates')
                     ->label('Tax Rates'),
-                
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
-                
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
