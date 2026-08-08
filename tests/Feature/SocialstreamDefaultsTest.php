@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use JoelButcher\Socialstream\Contracts\CreatesUserFromProvider;
-use JoelButcher\Socialstream\Contracts\GeneratesProviderRedirect;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Tests\TestCase;
 
@@ -26,6 +25,11 @@ use Tests\TestCase;
  * So registering the provider, the obvious reading of #936, would have been the
  * regression: social signups would have stopped getting a personal team. The
  * files were deleted instead. These two tests are what keeps that shut.
+ *
+ * `SocialstreamRegistrationTest` does not: it exercises the same redirect route
+ * without looking at the session, and before the callback it sets
+ * `socialstream.previous_url` by hand — so it passes whether or not anything in
+ * the app ever writes it.
  */
 class SocialstreamDefaultsTest extends TestCase
 {
@@ -57,17 +61,19 @@ class SocialstreamDefaultsTest extends TestCase
 
     public function test_the_redirect_records_where_the_visitor_came_from(): void
     {
-        $this->startSession();
-
-        // Enough for Socialite to build a redirect URL. It is a URL builder —
-        // nothing here reaches GitHub.
+        // Over HTTP rather than resolving the action directly: it writes
+        // `url()->previous()`, which reads the session off the current request,
+        // and only a real request has one.
+        //
+        // Enough config for Socialite to build a redirect URL. It is a URL
+        // builder — nothing here reaches GitHub.
         config(['services.github' => [
             'client_id' => 'id',
             'client_secret' => 'secret',
-            'redirect' => '/oauth/github/callback',
+            'redirect' => 'http://localhost/oauth/github/callback',
         ]]);
 
-        app(GeneratesProviderRedirect::class)->generate('github');
+        $this->get('/oauth/github')->assertRedirectContains('github');
 
         $this->assertTrue(
             session()->has('socialstream.previous_url'),
