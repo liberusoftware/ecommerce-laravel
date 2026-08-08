@@ -28,6 +28,25 @@ class StoreBackfillTest extends TestCase
      */
     private const NOT_COMMERCE = ['teams', 'team_user', 'team_invitations', 'stores'];
 
+    /**
+     * Team-scoped, and not store-scoped on purpose — for now.
+     *
+     * `menus` and `menu_items` are read on the storefront by the menu builder's
+     * own Blade component, which queries `Biostate\FilamentMenuBuilder\Models\Menu`
+     * by class name rather than the model this application configures. A store
+     * scope on `App\Models\Menu` would therefore control the panel and leave the
+     * storefront reading exactly what it reads today, which is a control that
+     * looks like one — the thing this whole wave is written against.
+     *
+     * `discounts` has no storefront read at all: the only reference outside the
+     * panel is `CustomerGroup::discounts()`. Checkout discounts run through
+     * `Coupon`, which is store-scoped already.
+     *
+     * Per-storefront navigation is a product change, not a backfill, and it sits
+     * with wave 2's other grain corrections next to `coupons.code`.
+     */
+    private const NOT_STORE_GRAINED_YET = ['discounts', 'menus', 'menu_items'];
+
     public function test_every_team_scoped_table_has_a_store_id(): void
     {
         $missing = [];
@@ -35,7 +54,7 @@ class StoreBackfillTest extends TestCase
         foreach (Schema::getTableListing() as $table) {
             $table = str_contains($table, '.') ? explode('.', $table)[1] : $table;
 
-            if (in_array($table, self::NOT_COMMERCE, true)) {
+            if (in_array($table, self::NOT_COMMERCE, true) || in_array($table, self::NOT_STORE_GRAINED_YET, true)) {
                 continue;
             }
 

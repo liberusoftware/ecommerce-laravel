@@ -11,25 +11,13 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class DiscountResource extends Resource
 {
     protected static ?string $model = Discount::class;
-
-    /*
-     * Not tenant-scoped, because there is nothing to scope by: this panel is
-     * Team-tenanted on the `team` relationship, and discounts has no team_id
-     * column. Filament would emit whereBelongsTo($tenant, 'team') and the query
-     * would name a column that is not there.
-     *
-     * The consequence is that every tenant sees the same discounts. That is not
-     * a design intent, it is the current data model stated out loud — #958.
-     * The column, and the scoping that becomes possible with it, land in wave
-     * 1.5, where existing rows are attributed deliberately rather than defaulted
-     * to team 1.
-     */
-    protected static bool $isScopedToTenant = false;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
 
@@ -46,8 +34,16 @@ class DiscountResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // The table had no columns at all, which is how a resource listing
+            // every merchant's discounts managed to look like it was listing
+            // nothing. A row has to be visible before anyone can notice it is
+            // the wrong row.
             ->columns([
-                //
+                TextColumn::make('title')->searchable(),
+                TextColumn::make('code')->searchable(),
+                TextColumn::make('type'),
+                TextColumn::make('value'),
+                IconColumn::make('is_active')->boolean(),
             ])
             ->filters([
                 //

@@ -11,7 +11,6 @@ use App\Models\CartRecoveryCampaign;
 use App\Models\CustomerGroup;
 use App\Models\CustomerMetric;
 use App\Models\CustomerSegment;
-use App\Models\Discount;
 use App\Models\GiftCard;
 use App\Models\GiftCardTransaction;
 use App\Models\GiftRegistry;
@@ -21,8 +20,6 @@ use App\Models\InventoryAdjustment;
 use App\Models\InventoryItem;
 use App\Models\InventoryLevel;
 use App\Models\InventoryLocation;
-use App\Models\Menu;
-use App\Models\MenuItem;
 use App\Models\ProductInteraction;
 use App\Models\ProductOption;
 use App\Models\ProductPerformance;
@@ -40,14 +37,16 @@ use Tests\TestCase;
 
 /**
  * `App\Traits\IsTenantModel` is a `team()` BelongsTo relation and nothing else.
- * A model that uses it therefore promises a `team_id` column — and 31 of the 37
+ * A model that uses it therefore promises a `team_id` column — and 28 of the 37
  * models that use it have no such column on their table, so the relation is
  * dead on arrival and any tenant scope added later would raise an unknown-column
  * error rather than isolating anything.
  *
- * #958 records two of these, because those two happen to be registered as
- * Filament resources in a tenant-scoped panel. They are not special; they are
- * the two that were noticed.
+ * It was 31. `Discount`, `Menu` and `MenuItem` left the list because they are
+ * the three a tenant-scoped Filament resource actually queries, which is the
+ * difference between a dormant wrong claim and a live one — #958. The remaining
+ * 28 are dormant: no panel and no scope reads them, so `team()` returns null
+ * quietly rather than isolating anything.
  *
  * This test is a ratchet. The allow-list below can only shrink: a model may not
  * newly join it, and every entry removed is a table that got its column. It is
@@ -61,11 +60,19 @@ class TenantModelSchemaTest extends TestCase
     /**
      * Models using IsTenantModel whose table has no team_id column today.
      *
-     * Not a to-do list to be worked top to bottom. `team_id` is nullable with
-     * `default(1)`, so adding the column to a table that already holds rows
-     * silently attributes every one of them to team 1 — which is how the
-     * existing mess was made. These land with the tenant scope in wave 1.5,
-     * where unattributable rows are quarantined rather than assigned.
+     * Not a to-do list to be worked top to bottom, and not one question either.
+     * A model here is one of two different things, and the fix differs:
+     *
+     * - independently owned by a merchant — `GiftCard`, `InventoryLocation`,
+     *   `CustomerSegment`, `SeoSetting` — which wants the column;
+     * - a child of something already owned — `GiftCardTransaction`,
+     *   `ProductVariant`, `ProductOption`, `ABTestAssignment` — where the owner
+     *   is the parent's and the trait is the thing that is wrong. Copying a
+     *   `team_id` onto every child table is the blanket migration that produced
+     *   half of this in the first place.
+     *
+     * Which is which is a per-model judgement nobody has made yet, so the list
+     * shrinks as models are judged rather than as columns are added.
      *
      * @var list<class-string<Model>>
      */
@@ -79,7 +86,6 @@ class TenantModelSchemaTest extends TestCase
         CustomerGroup::class,
         CustomerMetric::class,
         CustomerSegment::class,
-        Discount::class,
         GiftCard::class,
         GiftCardTransaction::class,
         GiftRegistry::class,
@@ -89,8 +95,6 @@ class TenantModelSchemaTest extends TestCase
         InventoryItem::class,
         InventoryLevel::class,
         InventoryLocation::class,
-        Menu::class,
-        MenuItem::class,
         ProductInteraction::class,
         ProductOption::class,
         ProductPerformance::class,

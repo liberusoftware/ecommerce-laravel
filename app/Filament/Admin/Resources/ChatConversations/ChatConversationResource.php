@@ -2,27 +2,39 @@
 
 namespace App\Filament\Admin\Resources\ChatConversations;
 
-use App\Models\ChatConversation;
 use App\Filament\Admin\Resources\ChatConversations\Pages\ListChatConversations;
 use App\Filament\Admin\Resources\ChatConversations\Pages\ViewChatConversation;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DateTimePicker;
+use App\Models\ChatConversation;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 
 class ChatConversationResource extends Resource
 {
     protected static ?string $model = ChatConversation::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+    /*
+     * Not tenant-scoped: `chat_conversations` has no `team_id` and the model has
+     * no `team` relationship, so Filament would raise a LogicException on every
+     * query rather than isolate anything. A conversation belongs to the person
+     * having it.
+     *
+     * Declared as a property rather than set with `scopeToTenant()`, which
+     * writes one storage slot shared by every resource that does not redeclare
+     * it — see App\Filament\Admin\Resources\RoleResource.
+     */
+    protected static bool $isScopedToTenant = false;
 
-    protected static string | \UnitEnum | null $navigationGroup = "Customer Support";
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Customer Support';
 
     protected static ?string $navigationLabel = 'Chat Conversations';
 
