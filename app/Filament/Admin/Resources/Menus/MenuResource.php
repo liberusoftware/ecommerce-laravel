@@ -2,23 +2,17 @@
 
 namespace App\Filament\Admin\Resources\Menus;
 
-use Filament\Schemas\Schema;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Actions\EditAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use App\Filament\Admin\Resources\Menus\Pages\ListMenus;
 use App\Filament\Admin\Resources\Menus\Pages\CreateMenu;
 use App\Filament\Admin\Resources\Menus\Pages\EditMenu;
-use App\Filament\Admin\Resources\MenuResource\Pages;
-use App\Filament\Admin\Resources\MenuResource\RelationManagers;
+use App\Filament\Admin\Resources\Menus\Pages\ListMenus;
 use App\Models\Menu;
-use Filament\Forms;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class MenuResource extends Resource
 {
@@ -38,8 +32,7 @@ class MenuResource extends Resource
      */
     protected static bool $isScopedToTenant = false;
 
-
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-bars-4';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-bars-4';
 
     protected static ?int $navigationSort = 9;
 
