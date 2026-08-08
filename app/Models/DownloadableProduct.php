@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\IsStoreScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DownloadableProduct extends Model
 {
     use HasFactory;
-    
+    use IsStoreScoped;
+
     protected $fillable = [
         'product_id',
         'file_url',
@@ -31,7 +33,7 @@ class DownloadableProduct extends Model
 
     public function isDownloadable(): bool
     {
-        return $this->download_limit > $this->downloads_count 
+        return $this->download_limit > $this->downloads_count
             && (!$this->expiration_time || $this->expiration_time->isFuture());
     }
 

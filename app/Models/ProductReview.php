@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\IsStoreScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductReview extends Model
 {
     use HasFactory;
+    use IsStoreScoped;
 
     protected $table = 'product_reviews';
 
