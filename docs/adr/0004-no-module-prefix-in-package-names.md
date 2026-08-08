@@ -22,7 +22,7 @@ The namespace deviation belongs here too rather than to an ADR of its own, being
 
 Following §9 literally was rejected because the cost lands in every consumer's `require` block, to match a table 40 published packages already contradict.
 
-Renaming the 40 published packages to match §9 was rejected because it breaks every existing consumer to satisfy a document an upstream issue is already filed against.
+Renaming the 40 published packages to match §9 was rejected because it breaks every existing consumer to satisfy a document [an upstream issue](https://github.com/liberusoftware/documentation/issues/18) is already filed against.
 
 Adopting the `composer require liberusoftware/module-ecommerce-tax` line printed in the 414 provisioned stub READMEs was rejected because those repositories contain one generated README each — no `composer.json`, no tag, nothing on Packagist. The line is the repository slug pasted by a template, provably so: `module-crm-crm-core`'s README is titled `# Crm: Crm Core Core Module`.
 

@@ -16,4 +16,4 @@ Following `CI.md` and switching to `v`-prefixed tags fleet-wide was rejected as 
 
 ## Consequences
 
-One format, enforced by the triggers themselves. An upstream issue against `CI.md`'s example, and the stray `v`-tags in the fleet cleaned up so nothing published claims a gate it skipped.
+One format, enforced by the triggers themselves. [An upstream issue against `CI.md`'s example](https://github.com/liberusoftware/documentation/issues/19), and [the stray `v`-tag on `module-analytics-core`](https://github.com/liberusoftware/module-analytics-core/issues/1) cleaned up so nothing published claims a gate it skipped.

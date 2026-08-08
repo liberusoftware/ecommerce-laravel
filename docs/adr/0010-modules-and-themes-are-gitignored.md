@@ -20,4 +20,4 @@ Commerce goes the other way for **both** directories. During the path phase a mo
 
 A fresh clone no longer contains module or theme source, so anyone reading the code must `composer install` first — the ordinary Laravel expectation, but a change from how this repository and boilerplate behave today.
 
-An upstream issue against §3.2 records the divergence, paired with one asking `boilerplate-laravel` to confirm its committed `modules/` tree is monorepo residue rather than intended vendoring.
+[An upstream issue against §3.2](https://github.com/liberusoftware/documentation/issues/20) records the divergence, paired with [one asking `boilerplate-laravel`](https://github.com/liberusoftware/boilerplate-laravel/issues/653) to confirm its committed `modules/` tree is monorepo residue rather than intended vendoring.
