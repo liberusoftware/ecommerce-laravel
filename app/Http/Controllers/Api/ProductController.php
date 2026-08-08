@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\OwnsTeamResources;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
+    use OwnsTeamResources;
+
     /**
      * Display a paginated listing of products.
      */
@@ -124,7 +127,13 @@ class ProductController extends Controller
             ], 422);
         }
 
-        $product = Product::create($validator->validated());
+        $attributes = $validator->validated();
+
+        if ($teamId = $this->creationTeamId($request)) {
+            $attributes['team_id'] = $teamId;
+        }
+
+        $product = Product::create($attributes);
 
         return response()->json([
             'success' => true,
@@ -148,6 +157,8 @@ class ProductController extends Controller
                 'message' => 'Product not found',
             ], 404);
         }
+
+        $this->assertActorOwns($request, $product);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
@@ -202,6 +213,8 @@ class ProductController extends Controller
                 'message' => 'Product not found',
             ], 404);
         }
+
+        $this->assertActorOwns($request, $product);
 
         $product->delete();
 

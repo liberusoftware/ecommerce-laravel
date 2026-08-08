@@ -22,6 +22,11 @@ class ProductCollection extends Model implements Orderable
         'slug',
         'description',
         'price',
+
+        // Fillable so the API write paths can stamp the creating admin's team.
+        // No validator accepts it from request input, so it cannot be set by a
+        // caller — see Api\Concerns\OwnsTeamResources.
+        'team_id',
     ];
 
     public function getPrice(): float
