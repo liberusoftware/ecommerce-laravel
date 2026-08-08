@@ -170,7 +170,7 @@ Three decisions collided:
 
 ### The wave, in order
 
-**1. Create the schema and resolve merchants.** — 🟡 *schema, models, resolver and middleware landed; enforcement and `TrustHosts` still to come*
+**1. Create the schema and resolve merchants.** — ✅ *schema, models, resolver, middleware, the 404, and `TrustHosts` reading the same table*
 
 - `stores`, `channels`, `channel_domains` — many hostnames per channel, one flagged **primary** for canonicals. A storefront realistically answers on the apex, `www`, a custom merchant domain and a platform subdomain on day one; a single `domain` column pushes apex/`www` handling into web-server config the application cannot see, so the canonical the app generates and the host the request arrived on can disagree.
 - `Channel` gains a **theme reference**, defaulting to `theme-ecommerce`. One storefront, theme selected per resolved channel; per-merchant themes are later children with `parent: ecommerce`.
@@ -182,6 +182,20 @@ Three decisions collided:
 **The 404 did not land, on purpose.** A control that refuses unconfigured hosts, shipped into environments where no host is configured yet, takes every storefront down at once — and before the tenant scope exists it guards nothing anyway. Data first, control second, which is the same order wave 2 uses for the backfill. It flips in the same change as step 3.
 
 That initial-channel migration is not the fallback this wave rules out. A fallback answers for hosts nobody configured; this configures the host the deployment already answers on, which on a single-store deployment is the whole truth. It refuses to run if any store or channel already exists, so it can never claim hostnames from a deployment set up by hand.
+
+**`TrustHosts` now reads the channel domains, and is switched on.** It had been commented out of the global stack entirely, which trusts every `Host` header there is. Two lists of the same hostnames drift, and both directions of drift are outages — a live storefront answering 400, or a host trusted that resolves to nothing — so there is one list, and it is the table `ChannelResolver` already reads.
+
+Three things it does not do, each on purpose:
+
+| | |
+| --- | --- |
+| It does not drop `allSubdomainsOfApplicationUrl()` | That is what answers between deploying and running migrations, and on a deployment whose panel sits on a hostname no storefront resolves. It widens what is **trusted**, not what **resolves** — `ResolveChannel` still 404s a host belonging to no channel. |
+| It does not apply to `/health` | The same exemption the 404 has, for the same reason: a probe arrives on the pod's own address, and refusing it restarts healthy pods. It generates no URLs and reads no tenant data, so a forged header reaches nothing. |
+| It does not fail closed on a broken database | The read is wrapped, and an unreachable or unmigrated database trusts what it did before there was a table to read. This runs in front of every request, and failing closed means a deployment that cannot serve the page saying it is broken. |
+
+Hostnames are quoted before they are anchored. Symfony matches trusted hosts as patterns, and an unescaped `.` matches any character — `shop.example.com` unquoted trusts `shopxexample.com`, which somebody can register, point here, and collect password-reset links from.
+
+The list is cached and cleared by `ChannelDomain` itself on save and delete, rather than by whoever remembers to. **Mass deletes bypass it**, as they bypass every model event: `ChannelDomain::query()->delete()` leaves the removed hostname trusted until the cache is cleared some other way. Nothing in the application does that today; it is worth knowing before something does.
 
 **2. Backfill `store_id` alone.** — ✅ **done**
 
