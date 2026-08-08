@@ -2,22 +2,11 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\Admin\Resources\Categories\Pages\ListCategories;
-use App\Filament\Admin\Resources\ChatConversations\Pages\ListChatConversations;
-use App\Filament\Admin\Resources\Coupons\Pages\ListCoupons;
-use App\Filament\Admin\Resources\Discounts\Pages\ListDiscounts;
-use App\Filament\Admin\Resources\Menus\Pages\ListMenus;
-use App\Filament\Admin\Resources\Pages\Pages\ListPages;
-use App\Filament\Admin\Resources\Products\Pages\ListProducts;
-use App\Filament\Admin\Resources\Stores\Pages\ListStores;
-use App\Filament\Admin\Resources\TaxClasses\Pages\ListTaxClasses;
-use App\Filament\Admin\Resources\Users\Pages\ListUsers;
 use App\Models\Team;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -33,8 +22,11 @@ use Tests\TestCase;
  * `whereBelongsTo($tenant, 'team')`, so the query names a column that is not
  * there.
  *
- * Mounting every list page is the cheapest way to hold that shut for all ten
- * resources rather than the two somebody happened to notice.
+ * The resources are read off the panel rather than listed here by hand. A hand
+ * list covers the resources somebody remembered, and the two that were missing
+ * from it were the two registered by a plugin — `usingMenuResource()` and
+ * `usingMenuItemResource()` — which is precisely where nobody looks. Enumerating
+ * the panel means a resource cannot be added without being covered.
  */
 class AdminPanelTenancyTest extends TestCase
 {
@@ -70,25 +62,28 @@ class AdminPanelTenancyTest extends TestCase
     {
         $team = $this->actingInAdminPanel();
 
-        $pages = [
-            ListCategories::class, ListChatConversations::class, ListCoupons::class,
-            ListDiscounts::class, ListMenus::class, ListPages::class,
-            ListProducts::class, ListStores::class, ListTaxClasses::class,
-            ListUsers::class,
-        ];
+        $resources = Filament::getPanel('admin')->getResources();
+
+        $this->assertNotEmpty($resources, 'The admin panel registered no resources — the enumeration is wrong.');
 
         // Collected rather than asserted one at a time: the first failure would
         // otherwise hide the rest, and the point is the whole set.
         $failures = [];
 
-        foreach ($pages as $page) {
-            $response = $this->get($page::getUrl(tenant: $team));
+        foreach ($resources as $resource) {
+            if (! $resource::hasPage('index')) {
+                continue;
+            }
+
+            $response = $this->get($resource::getUrl(tenant: $team));
 
             if ($response->getStatusCode() >= 300) {
-                $failures[] = class_basename($page).' -> '.$response->getStatusCode()
+                $failures[] = class_basename($resource).' -> '.$response->getStatusCode()
                     .($response->exception ? ' :: '.$response->exception::class.': '.$response->exception->getMessage() : '');
             }
         }
+
+        sort($failures);
 
         $this->assertSame([], $failures, "Admin panel list pages that do not respond 2xx:\n".implode("\n", $failures));
     }
