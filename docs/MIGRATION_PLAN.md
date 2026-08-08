@@ -212,6 +212,10 @@ Panels keep `->tenant(Team::class, …)`. Switching them to `Store` tenancy woul
 
 **The rest of the models follow.** Orders, customers, reviews, carts and the other ten tables carry `store_id` already; each needs its read paths checked before the scope goes on, and the panel mode — `whereIn` the tenant's stores — is a refinement rather than a control, since panels are already Team-scoped by Filament tenancy.
 
+**The surfaces are covered at the surface.** [#950](https://github.com/liberusoftware/ecommerce-laravel/issues/950) and [#952](https://github.com/liberusoftware/ecommerce-laravel/issues/952) name the anonymous GraphQL endpoint and the Blade storefront, not the models, and a scope nothing exercises through the reported surface is a scope the next refactor removes. `/api/graphql` is now driven the way a caller drives it — real `Host`, no token — across the listing, `search`, a known id, and the nested `collections { products }` read, which reaches `Product` through a pivot and so is the path a caller-side fix would have missed. A `collection_items` row pointing at another store's product is a mis-stamped row, not permission: the nested read returns nothing for it.
+
+**The availability defects recorded on #950 close with it.** `collections`, `Collection.products` and `orders` returned unbounded lists — depth and complexity rules bound the *shape* of a query, not the row count, and `throttle:api` caps request count rather than per-request cost. All three are capped, and the nested products are eager-loaded, which retires the one-query-per-collection N+1 in the same change. No execution timeout yet; that needs a number nobody has picked.
+
 **4. Rebuild the sitemap per channel.** One sitemap per resolved storefront, listing only that store's products. Rewritten rather than moved — the fix rebuilds it anyway, and it stays in the host as pure cross-module aggregation.
 
 ### Rules this wave establishes
