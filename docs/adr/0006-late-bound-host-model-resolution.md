@@ -12,6 +12,6 @@ This is an **extension** of the documentation rather than a reading of it. `MODU
 
 ## Consequences
 
-The team resolver does not exist yet; it is an upstream contribution to `organizations-teams`, and commerce modules cannot resolve a team until it lands.
+The team resolver does not exist yet; it is an upstream contribution to `organizations-teams`, and commerce modules cannot resolve a team until it lands. Not yet filed — it is a contribution rather than a defect report, and it lands with wave 1.
 
 Static analysis cannot see through a config lookup, so a wrong model class is a runtime failure rather than a build failure. The host composition test is what catches it.
