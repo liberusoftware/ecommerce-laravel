@@ -296,6 +296,25 @@ One sitemap per resolved storefront, listing only that store's products. **Which
 
 Rewritten rather than moved — the fix rebuilds it anyway, and it stays in the host as pure cross-module aggregation.
 
+**5. The panel's own tenancy, which turned out not to be running.** — ✅ *#958, answered and closed*
+
+[`CONFORMANCE.md` §6.4](./CONFORMANCE.md#64-six-of-forty-seven-tenancy-pairings-are-coherent) left one question open, because the two answers carried different severities and there was no database here to choose between them: `DiscountResource` and `MenuResource` sit in a Team-tenanted panel on tables with no `team_id`, so either the page raises an unknown-column error, or Filament skips the scope and both list every merchant's rows.
+
+**It was the second, and not only for those two.** The question is answerable in CI rather than by hand — sign in as one merchant, create a row for another, and assert the panel does not show it. No test in this repository had ever asked it: both panel tests asserted that pages *respond*, which is the broken half of the question and passes cleanly while the leaking half is true.
+
+The cause is not the missing column. `$isScopedToTenant` is declared by Filament's `BelongsToTenant` trait on `Filament\Resources\Resource`, so **every resource that does not redeclare it shares one storage slot.** A single `RoleResource::scopeToTenant(false)` — added so Shield's global role resource would stop raising inside a Team-tenanted panel, and reading exactly like a per-resource opt-out — wrote that slot for everybody. **Tenant scoping was off across both panels**: products, orders, customers, invoices, articles, collections, groups, reviews, ratings, coupons and categories all listed every merchant's rows to every merchant. That is #939 again, at the panel, and the panels looked healthy the whole time because with the scope never registered nothing ever emitted the query that would have named a missing column.
+
+| Fix | |
+| --- | --- |
+| Shield's role resource | Published into the app, where the exemption is a **declared property** with its own slot. Its four pages come with it, since a page names its resource in a static property |
+| `discounts`, `menus`, `menu_items` | Given the `team_id` their models had been promising, with no `default(1)` — that default is what wave 2 exists to unpick. Existing rows go to the only team when there is exactly one, and are left for a human otherwise |
+| `ChatConversation`, `Page`, `TaxClass` | The same declared opt-out, each with its reason: no `team_id`, no `team` relation, and genuinely shared — a conversation belongs to the person having it, CMS content leaves this repository under [#942](https://github.com/liberusoftware/ecommerce-laravel/issues/942), and tax classes are jurisdiction data every merchant reads |
+| `menu_items` | Takes its team from its menu on write. Filament scopes with `whereBelongsTo` on the model itself, which no relation through the parent satisfies, and the menu builder page creates items outside the resource |
+
+**The ratchet asks it the only way that works.** Not *is this resource tenant-scoped* — an unscoped resource may be deliberate — but *if it is not, did this class say so*, by checking that the property is declared on the resource itself. That is the only form that distinguishes a written-down exemption from somebody else's side effect, and it covers both panels, because the slot they share is one slot. Both panel tests now go over HTTP: the scope is registered when the panel boots, the panel boots in middleware, and `Livewire::test` skips all of it.
+
+Three tables took `team_id` and not `store_id`, against this wave's own rule, with the reason recorded next to the exemption: the menu builder's storefront component queries `Biostate\FilamentMenuBuilder\Models\Menu` **by class name**, not the model this application configures, so a store scope on `App\Models\Menu` would control the panel and leave the storefront reading exactly what it reads today. Per-storefront navigation is a product change and sits with wave 2's grain corrections, next to `coupons.code`.
+
 ### Rules this wave establishes
 
 - **An unresolved host is a 404.** No default-merchant fallback. Single-merchant deployments and local development configure their one channel's domain, `localhost` included. *A configured fallback is exactly how `default(1)` produced the mess wave 2 is unpicking.*

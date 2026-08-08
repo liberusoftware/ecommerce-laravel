@@ -122,27 +122,20 @@ class AdminPanelTenantIsolationTest extends TestCase
      * registers the scope, so nothing is registered until a request has been
      * through.
      *
+     * The first assertion is the one that found the real fault. The page
+     * responded and listed both merchants, which reads as a scope that is not
+     * filtering; it was a scope that had never been registered, because a
+     * `scopeToTenant(false)` elsewhere had written the static that every
+     * resource shares.
+     *
      * @param  class-string  $resource
      * @param  class-string<Model>  $model
      */
     private function assertScopeReached(string $resource, string $model, string $column, string $expected): void
     {
-        $panel = Filament::getPanel('admin');
-
         $this->assertTrue(
-            $model::hasGlobalScope($panel->getTenancyScopeName()),
-            implode("\n", [
-                "Filament registered no tenancy global scope on {$model}.",
-                'panel has tenancy: '.var_export($panel->hasTenancy(), true),
-                'tenancy scope name: '.$panel->getTenancyScopeName(),
-                'current panel: '.(Filament::getCurrentPanel()?->getId() ?? 'none'),
-                'tenant: '.(Filament::getTenant()?->getKey() ?? 'none'),
-                'scopes on the model: '.implode(', ', array_keys($this->globalScopesOf($model)) ?: ['(none)']),
-                'resource registered: '.var_export(in_array($resource, $panel->getResources(), true), true),
-                'resource is scoped to tenant: '.var_export($resource::isScopedToTenant(), true),
-                'panel booted: '.var_export((new \ReflectionProperty(\Filament\FilamentManager::class, 'isCurrentPanelBooted'))
-                    ->getValue(app(\Filament\FilamentManager::class)), true),
-            ]),
+            $model::hasGlobalScope(Filament::getPanel('admin')->getTenancyScopeName()),
+            "Filament registered no tenancy global scope on {$model} — look for a scopeToTenant(false) call.",
         );
 
         $this->assertSame(
@@ -150,17 +143,6 @@ class AdminPanelTenantIsolationTest extends TestCase
             $resource::getEloquentQuery()->pluck($column)->all(),
             "{$resource} does not filter its own query to the current tenant.",
         );
-    }
-
-    /**
-     * @param  class-string<Model>  $model
-     * @return array<string, mixed>
-     */
-    private function globalScopesOf(string $model): array
-    {
-        $property = new \ReflectionProperty(Model::class, 'globalScopes');
-
-        return $property->getValue()[$model] ?? [];
     }
 
     /**
