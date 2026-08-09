@@ -22,11 +22,9 @@ class CartService
         DB::transaction(function () use ($user, $sessionCart) {
             CartItem::where('user_id', $user->id)->delete();
 
-            $sessionId = Session::getId();
             foreach ($sessionCart as $productId => $line) {
                 CartItem::create([
                     'user_id' => $user->id,
-                    'session_id' => $sessionId,
                     'product_id' => $productId,
                     'quantity' => $line['quantity'],
                     'price' => $line['price'],

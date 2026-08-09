@@ -29,9 +29,9 @@ class CartApiTest extends TestCase
         $other = User::factory()->create();
         $p1 = $this->product(price: 10);
         $p2 = $this->product(price: 5);
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $p1->id, 'quantity' => 2, 'price' => 10]);
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $p2->id, 'quantity' => 1, 'price' => 5]);
-        CartItem::create(['user_id' => $other->id, 'session_id' => 'api', 'product_id' => $p1->id, 'quantity' => 9, 'price' => 10]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $p1->id, 'quantity' => 2, 'price' => 10]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $p2->id, 'quantity' => 1, 'price' => 5]);
+        CartItem::create(['user_id' => $other->id, 'product_id' => $p1->id, 'quantity' => 9, 'price' => 10]);
 
         $this->actingAs($user)->getJson('/api/cart')
             ->assertOk()
@@ -59,7 +59,7 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product();
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
         $this->actingAs($user)->postJson('/api/cart', ['product_id' => $product->id, 'quantity' => 3])
             ->assertCreated();
@@ -83,7 +83,7 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product(stock: 10);
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
         $this->actingAs($user)->putJson("/api/cart/{$product->id}", ['quantity' => 6])
             ->assertOk();
@@ -95,7 +95,7 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product(stock: 2);
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
         $this->actingAs($user)->putJson("/api/cart/{$product->id}", ['quantity' => 9])
             ->assertStatus(422);
@@ -114,7 +114,7 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product();
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
         $this->actingAs($user)->deleteJson("/api/cart/{$product->id}")->assertOk();
 
@@ -126,7 +126,7 @@ class CartApiTest extends TestCase
         $user = User::factory()->create();
         $other = User::factory()->create();
         $product = $this->product();
-        CartItem::create(['user_id' => $other->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $other->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
         $this->actingAs($user)->deleteJson("/api/cart/{$product->id}")->assertOk();
 
@@ -139,8 +139,8 @@ class CartApiTest extends TestCase
         $user = User::factory()->create();
         $other = User::factory()->create();
         $product = $this->product();
-        CartItem::create(['user_id' => $user->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
-        CartItem::create(['user_id' => $other->id, 'session_id' => 'api', 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        CartItem::create(['user_id' => $other->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
         $this->actingAs($user)->deleteJson('/api/cart')->assertOk();
 
