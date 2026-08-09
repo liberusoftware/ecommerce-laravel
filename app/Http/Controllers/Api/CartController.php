@@ -47,7 +47,6 @@ class CartController extends Controller
         }
 
         $item->fill([
-            'session_id' => $item->session_id ?? 'api',
             'quantity' => $quantity,
             'price' => $product->price,
         ])->save();

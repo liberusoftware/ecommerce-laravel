@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\CartService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Tests\TestCase;
 
@@ -19,7 +20,6 @@ class CartPersistenceTest extends TestCase
     {
         return CartItem::create([
             'user_id' => $user->id,
-            'session_id' => 'old-session',
             'product_id' => $product->id,
             'quantity' => $qty,
             'price' => $price,
@@ -76,6 +76,29 @@ class CartPersistenceTest extends TestCase
             'product_id' => $product->id,
             'quantity' => 2,
         ]);
+    }
+
+    /**
+     * A saved cart belongs to an account, and to nothing else.
+     *
+     * `cart_items.session_id` was written by every path and read by none, and
+     * `user_id` is a required foreign key — so a cart item never belonged to a
+     * session in the first place. The API, which has no session and could not
+     * leave the column empty, wrote the literal string `'api'`: one identity
+     * shared by every API client, sitting in a column that looks like an
+     * identity. Nothing was scoped by it, which is the only reason it was not a
+     * leak; the fix is to stop claiming it rather than to keep it honest.
+     */
+    public function test_a_saved_cart_item_belongs_to_an_account_not_to_a_session(): void
+    {
+        $this->assertFalse(
+            Schema::hasColumn('cart_items', 'session_id'),
+            'cart_items has a session_id again — something will fill it with a sentinel.',
+        );
+
+        // The contrast, and why this is not a blanket rule: an abandoned cart is
+        // usually a guest's, so there the session really is the identity.
+        $this->assertTrue(Schema::hasColumn('abandoned_carts', 'session_id'));
     }
 
     public function test_guest_add_does_not_persist(): void

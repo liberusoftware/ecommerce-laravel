@@ -385,7 +385,11 @@ Two items from this wave were never really about attributing existing rows, and 
   **The `Customer` backfill moved from a migration to the write path.** It was going to be a migration because reviews already existed keyed to a `User` with no `Customer`; with no rows, the same requirement lands where a review is created — `getOrCreateCustomer()`, which already existed for exports. A shopper who has never had a customer record gets one rather than having their review dropped as unmappable.
 
   Two things fell out that the ADR did not name. The star rating on a review is a *rating* now that ratings are their own record, so a review writes both — `firstOrCreate`, so a breakdown the shopper already left is not flattened to one number. And the panel had no moderation surface at all: approving was an HTTP endpoint and nothing else, which is a queue with no queue. The review resource now shows the flag, filters on it, and can set it.
-- **The cart `'api'` session sentinel**, which is a code fix in the cart's identity handling.
+- ~~**The cart `'api'` session sentinel**, which is a code fix in the cart's identity handling.~~ — ✅ **done, by deleting the column rather than the sentinel.**
+
+  `cart_items.session_id` was `NOT NULL`, written by every path and read by none. `user_id` on the same table is a **required** foreign key, so a cart item never belonged to a session in the first place — guests are not persisted at all. The API and the GraphQL mutation, having no session and no way to leave the column empty, wrote the literal string `'api'`: one identity shared by every API client, sitting in a column shaped like an identity. Nothing scoped by it, which is the only reason it was not a leak — the same "not a leak yet" that `default(1)` was.
+
+  Repairing it would have meant inventing a truthful value for a column nobody reads. `abandoned_carts` keeps its own `session_id` and the contrast is the point: an abandoned cart is usually a guest's, so there the session really is the identity.
 
 And the grain corrections this plan has been collecting, which are now edits to the migrations that got the grain wrong rather than corrections layered on top:
 
