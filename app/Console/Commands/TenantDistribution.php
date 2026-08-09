@@ -25,10 +25,18 @@ class TenantDistribution extends Command
     {
         $connection = DB::connection();
 
-        $this->line((new TenantDistributionReport($connection->getPdo()))->markdown(
+        $report = (new TenantDistributionReport($connection->getPdo()))->markdown(
             (string) config('app.env'),
             (string) $connection->getDatabaseName(),
-        ));
+        );
+
+        // Line by line rather than as one string: the console writes it the
+        // same either way, but a single write is a single output chunk, and
+        // anything reading this output a line at a time — a test expectation, a
+        // `grep` in a pipeline — sees one blob instead.
+        foreach (explode("\n", $report) as $line) {
+            $this->line($line);
+        }
 
         return self::SUCCESS;
     }
