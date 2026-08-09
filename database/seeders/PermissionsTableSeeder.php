@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -18,10 +19,10 @@ class PermissionsTableSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         Schema::disableForeignKeyConstraints();
-        \DB::table('permissions')->delete();
+        DB::table('permissions')->delete();
         Schema::enableForeignKeyConstraints();
 
-        \DB::table('permissions')->insert([
+        DB::table('permissions')->insert([
             0 => [
                 'id' => 1,
                 'name' => 'view_cart::item',

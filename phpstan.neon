@@ -1,0 +1,68 @@
+# Static analysis gate. Run it with `composer analyse`; CI runs it in the Lint
+# workflow, whole-tree, with no baseline.
+#
+# ---------------------------------------------------------------------------
+# Why level 0 and not level 8
+# ---------------------------------------------------------------------------
+# The migration plan asks for level 8. That is the right destination and this is
+# not it yet, for one concrete reason: larastan/larastan is not installed, and
+# without it PHPStan has no idea what Eloquent and the facades are. Measured on
+# this tree (app, bootstrap, database, routes):
+#
+#     level  0 →    26 errors        level  6 →  2015
+#     level  1 →   481               level  7 →  2065
+#     level  2 →   909               level  8 →  2068
+#     level  3 →   934               level  9 →  2376
+#     level  4 →   938               level 10 →  4380
+#     level  5 →   956
+#
+# The jump from 26 to 481 is not the codebase getting worse between those two
+# levels. At level 2, 802 of the 909 errors are two identifiers —
+# `property.notFound` (`Access to an undefined property App\Models\Order::$id`)
+# and `staticMethod.notFound` (`Call to an undefined static method
+# App\Models\Product::where()`). Those are Eloquent working exactly as designed.
+# Larastan exists to teach PHPStan about them and we cannot install it here.
+#
+# Baselining ~2000 of those to claim level 8 would not be a record of debt, it
+# would be a way of not looking: the real findings would be buried among the
+# magic, and nobody would ever read the file. So the gate lands where the tool
+# is telling the truth, with nothing hidden behind it.
+#
+# Level 0 is not a token gesture. Its 26 findings on day one were, almost to a
+# line, real: a relation pointing at a model that had been renamed, three
+# classes constructing services and models that do not exist, a notification
+# instantiating a framework class deleted in Laravel 9, and five PHP 8.4
+# implicit-nullable deprecations. All fixed in the commit that added this file,
+# which is why the count here is zero.
+#
+# To climb: install larastan/larastan (needs Composer network), add its
+# extension.neon to `includes`, re-measure, and raise `level` to the highest
+# rung that is clean or carries a baseline small enough that someone would
+# actually read it.
+parameters:
+    level: 0
+
+    # The directories ArchitectureTest calls "code that ships and runs in
+    # production", and for the same reason. config/ is excluded because it is
+    # array literals with nothing to infer; tests/ is excluded because without
+    # larastan the Laravel test traits generate the same magic-noise as the app
+    # code does, and a gate whose failures are mostly noise gets ignored.
+    # Both are candidates for inclusion once larastan lands.
+    paths:
+        - app
+        - bootstrap
+        - database
+        - routes
+
+    # Match the sibling repositories: trust the code over its docblocks when the
+    # two disagree, rather than reporting the docblock as certain fact.
+    treatPhpDocTypesAsCertain: false
+
+    ignoreErrors:
+        # Artisan::command() binds its closure to the Command instance, so $this
+        # is defined at runtime. PHPStan cannot see a runtime bindTo, and
+        # larastan would not help. Scoped to this one message in this one file
+        # so a genuinely undefined variable in routes/console.php still fails.
+        -
+            message: '#^Undefined variable: \$this$#'
+            path: routes/console.php

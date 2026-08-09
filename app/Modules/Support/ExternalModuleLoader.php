@@ -41,7 +41,7 @@ class ExternalModuleLoader
      * Scan Composer vendor packages for modules by reading installed.json PSR-4 metadata.
      * Packages exposing a *Module class implementing ModuleInterface are auto-registered.
      */
-    public function loadFromVendor(string $vendorPath = null): void
+    public function loadFromVendor(?string $vendorPath = null): void
     {
         $vendorPath ??= base_path('vendor');
         $installedJson = $vendorPath.'/composer/installed.json';
@@ -86,6 +86,7 @@ class ExternalModuleLoader
                     require_once $file->getPathname();
                 } catch (\Throwable $e) {
                     Log::warning("Failed requiring vendor module file {$file->getPathname()}: ".$e->getMessage());
+
                     continue;
                 }
             }
