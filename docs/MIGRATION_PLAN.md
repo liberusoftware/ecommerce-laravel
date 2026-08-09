@@ -229,6 +229,10 @@ Its promotion gate is [`MODULE_DEVELOPMENT.md` §6.1](./MODULE_DEVELOPMENT.md#61
 
 `ecommerce-core` is provisioned in all four flavours, so promotion pushes into existing repositories.
 
+**One prerequisite is a contribution rather than a fix, and it is nobody's defect report.** [ADR 0006](./adr/0006-late-bound-host-model-resolution.md) has commerce modules resolve host models late and never import them. That needs a **team resolver** in `organizations-teams`, and it does not exist. Until it lands, a commerce module cannot resolve a team — which is a hard block on wave 1, not a nice-to-have.
+
+It is recorded here because it was previously recorded *only* inside [#961](https://github.com/liberusoftware/ecommerce-laravel/issues/961), the upstream-issue tracker, as the one item of 24 that had never been filed anywhere. #961 is now closed ([ADR 0013](./adr/0013-cms-and-crm-packages-are-built-from-ground.md)), and a wave 1 prerequisite belongs in the wave 1 section rather than in a list of other repositories' bugs.
+
 ---
 
 ## Wave 1.5 — stores, channels, and the tenant scope
@@ -545,12 +549,12 @@ Two asymmetries drive the whole plan:
 ## 4. What is outside this plan
 
 - **The 105 modules themselves** — the execution epics.
-- **The deferred CMS and CRM code** ([#942](https://github.com/liberusoftware/ecommerce-laravel/issues/942), [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943)). This plan said it moves *"when those products have repositories, not on a date this plan can name"*. **They have repositories** — re-checked 2026-08-09, `cms-laravel` is live and `crm-laravel` is on `2.0.1` — so the condition this plan set has been met and the item still is not takeable, for two different reasons.
+- **The CMS and CRM code — no longer deferred, and no longer a move.** ~~#942, #943~~ are closed, superseded by [**ADR 0013**](./adr/0013-cms-and-crm-packages-are-built-from-ground.md).
 
-  For **CMS**, the destination is now nameable per cluster: `cms-laravel/packages/liberu-cms/` holds 21 path packages, among them `cms-pages`, `cms-posts`, `cms-seo` and `cms-forms`, which own all three clusters #942 lists. None is published, so the exit criterion's second half stands — but the receiving host has none of the code, which makes this a move whenever somebody decides to make it.
+  This plan said the code moves *"when those products have repositories, not on a date this plan can name"*. They have repositories, so the condition was met — and then the answer changed underneath it. **The CMS and CRM packages are being built from ground**, each tracked by its own module issue. They are not extractions of this code, so there is no move to schedule. The local code is **deleted at cutover**, in the change that adopts the module.
 
-  For **CRM** it stopped being a move at all. `crm-laravel` already carries `LiveChat`, `ChatMessage`, `Chatbot` and `ChatbotInteraction`, so the live-chat stack here is a **second implementation of one that exists**, in a different repository, with neither authoritative. That is the reviews/ratings duplicate stack again with the two halves split across repositories — and the larger implementation is the one in the repository that should not own it.
+  Both premises had expired first, in opposite directions, which is what forced the re-decision. `crm-laravel` `2.0.1` already carries `LiveChat`, `ChatMessage`, `Chatbot` and `ChatbotInteraction` — the local stack was a second implementation, not an orphan. And `cms-laravel` holds 21 committed path packages under `packages/liberu-cms/`, so the CMS implementation exists too; only the tags do not. A deferral whose premise has expired needs re-deciding, because re-applying it is how debt outlives its reason.
 
-  Recorded rather than acted on: which stack survives is a decision about a product this repository has no mandate over. What this plan can say is that the deferral's premise expired, and a deferral whose premise has expired needs re-deciding rather than re-applying.
+  What survives, and is the reason closing the trackers costs nothing: [`reconciliation/cms-owned-code.md`](./reconciliation/cms-owned-code.md) and [`reconciliation/crm-chat-stack.md`](./reconciliation/crm-chat-stack.md) were written as *how to move this* and are now *what a fresh package must cover*. ADR 0013 lists the findings a from-scratch build will not rediscover — the inverted `user_id`, the read receipts and rate limits that exist only here, `cms-forms`' `'email'` instead of `'email:rfc'`, and the sitemap's canonical root and 50k cap that `cms-contracts` cannot express.
 - **The five out-of-scope flavours** — `react`, `vue`, `nuxt`, `flutter`, `react-native`.
 - **Adding a locale.** `en` only; adding a language is product scope. The RTL machinery in `TRANSLATIONS.md` and `THEMES.md` §18.1 stays unexercised as a result, which is recorded as a deliberate deferral rather than an oversight.
