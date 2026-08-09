@@ -2,68 +2,47 @@
 
 namespace Tests\Feature;
 
-use App\Models\ABTest;
-use App\Models\CartRecoveryCampaign;
-use App\Models\CustomerGroup;
-use App\Models\CustomerSegment;
-use App\Models\InventoryLocation;
-use App\Models\RecommendationRule;
-use App\Models\SeoSetting;
-use App\Models\TaxonomyCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * `App\Traits\IsTenantModel` is a `team()` BelongsTo relation and nothing else.
- * A model that uses it therefore promises a `team_id` column, and eight of the
- * seventeen that use it have no such column on their table — so the relation is
- * dead on arrival and a tenant scope added later would raise an unknown-column
- * error rather than isolating anything.
+ * Every model that declares tenancy has somewhere to store it. **The list of
+ * exceptions is empty**, and this is what keeps it that way.
  *
- * It was 31 of 37, and the list shrank twice for opposite reasons.
+ * It was 31 of 37, and it closed in three moves for three different reasons.
  *
- * `Discount`, `Menu` and `MenuItem` got the column, because a tenant-scoped
+ * `Discount`, `Menu` and `MenuItem` got the column because a tenant-scoped
  * Filament resource queries them — a live wrong claim rather than a dormant one
- * (#958). Twenty more lost the trait, because their owner is their parent's:
+ * (#958). Twenty models lost the trait, because their owner is their parent's:
  * `ProductVariant` belongs to a product, `GiftCardTransaction` to a gift card,
- * `InventoryLevel` to an inventory item. Copying `team_id` onto every child
- * table is the blanket migration that produced half of this, and a relation to
- * a column that will never exist is a claim, not a plan.
+ * `InventoryLevel` to an inventory item, and copying `team_id` onto every child
+ * table is the blanket migration this plan spent a wave unpicking. The last
+ * eight — the roots, with no tenant-owned parent to inherit from — got the
+ * column when `IsTenantModel` started *writing* the key, at which point a model
+ * that declares tenancy and cannot store it stopped being a dormant claim and
+ * became an insert that fails.
  *
- * What is left are the eight roots: no tenant-owned parent to inherit from, so
- * the column is the only way they could ever be tenanted.
- *
- * This test is a ratchet. The allow-list below can only shrink — a model may
- * not newly join it — and it is a list of names rather than a count, so
- * shrinking it means naming what changed.
+ * The ratchet stays because the pairing can break in both directions and both
+ * have happened here: a trait added to a model whose table has no column, and a
+ * column dropped from under a model that has the trait.
  */
 class TenantModelSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * The roots: merchant-owned, with no tenant-owned parent to inherit an
-     * owner from, and no table column to be owned by yet.
+     * Empty, and meant to stay that way.
      *
-     * Still not a to-do list. Nothing reads any of them through a panel or a
-     * scope, so adding eight columns today buys eight columns nothing writes
-     * and nothing filters. Each one gets its `team_id` when something needs to
-     * ask whose it is — which is how `discounts` and `menus` got theirs.
+     * An entry here is a model that says it belongs to a team and has nowhere
+     * to record which. Adding one means writing down why that is acceptable —
+     * and since the trait now writes the key on create, the honest answer is
+     * usually that the model should not have the trait.
      *
      * @var list<class-string<Model>>
      */
-    private const MISSING_TEAM_ID = [
-        ABTest::class,
-        CartRecoveryCampaign::class,
-        CustomerGroup::class,
-        CustomerSegment::class,
-        InventoryLocation::class,
-        RecommendationRule::class,
-        SeoSetting::class,
-        TaxonomyCategory::class,
-    ];
+    private const MISSING_TEAM_ID = [];
 
     public function test_tenant_models_have_a_team_id_column(): void
     {

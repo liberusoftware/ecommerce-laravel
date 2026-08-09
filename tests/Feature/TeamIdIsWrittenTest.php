@@ -57,6 +57,11 @@ class TeamIdIsWrittenTest extends TestCase
         $user = User::factory()->withPersonalTeam()->create();
         $team = $user->ownedTeams()->first();
 
+        // `withPersonalTeam()` creates the team but does not switch to it, and
+        // the tenant is read from `current_team_id` — the value both panels set
+        // when the tenant changes.
+        $user->switchTeam($team);
+
         $this->actingAs($user);
 
         // No host, so no store — a merchant onboarded before their storefront
