@@ -24,8 +24,16 @@ class CouponModelTest extends TestCase
         ], $overrides));
     }
 
-    /** Insert $count orders linked to a coupon by code (the real linkage column). */
-    private function seedOrders(string $couponCode, int $count): void
+    /**
+     * Insert $count orders linked to a coupon by code (the real linkage column)
+     * and to the coupon's own store, which is how the application writes them.
+     *
+     * The store matters now that codes are unique per store rather than per
+     * installation: the code alone names one coupon per merchant, so the
+     * relation carries the store too. An order with no store belongs to no
+     * merchant and counts against nobody's `max_uses`.
+     */
+    private function seedOrders(Coupon $coupon, int $count): void
     {
         $customerId = DB::table('customers')->insertGetId([
             'first_name' => 'Test',
@@ -41,11 +49,12 @@ class CouponModelTest extends TestCase
         for ($i = 0; $i < $count; $i++) {
             DB::table('orders')->insert([
                 'customer_id' => $customerId,
+                'store_id' => $coupon->store_id,
                 'order_date' => now()->toDateString(),
                 'total_amount' => 100,
                 'payment_status' => 'paid',
                 'shipping_status' => 'pending',
-                'coupon_code' => $couponCode,
+                'coupon_code' => $coupon->code,
             ]);
         }
     }
@@ -104,7 +113,7 @@ class CouponModelTest extends TestCase
     public function test_is_valid_false_when_usage_limit_reached(): void
     {
         $coupon = $this->makeCoupon(['code' => 'LIMIT2', 'max_uses' => 2]);
-        $this->seedOrders('LIMIT2', 2);
+        $this->seedOrders($coupon, 2);
 
         $this->assertSame(2, $coupon->orders()->count());
         $this->assertFalse($coupon->isValid());
@@ -113,7 +122,7 @@ class CouponModelTest extends TestCase
     public function test_is_valid_true_below_usage_limit(): void
     {
         $coupon = $this->makeCoupon(['code' => 'LIMIT3', 'max_uses' => 3]);
-        $this->seedOrders('LIMIT3', 2);
+        $this->seedOrders($coupon, 2);
 
         $this->assertTrue($coupon->isValid());
     }
