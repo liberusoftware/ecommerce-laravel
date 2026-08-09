@@ -53,7 +53,7 @@ Nothing can be extracted before this wave. A module ships **no `extra.laravel.pr
 | --- | --- |
 | Adopt `liberusoftware/composer-installer` | `MODULES.md` §6.1 makes it a prerequisite; nothing installs into `modules/` without it. **Published at `1.1.0`** |
 | Adopt `module-manager` | The only registrar. **Published at `1.4.2`.** It replaces `app/Modules/` rather than merely deleting it — see the correction below |
-| **Enforcement layer** — `pint.json`, PHPStan at level 8, architecture tests, CI gates, Composer scripts | The cheapest item on the map and the one whose value compounds. Landing it after 20 extractions means 20 modules to re-check |
+| **Enforcement layer** — `pint.json`, ~~PHPStan at level 8~~ **PHPStan at level 0**, architecture tests, CI gates, Composer scripts | The cheapest item on the map and the one whose value compounds. Landing it after 20 extractions means 20 modules to re-check. **Static analysis landed — see below.** The architecture-test half is module-boundary rules and waits on modules existing |
 | Create **`theme-ecommerce`** — `type: public`, `parent: default` | The storefront layout moves **once**, and every later extraction targets an existing theme instead of a moving one |
 | Declare **`supported_locales`** in `config/app.php` | The key is absent and `localization-core` reads it. One line, arriving with the localization adoption already committed to |
 | Add the **translation lint step** to `package-tests.yml` | A static catalogue check belongs with the enforcement layer, not with the first module that ships a catalogue |
@@ -61,6 +61,29 @@ Nothing can be extracted before this wave. A module ships **no `extra.laravel.pr
 | `package-testbench` upstream contribution — **timeboxed** | The boundary-rule architecture tests belong upstream so every module gets them. Fall back to `commerce-testbench` if it stalls |
 | `spatie/laravel-permission` `^8.0` support upstream in `roles-permissions` | This repo is on `^8.3`, the reference app on `^7.0`. **Downgrading a security-relevant dependency to match a module is the wrong direction of travel** |
 | ~~Vendor rename `liberu-eccommerce` → `liberusoftware`~~ — ✅ **done, with one step left outside this repository** | Free today — 0 downloads, 0 dependents. It stops being free the moment anything depends on it. [ADR 0009](./adr/0009-vendor-rename-to-liberusoftware.md), which is also corrected: the package **does** have five published tags, and that is what leaves a Packagist step for a maintainer — [#1000](https://github.com/liberusoftware/ecommerce-laravel/issues/1000), which needs maintainer rights this repository cannot grant itself |
+
+### Static analysis landed at level 0, not level 8 — ✅ **done**
+
+This plan asked for level 8. The gate runs at **level 0**, whole-tree, with **no baseline**, and the difference is not a compromise so much as a measurement.
+
+`larastan/larastan` is not installed and cannot be — it needs Composer network this environment does not have. Without it PHPStan does not know what Eloquent or the facades are. Measured across `app`, `bootstrap`, `database` and `routes`, one CI job per level:
+
+| level | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| errors | **26** | 481 | 909 | 934 | 938 | 956 | 2015 | 2065 | **2068** | 2376 | 4380 |
+
+At level 2, **802 of the 909 are two identifiers** — `property.notFound` (*"Access to an undefined property `Order::$id`"*) and `staticMethod.notFound` (*"Call to an undefined static method `Product::where()`"*). That is Eloquent working as designed, and teaching PHPStan about it is precisely what Larastan is for. Baselining two thousand of those to claim level 8 would not be a record of debt; it would be a way of not looking — the real findings buried in the magic, in a file nobody reads. The gate lands where the tool is telling the truth, with nothing hidden behind it, and `phpstan.neon` carries the ladder and the upgrade path in its own comments rather than only here.
+
+**Level 0 was not a token gesture: its 26 findings were, almost to a line, real.**
+
+- **A live bug.** `Team::collections()` returned `hasMany(App\Models\Collection::class)` — a model renamed to `ProductCollection` some time ago. The class does not exist, so the relation fataled on use. `docs/research/standards-gap-audit.md` had already found this **by hand**, and it was still unfixed; the tool found it on day one, automatically, which is the entire argument for the tool.
+- **Four classes referencing things that do not exist**, all deleted: `CreateNewUserWithTeams` and `CreatePersonalTeam` both construct an `App\Services\TeamManagementService` that exists nowhere (referenced only from commented-out provider blocks); `EmailTracker` calls `EmailCampaign::find()` and `Lead::find()` — CRM leftovers of the same family as the `ScreeningDataEncryptor` deleted earlier in this wave; `CollectionFactory` carries the same stale name as the relation above.
+- **A notification instantiating `NexmoMessage`**, removed from the framework in Laravel 9 — unreachable, since `via()` returns only mail and database.
+- **Five PHP 8.4 implicit-nullable deprecations** on a repository that requires PHP 8.5.
+
+Two deliberate choices worth recording. The job runs **whole-tree, not changed-files** — deliberately the opposite of the Pint job beside it, because formatting is per-file and type analysis is whole-program: a changed signature breaks callers the diff never names. And there is **one `ignoreErrors` entry rather than a baseline** — `Undefined variable: $this` in `routes/console.php`, where Artisan binds the closure at runtime — scoped to that message in that file, so a genuinely undefined variable there still fails.
+
+`composer analyse` runs it; `composer check` is lint, analyse and test together. Nothing was added to `require` or `require-dev` — `phpstan/phpstan` was already in `composer.lock`, pulled in by Rector, which is the only reason any of this was possible without network.
 
 ### `app/Modules/` is a replacement, not a deletion
 
