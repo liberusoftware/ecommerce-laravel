@@ -13,7 +13,7 @@ class MergeGuestCartOnLogin
     public function handle(Login $event): void
     {
         if ($event->user instanceof User) {
-            $this->cartService->mergeIntoSession($event->user);
+            $this->cartService->mergeGuestCartIntoAccount($event->user);
         }
     }
 }

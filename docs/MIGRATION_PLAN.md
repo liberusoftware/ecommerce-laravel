@@ -424,7 +424,15 @@ Prerequisites specific to this wave, from [`CONFORMANCE.md` §5](./CONFORMANCE.m
   **Pro-rata rather than `TaxService`'s flat subtraction**, which took the discount off one blended subtotal — correct only while every line shares a rate. The moment a cart mixes a standard-rated and a reduced-rated item, the answer depends on which line the discount is deemed to have come off, and the engine now shrinks every line by the same proportion. Untaxable lines count in the denominator: the coupon was given against the whole cart, and leaving them out concentrates the discount on what remains and under-taxes it.
 
   Rejected rather than ported: `parseAddress`, which regex-guessed a country, state and ZIP out of a free-text address string and **defaulted the country to `US`** — a guess wearing a lookup's clothes, against an engine that already takes a structured address. `getTaxDetails` was superseded by `calculateCartTax`'s `lines`, which are grouped and compound-aware. `calculateTax(amount, country, …)` had no caller and no tax class.
-- The **cart merge** lands before the Cart module, which is the tier after this one.
+- ~~The **cart merge** lands before the Cart module, which is the tier after this one.~~ — ✅ **done.** One store, one door.
+
+  A guest's cart lived in the session as a plain array; an account's lived in `cart_items`; `CartService` mirrored one into the other on login and on every write; the API and the GraphQL mutation wrote `cart_items` and never saw the session at all. Two stores that can disagree, and **the web checkout charged from the session copy** — the one no other surface could read. A shopper who filled a cart through the API and checked out on the web was charged for a different cart than the one they filled.
+
+  Everything writes `cart_items` now. `cart_items.user_id` became nullable and `guest_token` joined it: exactly one is set, and on login the guest's rows are folded into the account's — quantities combined, since a shopper who added two signed out and one signed in wanted three — and the token dropped, so the next guest on that browser does not inherit a cart.
+
+  `guest_token` is deliberately **not** a session id. A session id is a credential, and this column is read by staff tooling and abandoned-cart jobs. It is also not the `session_id` column deleted a few commits earlier: that one was written by every path and read by none, which is what made the API's `'api'` sentinel possible. This one has one writer, one reader, and a constraint.
+
+  A consequence worth naming: the cart is store-scoped like everything else in wave 1.5, so a guest's cart no longer follows them between merchants' storefronts. That was the defect this plan describes as *"items added on one storefront appearing on another means a shopper checks out a competitor's basket"* — it was only ever half-fixed, because the session copy was never scoped by anything.
 - The **recommender rename** lands with Recommendations.
 
 After wave 3 the sequencing rule in §1 carries the rest with no further enumeration.

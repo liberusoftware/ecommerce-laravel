@@ -15,14 +15,23 @@ return new class extends Migration
     {
         Schema::create($this->table, function (Blueprint $table) {
             $table->id();
-            // No `session_id`. `user_id` below is a required foreign key, so a
-            // cart item always belongs to an account and never to a session —
-            // guests are not persisted at all. The column was written by every
-            // path and read by none, which left the API filling it with the
-            // literal string 'api' because it could not be left empty.
-            // `abandoned_carts` keeps its own `session_id`, and there it is
-            // load-bearing: an abandoned cart is usually a guest's.
-            $table->foreignId('user_id')->constrained()->onDelete('cascade')->onUpdate('cascade');
+
+            // One cart store for everybody, so exactly one of these two is set.
+            //
+            // `user_id` is nullable because a guest's cart lives here too now —
+            // this table used to hold accounts only, and guests kept a copy of
+            // their cart in the session that nothing else could see. Two stores
+            // meant two checkouts, and the session copy was the one the web
+            // checkout charged from.
+            //
+            // `guest_token` is the session's stake in that row: an opaque value
+            // handed out once per visitor, and the only thing that can claim an
+            // unauthenticated cart. It is not a session id — a session id is a
+            // credential, and this is written to a table read by staff tooling.
+            // On login the guest's rows are folded into the account's and the
+            // token is dropped, so a row never carries both.
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade')->onUpdate('cascade');
+            $table->string('guest_token')->nullable()->index();
             $table->foreignId('product_id')->constrained()->onDelete('cascade')->onUpdate('cascade');
             $table->integer('quantity');
             $table->decimal('price', 10, 2);

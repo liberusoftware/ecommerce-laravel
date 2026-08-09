@@ -12,6 +12,15 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Tests\TestCase;
 
+/**
+ * One cart store, for guests and accounts alike.
+ *
+ * A guest's cart used to live in the session as a plain array, and a signed-in
+ * shopper's in `cart_items`, with this service mirroring one into the other. Two
+ * stores can disagree, and the web checkout charged from the session copy — the
+ * one no API or panel could see. Now everything reads the same rows, and the
+ * session holds only a token saying which rows are this visitor's.
+ */
 class CartPersistenceTest extends TestCase
 {
     use RefreshDatabase;
@@ -26,19 +35,34 @@ class CartPersistenceTest extends TestCase
         ]);
     }
 
-    public function test_merge_combines_saved_and_session_carts(): void
+    private function guestCart(Product $product, int $qty, float $price = 5): string
+    {
+        $token = 'guest-token-'.$product->id;
+
+        CartItem::create([
+            'guest_token' => $token,
+            'product_id' => $product->id,
+            'quantity' => $qty,
+            'price' => $price,
+        ]);
+
+        Session::put('cart_token', $token);
+
+        return $token;
+    }
+
+    public function test_merge_combines_the_guest_and_account_carts(): void
     {
         $user = User::factory()->create();
         $saved = Product::factory()->create();
         $guest = Product::factory()->create();
         $this->saved($user, $saved, 2);
-        Session::put('cart', [$guest->id => ['name' => $guest->name, 'price' => 5, 'quantity' => 1, 'is_downloadable' => false]]);
+        $this->guestCart($guest, 1);
 
-        app(CartService::class)->mergeIntoSession($user);
+        app(CartService::class)->mergeGuestCartIntoAccount($user);
 
-        $cart = Session::get('cart');
-        $this->assertEquals(2, $cart[$saved->id]['quantity']);
-        $this->assertEquals(1, $cart[$guest->id]['quantity']);
+        $this->assertEquals(2, CartItem::where('user_id', $user->id)->where('product_id', $saved->id)->value('quantity'));
+        $this->assertEquals(1, CartItem::where('user_id', $user->id)->where('product_id', $guest->id)->value('quantity'));
     }
 
     public function test_merge_sums_quantities_for_the_same_product(): void
@@ -46,22 +70,40 @@ class CartPersistenceTest extends TestCase
         $user = User::factory()->create();
         $product = Product::factory()->create();
         $this->saved($user, $product, 2);
-        Session::put('cart', [$product->id => ['name' => $product->name, 'price' => 10, 'quantity' => 3, 'is_downloadable' => false]]);
+        $this->guestCart($product, 3);
 
-        app(CartService::class)->mergeIntoSession($user);
+        app(CartService::class)->mergeGuestCartIntoAccount($user);
 
-        $this->assertEquals(5, Session::get('cart')[$product->id]['quantity']);
+        // Three while signed out and two while signed in means they wanted five.
+        // Either cart winning outright loses something they chose.
+        $this->assertEquals(5, CartItem::where('user_id', $user->id)->where('product_id', $product->id)->value('quantity'));
+        $this->assertSame(1, CartItem::where('product_id', $product->id)->count());
     }
 
-    public function test_login_event_merges_the_saved_cart_into_the_session(): void
+    public function test_merge_leaves_no_row_claimed_by_both(): void
     {
         $user = User::factory()->create();
         $product = Product::factory()->create();
-        $this->saved($user, $product, 4);
+        $token = $this->guestCart($product, 1);
+
+        app(CartService::class)->mergeGuestCartIntoAccount($user);
+
+        // A row holding both an account and a token is reachable by a stranger
+        // who still has the token after the owner signed in.
+        $this->assertSame(0, CartItem::where('guest_token', $token)->count());
+        $this->assertNull(CartItem::where('user_id', $user->id)->value('guest_token'));
+        $this->assertNull(Session::get('cart_token'), 'The next guest on this browser would inherit the account holder’s token.');
+    }
+
+    public function test_login_event_merges_the_guest_cart(): void
+    {
+        $user = User::factory()->create();
+        $product = Product::factory()->create();
+        $this->guestCart($product, 4);
 
         event(new Login('web', $user, false));
 
-        $this->assertEquals(4, Session::get('cart')[$product->id]['quantity']);
+        $this->assertEquals(4, CartItem::where('user_id', $user->id)->where('product_id', $product->id)->value('quantity'));
     }
 
     public function test_authenticated_add_persists_the_cart(): void
@@ -78,35 +120,61 @@ class CartPersistenceTest extends TestCase
         ]);
     }
 
+    public function test_a_guest_add_is_persisted_against_a_token(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 10]);
+
+        // The old behaviour was to persist nothing at all for a guest, which is
+        // why the web checkout had to read a session array no other surface
+        // could see.
+        $this->post(route('cart.add', $product), ['quantity' => 1]);
+
+        $item = CartItem::where('product_id', $product->id)->first();
+
+        $this->assertNotNull($item, 'A guest cart was not persisted.');
+        $this->assertNull($item->user_id);
+        $this->assertNotNull($item->guest_token);
+    }
+
+    public function test_one_guests_cart_is_not_another_guests(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 10]);
+
+        $this->post(route('cart.add', $product), ['quantity' => 1]);
+
+        // A second visitor, with no token of their own.
+        $this->flushSession();
+
+        $this->get(route('cart.index'))->assertOk();
+
+        $this->assertSame(
+            1,
+            CartItem::count(),
+            'The second visitor was served the first one’s cart, or started writing into it.',
+        );
+        $this->assertSame(0, app(CartService::class)->count(), 'A stranger could see the first visitor’s cart.');
+    }
+
     /**
-     * A saved cart belongs to an account, and to nothing else.
+     * A saved cart belongs to an account or to a guest token, and to nothing
+     * else.
      *
-     * `cart_items.session_id` was written by every path and read by none, and
-     * `user_id` is a required foreign key — so a cart item never belonged to a
-     * session in the first place. The API, which has no session and could not
-     * leave the column empty, wrote the literal string `'api'`: one identity
-     * shared by every API client, sitting in a column that looks like an
-     * identity. Nothing was scoped by it, which is the only reason it was not a
-     * leak; the fix is to stop claiming it rather than to keep it honest.
+     * `cart_items.session_id` was written by every path and read by none. The
+     * API, which has no session and could not leave the column empty, wrote the
+     * literal string `'api'` — one identity shared by every API client, in a
+     * column shaped like an identity. `guest_token` is not that column back
+     * again: it has exactly one writer, one reader, and a session id is
+     * deliberately not what goes in it.
      */
-    public function test_a_saved_cart_item_belongs_to_an_account_not_to_a_session(): void
+    public function test_a_saved_cart_item_is_not_identified_by_a_session_id(): void
     {
         $this->assertFalse(
             Schema::hasColumn('cart_items', 'session_id'),
             'cart_items has a session_id again — something will fill it with a sentinel.',
         );
 
-        // The contrast, and why this is not a blanket rule: an abandoned cart is
-        // usually a guest's, so there the session really is the identity.
+        // The contrast: an abandoned cart is usually a guest's, and there the
+        // session really is what identifies it.
         $this->assertTrue(Schema::hasColumn('abandoned_carts', 'session_id'));
-    }
-
-    public function test_guest_add_does_not_persist(): void
-    {
-        $product = Product::factory()->create(['inventory_count' => 10]);
-
-        $this->post(route('cart.add', $product), ['quantity' => 1]);
-
-        $this->assertDatabaseCount('cart_items', 0);
     }
 }

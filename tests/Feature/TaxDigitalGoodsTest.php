@@ -56,7 +56,7 @@ class TaxDigitalGoodsTest extends TestCase
         TaxRate::create(['tax_class_id' => $class->id, 'country' => 'US', 'rate' => 10, 'name' => 'US', 'is_active' => true]);
         $product = Product::factory()->create(['price' => 200, 'inventory_count' => 5, 'is_downloadable' => true, 'tax_class_id' => $class->id]);
 
-        $this->withSession(['cart' => $this->digitalCart($product)])->post(route('checkout.process'), [
+        $this->withStoredCart($this->digitalCart($product))->post(route('checkout.process'), [
             'email' => 'buyer@example.com',
             'has_physical_products' => 0,
             'country' => 'US',
@@ -72,7 +72,7 @@ class TaxDigitalGoodsTest extends TestCase
     {
         $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => $this->digitalCart($product)])->post(route('checkout.process'), [
+        $this->withStoredCart($this->digitalCart($product))->post(route('checkout.process'), [
             'email' => 'buyer@example.com',
             'has_physical_products' => 0,
             'payment_method' => 'stripe',

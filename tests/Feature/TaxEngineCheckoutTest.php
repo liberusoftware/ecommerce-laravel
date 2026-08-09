@@ -29,11 +29,24 @@ class TaxEngineCheckoutTest extends TestCase
 
     private function bindGateway(Closure $result): void
     {
-        $this->app->instance(StripeGateway::class, new class($result) implements PaymentGatewayInterface {
+        $this->app->instance(StripeGateway::class, new class($result) implements PaymentGatewayInterface
+        {
             public function __construct(private Closure $result) {}
-            public function processPayment(float $amount, array $d): array { return ($this->result)(); }
-            public function processSubscription(string $p, array $d): array { return ['success' => true]; }
-            public function refundPayment(string $t, float $a): array { return ['success' => true]; }
+
+            public function processPayment(float $amount, array $d): array
+            {
+                return ($this->result)();
+            }
+
+            public function processSubscription(string $p, array $d): array
+            {
+                return ['success' => true];
+            }
+
+            public function refundPayment(string $t, float $a): array
+            {
+                return ['success' => true];
+            }
         });
     }
 
@@ -60,7 +73,7 @@ class TaxEngineCheckoutTest extends TestCase
             'name' => $product->name,
         ]];
 
-        $this->withSession(['cart' => $cart])->post(route('checkout.process'), array_merge([
+        $this->withStoredCart($cart)->post(route('checkout.process'), array_merge([
             'email' => 'buyer@example.com',
             'has_physical_products' => 0,
             'shipping_address' => '1 Test St',
