@@ -16,6 +16,7 @@ Gaps become findings, never silent exemptions. A deviation without an ADR is a b
 | [0008](./0008-reviews-and-ratings-merge.md) | Reviews/ratings merge keeps moderation, backfills customers | behaviour loss avoided |
 | [0009](./0009-vendor-rename-to-liberusoftware.md) | Vendor rename `liberu-eccommerce` → `liberusoftware` | deviation — naming |
 | [0010](./0010-modules-and-themes-are-gitignored.md) | `/modules` and `/themes` are gitignored | deviation — `THEMES.md` §3.2 |
+| [0011](./0011-adopting-module-manager.md) | Adopting `module-manager` drops runtime module enablement | behaviour loss |
 
 Every deviation above also has an upstream issue filed against the document it deviates from — all 23 are filed, tracked as [#961](https://github.com/liberusoftware/ecommerce-laravel/issues/961). They are listed in [`../CONFORMANCE.md`](../CONFORMANCE.md)'s upstream chapter — a reader hitting one of these ADRs needs to know the disagreement is filed rather than forgotten.
 

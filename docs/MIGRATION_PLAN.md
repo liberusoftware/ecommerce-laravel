@@ -68,6 +68,10 @@ This table used to describe `app/Modules/` as *"1,095 lines of unused scaffoldin
 
 The rule `MODULES.md:193` states still stands: the manual class scanner is forbidden and this scaffolding goes. But it goes by being **replaced**, and the difference is those two test files. They describe behaviour something currently depends on, so they are the specification of what the adopted registrar has to keep — read before the deletion, not deleted with it. *The tests that pass are the tests that no longer exist* is the failure mode ADR 0008 was written to avoid, and it applies to a registrar as much as to a review table.
 
+They have now been read, against `module-manager` `1.4.2`'s actual source, and the diff is [**ADR 0011**](./adr/0011-adopting-module-manager.md). The short version: the two systems agree on almost nothing except the word "module". The host holds "enabled" in a **database table** and lets it change at runtime; `module-manager` holds it in **configuration** and resolves it once in `register()`. So the adoption drops runtime enablement, the `modules` table and the four lifecycle events — affordable only because **nothing calls them**: `enable()`, `disable()`, `install()` and `uninstall()` have no callers outside `php artisan module` and the two tests. There is no operator surface, which makes it an unexercised code path rather than an operational capability.
+
+The default also inverts, in the right direction. `isModuleEnabled()` returns `true` for a module with no row *and* `true` from its `catch (\Throwable)` — so an unknown module runs, and a database error runs all of them. `module-manager` starts from nothing enabled and makes the host name its selection: the same argument this plan made against `team_id`'s `default(1)`.
+
 ### Also in wave 0, because they are one-line and shipping today — ✅ **done**
 
 The small faults that needed nobody's permission. Landed ahead of the rest of wave 0, since none of them depends on the packaging mechanism existing.
