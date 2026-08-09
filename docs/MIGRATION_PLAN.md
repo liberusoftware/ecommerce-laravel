@@ -45,10 +45,14 @@ Two things the plan deliberately does not contain.
 
 Nothing can be extracted before this wave. A module ships **no `extra.laravel.providers`**, so Composer install boots nothing: `ModuleManagerServiceProvider::register()` is the only registrar in the reference design, and no module can exist until the manager does.
 
+> **Re-checked 2026-08-09: the mechanism this wave waits on is published.** `liberusoftware/composer-installer` is on Packagist at `1.1.0` (`composer-plugin`), `liberusoftware/module-manager` at `1.4.2` with thirteen releases, and `liberusoftware/theme-default` at `1.5.1`. The first two rows below are a `composer require` rather than an open question, and since this wave gates every extraction, that is the gate on the whole sequence. Tracked on [#972](https://github.com/liberusoftware/ecommerce-laravel/issues/972).
+>
+> It needs Composer network, which the agent environment working this repository does not have — `composer` hangs here. So the adoption itself wants a human or a networked session; everything after it is ordinary work.
+
 | Item | Why it is in wave 0 |
 | --- | --- |
-| Adopt `liberusoftware/composer-installer` | `MODULES.md` §6.1 makes it a prerequisite; nothing installs into `modules/` without it |
-| Adopt `module-manager` | The only registrar. **Deletes `app/Modules/`** — 11 files, 1,095 lines of unused scaffolding whose manual class scanner `MODULES.md:193` forbids |
+| Adopt `liberusoftware/composer-installer` | `MODULES.md` §6.1 makes it a prerequisite; nothing installs into `modules/` without it. **Published at `1.1.0`** |
+| Adopt `module-manager` | The only registrar. **Published at `1.4.2`.** It replaces `app/Modules/` rather than merely deleting it — see the correction below |
 | **Enforcement layer** — `pint.json`, PHPStan at level 8, architecture tests, CI gates, Composer scripts | The cheapest item on the map and the one whose value compounds. Landing it after 20 extractions means 20 modules to re-check |
 | Create **`theme-ecommerce`** — `type: public`, `parent: default` | The storefront layout moves **once**, and every later extraction targets an existing theme instead of a moving one |
 | Declare **`supported_locales`** in `config/app.php` | The key is absent and `localization-core` reads it. One line, arriving with the localization adoption already committed to |
@@ -57,6 +61,12 @@ Nothing can be extracted before this wave. A module ships **no `extra.laravel.pr
 | `package-testbench` upstream contribution — **timeboxed** | The boundary-rule architecture tests belong upstream so every module gets them. Fall back to `commerce-testbench` if it stalls |
 | `spatie/laravel-permission` `^8.0` support upstream in `roles-permissions` | This repo is on `^8.3`, the reference app on `^7.0`. **Downgrading a security-relevant dependency to match a module is the wrong direction of travel** |
 | ~~Vendor rename `liberu-eccommerce` → `liberusoftware`~~ — ✅ **done, with one step left outside this repository** | Free today — 0 downloads, 0 dependents. It stops being free the moment anything depends on it. [ADR 0009](./adr/0009-vendor-rename-to-liberusoftware.md), which is also corrected: the package **does** have five published tags, and that is what leaves a Packagist step for a maintainer — [#1000](https://github.com/liberusoftware/ecommerce-laravel/issues/1000), which needs maintainer rights this repository cannot grant itself |
+
+### `app/Modules/` is a replacement, not a deletion
+
+This table used to describe `app/Modules/` as *"1,095 lines of unused scaffolding"* to be deleted on adopting `module-manager`. **It is not unused.** `AppServiceProvider` registers `ModuleManager` and `ModuleServiceProvider`, `app/Console/Commands/ModuleCommand.php` drives it, `config/modules.php` points at it, and two test files — `tests/Feature/ModuleStateTest.php` and `tests/Unit/ModuleSystemTest.php` — exercise it.
+
+The rule `MODULES.md:193` states still stands: the manual class scanner is forbidden and this scaffolding goes. But it goes by being **replaced**, and the difference is those two test files. They describe behaviour something currently depends on, so they are the specification of what the adopted registrar has to keep — read before the deletion, not deleted with it. *The tests that pass are the tests that no longer exist* is the failure mode ADR 0008 was written to avoid, and it applies to a registrar as much as to a review table.
 
 ### Also in wave 0, because they are one-line and shipping today — ✅ **done**
 
