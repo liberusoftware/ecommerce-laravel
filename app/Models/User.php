@@ -63,7 +63,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
      * `admin` is the back-office for the whole store: super_admin only.
      *
      * `app` is a team's back-office — Products, Orders, Invoices, Customers,
-     * Articles, Collections — scoped by Filament to the current tenant. So the
+     * Collections — scoped by Filament to the current tenant. So the
      * question it answers is "do you belong to a team?", and teams are handed out
      * through TeamPolicy::create, which requires the `create_store` permission.
      * That keeps the decision in one place instead of duplicating a role check here.

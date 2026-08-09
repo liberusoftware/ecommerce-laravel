@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Filament\App\Resources\Articles\ArticleResource;
 use App\Filament\App\Resources\Collections\CollectionResource;
 use App\Models\User;
 use Database\Seeders\PermissionsTableSeeder;
@@ -26,8 +25,13 @@ use Tests\TestCase;
  *
  * Permission suffixes follow the seeded convention: model basename, snake_cased,
  * with '_' replaced by '::' (Product => product, ProductCategory =>
- * product::category). Hence Article => article, ProductCollection =>
- * product::collection.
+ * product::category). Hence ProductCollection => product::collection.
+ *
+ * Article is gone — deleted rather than moved to the CMS that owns it, because
+ * its table held `id` and `timestamps()` and nothing else (ADR 0012). The
+ * paragraph above keeps its name because the fault was a *pair*, and a reader
+ * who meets `article_*` in the Shield seeder should find out here why it has no
+ * model rather than assume the seeder is wrong.
  */
 class AppPanelAuthorizationTest extends TestCase
 {
@@ -37,7 +41,6 @@ class AppPanelAuthorizationTest extends TestCase
     public static function unprotectedResources(): array
     {
         return [
-            'articles' => [ArticleResource::class, 'article'],
             'collections' => [CollectionResource::class, 'product::collection'],
         ];
     }
