@@ -21,8 +21,15 @@ return new class extends Migration
             // unattributable row is left unstamped, which an operator can see
             // and fix — App\Traits\IsTenantModel records why the default was
             // itself the bug.
-            $table->foreignId('store_id')->nullable()->constrained('stores')->nullOnDelete();
-            $table->foreignId('team_id')->nullable()->constrained('teams')->nullOnDelete();
+            // Nullable and unconstrained, both of them, matching
+            // 2026_08_08_000002_add_store_id_to_team_scoped_tables: a foreign
+            // key would force a default for a row that belongs to nobody, and
+            // that default is the mistake being unpicked. `stores` is also
+            // created two migrations from the end, long after this one — a
+            // constraint here fails on MySQL with "Failed to open the
+            // referenced table", which SQLite does not reproduce.
+            $table->unsignedBigInteger('store_id')->nullable()->index();
+            $table->unsignedBigInteger('team_id')->nullable()->index();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
             $table->enum('status', ['queued', 'active', 'closed'])->default('queued');
