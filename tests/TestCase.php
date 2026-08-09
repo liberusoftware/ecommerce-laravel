@@ -6,6 +6,7 @@ use App\Models\CartItem;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
@@ -48,6 +49,11 @@ abstract class TestCase extends BaseTestCase
      */
     protected function withStoredCart(array $lines, ?User $user = null, ?Store $store = null): static
     {
+        // Whoever is signed in owns it, which is the rule the service follows.
+        // A test that calls actingAs() and then seeds a guest cart has written
+        // a cart nobody in that test can see.
+        $user ??= Auth::user();
+
         $token = (string) Str::uuid();
         $owner = $user !== null ? ['user_id' => $user->id] : ['guest_token' => $token];
 
