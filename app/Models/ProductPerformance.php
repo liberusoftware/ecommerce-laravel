@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
-use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductPerformance extends Model
 {
-    use HasFactory, IsTenantModel;
+    use HasFactory;
 
     // Migration creates `product_performance`; without this, Eloquent would
     // pluralise to the non-existent `product_performances` and every query fatals.

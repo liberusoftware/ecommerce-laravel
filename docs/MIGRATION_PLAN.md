@@ -334,7 +334,21 @@ Three tables took `team_id` and not `store_id`, against this wave's own rule, wi
 
 ### Also in this wave
 
-Add `team_id` to the **31 tables whose models declare `IsTenantModel` but whose tables lack the column** ([`CONFORMANCE.md` §6.4](./CONFORMANCE.md#64-six-of-forty-seven-tenancy-pairings-are-coherent)). Until that lands, `DiscountResource` and `MenuResource` are either broken or leaking, and nobody has established which.
+~~Add `team_id` to the **31 tables whose models declare `IsTenantModel` but whose tables lack the column**~~ ([`CONFORMANCE.md` §6.4](./CONFORMANCE.md#64-six-of-forty-seven-tenancy-pairings-are-coherent)) — ✅ **resolved, and it was two questions rather than one.**
+
+The item read as a single backlog of 31 columns. It is not. `IsTenantModel` is a `team()` relation and nothing else, so a model using it against a table with no `team_id` is a claim of ownership with nothing behind it — and there are two different reasons a model ends up in that position, with opposite fixes.
+
+| | |
+| --- | --- |
+| **3 were live** | `Discount`, `Menu`, `MenuItem` — queried by a tenant-scoped Filament resource. They got the column, and the leak they were part of is step 5 above |
+| **20 were children** | `ProductVariant` belongs to a product, `GiftCardTransaction` to a gift card, `InventoryLevel` to an inventory item, `GiftRegistryPurchase` to a registry item. Their owner is their parent's, so the **trait** is the thing that is wrong. Dropped |
+| **8 are roots** | `ABTest`, `CartRecoveryCampaign`, `CustomerGroup`, `CustomerSegment`, `InventoryLocation`, `RecommendationRule`, `SeoSetting`, `TaxonomyCategory` — merchant-owned with no tenant-owned parent, so a column is the only way they could ever be tenanted |
+
+**The eight keep the trait and stay on the ratchet, without the column.** Nothing reads them through a panel or a scope, so adding eight columns today buys eight columns nothing writes and nothing filters — and a nullable tenant key that nothing fills is how `default(1)` got its reputation. Each gets its `team_id` when something needs to ask whose it is, which is exactly how `discounts` and `menus` got theirs.
+
+Two of the twenty are worth naming separately, because they are not children of a merchant's data at all: `GiftRegistry` and `CustomerMetric` hang off a `User`. A shopper's registry belongs to the person, like `PaymentMethod` — the same reasoning that keeps `PaymentMethod` out of the store scope.
+
+Nothing read `->team` on any of the twenty; the only readers in the tree are `Store` and a test.
 
 ---
 

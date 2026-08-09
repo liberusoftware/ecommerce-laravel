@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class InventoryItem extends Model
 {
     use HasFactory;
-    use IsTenantModel;
 
     protected $fillable = [
         'product_id',
@@ -76,8 +74,8 @@ class InventoryItem extends Model
     public function getAvailableAtLocation(InventoryLocation $location): int
     {
         return $this->inventoryLevels()
-                    ->where('location_id', $location->id)
-                    ->value('available') ?? 0;
+            ->where('location_id', $location->id)
+            ->value('available') ?? 0;
     }
 
     public function adjustInventory(InventoryLocation $location, int $quantity, ?string $reason = null): void
