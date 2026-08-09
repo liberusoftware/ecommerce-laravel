@@ -492,6 +492,12 @@ Two asymmetries drive the whole plan:
 ## 4. What is outside this plan
 
 - **The 105 modules themselves** — the execution epics.
-- **The deferred CMS and CRM code** ([#942](https://github.com/liberusoftware/ecommerce-laravel/issues/942), [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943)). It moves when those products have repositories, not on a date this plan can name.
+- **The deferred CMS and CRM code** ([#942](https://github.com/liberusoftware/ecommerce-laravel/issues/942), [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943)). This plan said it moves *"when those products have repositories, not on a date this plan can name"*. **They have repositories** — re-checked 2026-08-09, `cms-laravel` is live and `crm-laravel` is on `2.0.1` — so the condition this plan set has been met and the item still is not takeable, for two different reasons.
+
+  For **CMS**, the destination is now nameable per cluster: `cms-laravel/packages/liberu-cms/` holds 21 path packages, among them `cms-pages`, `cms-posts`, `cms-seo` and `cms-forms`, which own all three clusters #942 lists. None is published, so the exit criterion's second half stands — but the receiving host has none of the code, which makes this a move whenever somebody decides to make it.
+
+  For **CRM** it stopped being a move at all. `crm-laravel` already carries `LiveChat`, `ChatMessage`, `Chatbot` and `ChatbotInteraction`, so the live-chat stack here is a **second implementation of one that exists**, in a different repository, with neither authoritative. That is the reviews/ratings duplicate stack again with the two halves split across repositories — and the larger implementation is the one in the repository that should not own it.
+
+  Recorded rather than acted on: which stack survives is a decision about a product this repository has no mandate over. What this plan can say is that the deferral's premise expired, and a deferral whose premise has expired needs re-deciding rather than re-applying.
 - **The five out-of-scope flavours** — `react`, `vue`, `nuxt`, `flutter`, `react-native`.
 - **Adding a locale.** `en` only; adding a language is product scope. The RTL machinery in `TRANSLATIONS.md` and `THEMES.md` §18.1 stays unexercised as a result, which is recorded as a deliberate deferral rather than an oversight.
