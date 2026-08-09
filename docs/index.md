@@ -69,6 +69,13 @@ cross-repository merge decision, tracked as
 [`CONFORMANCE.md` §4.2](./CONFORMANCE.md#42-the-98-unmappable-files-were-an-artifact). Describing the
 duplicate accurately is in scope; describing it as the plan of record is not.
 
+A fifth document sits alongside them and does the opposite job. The four above describe the duplicate;
+this one prices the merge out of it.
+
+| Document | What it is |
+| --- | --- |
+| [`reconciliation/crm-chat-stack.md`](./reconciliation/crm-chat-stack.md) | The two chat stacks reconciled column by column against `crm-laravel` `v2.0.1`: the entity map (`ChatConversation`↔`LiveChat`; two different tables both called `chat_messages`; `chat_analytics` and the chatbots with no counterpart at all), what each side loses if the other is adopted wholesale, and the ordered checklist for doing the merge when the module package exists. Written for the same reason as [ADR-0008](./adr/0008-reviews-and-ratings-merge.md) — the behaviour a merge drops is invisible afterwards. **Living until the merge lands, then deleted with the code it describes.** |
+
 ## Partly superseded
 
 | Document | What it is |
