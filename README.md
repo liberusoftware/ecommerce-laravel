@@ -100,12 +100,15 @@ chmod +x setup.sh
 
 | Document | Covers |
 | --- | --- |
+| [`docs/index.md`](docs/index.md) | Index of everything in `docs/` — what each document is, and whether it is current |
 | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Manual and Docker installs, Stripe, DropXL |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Console commands, the admin panels, queues, troubleshooting |
 | [`docs/MODULE_DEVELOPMENT.md`](docs/MODULE_DEVELOPMENT.md) | Building, testing, promoting and releasing a module |
 | [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) | Where this repository stands against the Liberu standards |
 | [`docs/MIGRATION_PLAN.md`](docs/MIGRATION_PLAN.md) | The ordered plan from here to the modular target |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | The quality gates, the five workflows, and the ADR rule |
+| [`SECURITY.md`](SECURITY.md) | Reporting a vulnerability privately, and what is in scope |
 | [`CONTEXT.md`](CONTEXT.md) | Domain glossary — merchant, team, store, channel, tenant |
 
 ---
@@ -132,21 +135,23 @@ Liberu Ecommerce is part of the wider **Liberu** open-source ecosystem. All proj
 
 ---
 
+## Security
+
+Please do not report security vulnerabilities through public GitHub issues. Follow [`SECURITY.md`](SECURITY.md) for private reporting through GitHub Security Advisories, and for what is in and out of scope.
+
+---
+
 ## Contributing
 
-Contributions are warmly welcomed! Here is how to get involved:
+Contributions are warmly welcomed. Branch from `main`, keep the change to one outcome, and run the gates before pushing:
 
-1. **Fork** the repository and create a feature branch from `main`.
-2. **Write focused, testable code** — add or update tests for any new behaviour.
-3. **Run the CI checks locally** before pushing:
-   ```bash
-   ./vendor/bin/phpunit
-   ```
-4. **Open a Pull Request** against `main` with a clear description of what you changed and why.
-5. The CI pipeline (install, tests, Docker workflows) must pass before a PR can be merged.
-6. A maintainer will review your PR, suggest changes if necessary, and merge when ready.
+```bash
+composer check   # Pint, PHPStan, then the test suite
+```
 
-If you have a larger feature in mind, please open an issue first to discuss the approach — this avoids duplicated effort and helps us keep the codebase cohesive.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has the rest: what each gate checks and why it is scoped the way it is, the five CI workflows, when a change needs an ADR, and the two documents in `docs/` with opposite editing rules. Read it before a first pull request — several of the rules here are not the obvious ones, and the reasoning is recorded rather than assumed.
+
+For a larger feature, open an issue first. This repository is mid-migration and the work is sequenced, so a change that lands out of order costs more to reconcile than it saves.
 
 ---
 
