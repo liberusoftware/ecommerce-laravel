@@ -30,7 +30,7 @@ class HeadlessCheckoutService
 
     public function place(User $user, array $input): Order
     {
-        $cart = CartItem::where('user_id', $user->id)->with('products')->get();
+        $cart = CartItem::where('user_id', $user->id)->with('product')->get();
         if ($cart->isEmpty()) {
             throw new CheckoutException('Your cart is empty.');
         }
@@ -145,7 +145,7 @@ class HeadlessCheckoutService
         // the calculator counts it when it spreads the discount pro-rata.
         $taxItems = [];
         foreach ($cart as $item) {
-            $taxItems[] = ['product' => $item->products, 'quantity' => $item->quantity, 'price' => (float) $item->price];
+            $taxItems[] = ['product' => $item->product, 'quantity' => $item->quantity, 'price' => (float) $item->price];
         }
 
         $result = $this->taxCalculator->calculateCartTax($taxItems, $address, $shippingCost, $discount);

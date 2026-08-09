@@ -188,7 +188,7 @@ class StorefrontSchema
                 'quantity' => Type::nonNull(Type::int()),
                 'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (CartItem $i) => (float) $i->price],
                 'lineTotal' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (CartItem $i) => round((float) $i->price * $i->quantity, 2)],
-                'product' => ['type' => $product, 'resolve' => fn (CartItem $i) => $i->products],
+                'product' => ['type' => $product, 'resolve' => fn (CartItem $i) => $i->product],
             ],
         ]);
     }
