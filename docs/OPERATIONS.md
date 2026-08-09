@@ -18,7 +18,30 @@ Every command registered by the application, taken from `app/Console/Commands/`.
 | `shipping:prune-quotes` | Deletes expired shipping quotes. `--days=1` sets how far past expiry to prune |
 | `vat:oss-report` | EU OSS VAT report. `--from=`, `--to=` (default: current quarter to today), `--csv` |
 | `vat:ec-sales-list` | EC Sales List. Same three options |
+| `tenants:distribution` | Read-only tenant counts, per-table distribution and cross-boundary mismatches — the [#944](https://github.com/liberusoftware/ecommerce-laravel/issues/944) checklist. See below |
 | `module {action} {name?}` | Module scaffolding. **Does nothing useful** — see below |
+
+### The tenant-distribution report, and running it without `vendor/`
+
+`tenants:distribution` answers the [#944](https://github.com/liberusoftware/ecommerce-laravel/issues/944) checklist, which gates wave 2's backfill: how many tenants exist, how rows are distributed across them per table, and how many rows are **already** attributed across a tenancy boundary. It writes nothing.
+
+It has to be run against each real environment — production, staging, any long-lived demo — because a development database answers with seeded data, which says nothing about how production's rows are attributed.
+
+The machine that can reach production is not always the one with a working `vendor/`, so the report also runs with no Composer install, no autoloader and no deploy:
+
+```bash
+php tools/tenant-distribution.php
+```
+
+That reads `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` and `DB_PASSWORD` from `.env`, and any of them can be overridden by a real environment variable of the same name — which is how you point it at a read replica or a restored copy rather than at production itself:
+
+```bash
+DB_HOST=replica.internal php tools/tenant-distribution.php
+```
+
+Both entry points call `App\Support\TenantDistributionReport`, which needs a `PDO` and nothing else. Two implementations would drift, and the one nobody ran would be the one somebody trusted.
+
+Paste the output onto #944, one comment per environment, without interpreting it — the rules for what the numbers mean are already fixed.
 
 ### Scheduled
 
