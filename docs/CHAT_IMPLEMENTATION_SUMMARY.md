@@ -1,6 +1,6 @@
 # Implementation Summary: Customer Support Chat System
 
-> **Held as named debt.** The live-chat feature belongs to the **CRM** product (`chat-and-bots`), which is documentation-only — no repository exists. This code stays in the host until it does; see [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943) and [`CONFORMANCE.md` §4.2](./CONFORMANCE.md#42-the-98-unmappable-files-were-an-artifact).
+> **Held as named debt, and now a duplicate rather than an orphan.** The live-chat feature belongs to the **CRM** product (`chat-and-bots`). `liberusoftware/crm-laravel` exists — it is on `2.0.1` — and it already carries its own chat stack (`LiveChat`, `ChatMessage`, `Chatbot`, `ChatbotInteraction`), so this code is not waiting for a home, it is a second implementation of one that exists. Which stack survives is a cross-repository merge decision, not a move; see [#943](https://github.com/liberusoftware/ecommerce-laravel/issues/943) and [`CONFORMANCE.md` §4.2](./CONFORMANCE.md#42-the-98-unmappable-files-were-an-artifact).
 
 ## Overview
 Successfully implemented a comprehensive live chat system for customer support with minimal changes to the existing codebase.
