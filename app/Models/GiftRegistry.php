@@ -40,10 +40,10 @@ class GiftRegistry extends Model
     protected static function booted(): void
     {
         static::creating(function ($registry) {
-            if (!$registry->slug) {
-                $registry->slug = Str::slug($registry->name . '-' . Str::random(8));
+            if (! $registry->slug) {
+                $registry->slug = Str::slug($registry->name.'-'.Str::random(8));
             }
-            if ($registry->privacy === 'private' && !$registry->access_code) {
+            if ($registry->privacy === 'private' && ! $registry->access_code) {
                 $registry->access_code = strtoupper(Str::random(8));
             }
         });

@@ -11,13 +11,21 @@ class AnalyticsEvent extends Model
     use HasFactory;
 
     const EVENT_PAGE_VIEW = 'page_view';
+
     const EVENT_PRODUCT_VIEW = 'product_view';
+
     const EVENT_ADD_TO_CART = 'add_to_cart';
+
     const EVENT_REMOVE_FROM_CART = 'remove_from_cart';
+
     const EVENT_CHECKOUT_START = 'checkout_start';
+
     const EVENT_PURCHASE = 'purchase';
+
     const EVENT_SEARCH = 'search';
+
     const EVENT_WISHLIST_ADD = 'wishlist_add';
+
     const EVENT_EMAIL_SIGNUP = 'email_signup';
 
     protected $fillable = [

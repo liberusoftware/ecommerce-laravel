@@ -81,6 +81,7 @@ class ProductVariant extends Model
     public function getDisplayTitleAttribute(): string
     {
         $options = array_filter([$this->option1, $this->option2, $this->option3]);
+
         return $this->title ?: implode(' / ', $options);
     }
 

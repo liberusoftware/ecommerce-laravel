@@ -74,8 +74,8 @@ class InventoryItem extends Model
     public function getAvailableAtLocation(InventoryLocation $location): int
     {
         return $this->inventoryLevels()
-                    ->where('location_id', $location->id)
-                    ->value('available') ?? 0;
+            ->where('location_id', $location->id)
+            ->value('available') ?? 0;
     }
 
     public function adjustInventory(InventoryLocation $location, int $quantity, ?string $reason = null): void
