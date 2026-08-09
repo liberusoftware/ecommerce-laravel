@@ -94,6 +94,36 @@ class StoreContext
     }
 
     /**
+     * The team a new row belongs to, or null when nothing can answer.
+     *
+     * Derived from the store rather than asked separately, because a store
+     * belongs to exactly one team and two independent answers can disagree —
+     * which on a tenant key means a row a merchant can see in the panel and not
+     * on their storefront, or the reverse.
+     *
+     * Off a storefront and off a panel this is null, and the row is left
+     * unstamped. That is the whole correction: a tenant key with a `default(1)`
+     * turns "nobody said" into "team 1", silently, and every row created by the
+     * API, a controller, a seeder or a factory took that default.
+     */
+    public static function teamForWrites(): ?int
+    {
+        $storeId = self::forWrites();
+
+        if ($storeId !== null) {
+            $teamId = Store::query()->whereKey($storeId)->value('team_id');
+
+            if ($teamId !== null) {
+                return (int) $teamId;
+            }
+        }
+
+        // A panel user whose team owns no store yet: the panel is the only
+        // thing that can answer, and it is right — the row is theirs.
+        return self::panelTeamId();
+    }
+
+    /**
      * The stores a read is scoped to.
      *
      * One for a resolved storefront. For a panel user, every store their team
