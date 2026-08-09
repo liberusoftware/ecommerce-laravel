@@ -156,6 +156,24 @@ class CartPersistenceTest extends TestCase
     }
 
     /**
+     * A broken `belongsTo` does not error, it returns null — and every caller
+     * reads that as "this line has no product". Assert the product, not just
+     * the absence of an exception.
+     */
+    public function test_a_cart_line_resolves_its_product(): void
+    {
+        $user = User::factory()->create();
+        $product = Product::factory()->create(['name' => 'Brass Kettle']);
+        $item = $this->saved($user, $product, 1);
+
+        $this->assertTrue($product->is($item->fresh()->product));
+
+        $this->actingAs($user);
+        $contents = app(CartService::class)->contents();
+        $this->assertSame('Brass Kettle', $contents[$product->id]['name']);
+    }
+
+    /**
      * A saved cart belongs to an account or to a guest token, and to nothing
      * else.
      *

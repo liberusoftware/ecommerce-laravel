@@ -57,8 +57,8 @@ class CartService
     {
         $contents = [];
 
-        foreach ($this->query()->with('products')->get() as $item) {
-            $product = $item->products;
+        foreach ($this->query()->with('product')->get() as $item) {
+            $product = $item->product;
 
             $contents[$item->product_id] = [
                 'name' => $product?->name,

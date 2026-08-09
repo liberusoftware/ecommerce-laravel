@@ -136,6 +136,9 @@ class GraphQLStorefrontTest extends TestCase
 
         $this->assertSame(2, $data['data']['addToCart']['quantity']);
         $this->assertEqualsWithDelta(20.0, $data['data']['addToCart']['lineTotal'], 0.001);
+        // The query has always asked for the product; nothing asserted it, so a
+        // relation resolving to null read as a pass.
+        $this->assertSame($product->name, $data['data']['addToCart']['product']['name']);
         $this->assertDatabaseHas('cart_items', ['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 2]);
     }
 
