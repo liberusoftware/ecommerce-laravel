@@ -21,17 +21,16 @@ class ChatConversationResource extends Resource
     protected static ?string $model = ChatConversation::class;
 
     /*
-     * Not tenant-scoped: `chat_conversations` has no `team_id` and the model has
-     * no `team` relationship, so Filament would raise a LogicException on every
-     * query rather than isolate anything. A conversation belongs to the person
-     * having it.
+     * Tenant-scoped, by inheriting the panel's default. This used to declare
+     * `$isScopedToTenant = false`, and the reason it gave was true — the table
+     * had no `team_id` and the model no `team` relationship, so Filament would
+     * have raised a LogicException rather than isolated anything.
      *
-     * Declared as a property rather than set with `scopeToTenant()`, which
-     * writes one storage slot shared by every resource that does not redeclare
-     * it — see App\Filament\Admin\Resources\RoleResource.
+     * The reason was true and the outcome was still a leak: every staff user
+     * saw every team's conversations, customer names, emails and message bodies
+     * included. The fix is the missing key, not the opt-out — `ChatConversation`
+     * now carries `team_id` and `store_id` via IsTenantModel and IsStoreScoped.
      */
-    protected static bool $isScopedToTenant = false;
-
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Customer Support';
