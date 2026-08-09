@@ -1,0 +1,71 @@
+# This repository cannot run `composer require` locally, and the reason is not
+# going to be fixed by trying again. PHP's libcurl here is built against c-ares,
+# which resolves over UDP; UDP :53 is black-holed on the maintainer's network,
+# which is exactly why /etc/resolv.conf carries `options use-vc`. glibc honours
+# that and resolves over TCP — so curl, git and gh all work — and c-ares ignores
+# it, so Composer alone cannot resolve a single host.
+#
+# The runner has working DNS. This job is the way to add or update a dependency
+# from a machine that does not.
+name: Composer Require
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Packages to require, space separated (e.g. "vendor/a vendor/b:^2.0")'
+        required: true
+        type: string
+      dev:
+        description: 'Add to require-dev instead of require'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  require:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      # No cache. A require resolves against current Packagist by definition,
+      # and a stale cache is the failure mode this whole job exists to avoid.
+
+      # --no-scripts: package:discover boots the application, and the point of
+      # this job is to produce a lockfile, not to prove the app boots. The full
+      # CI run on the resulting commit is what proves that.
+      - name: Require
+        run: |
+          set -euo pipefail
+          read -r -a pkgs <<< "${{ inputs.packages }}"
+          composer require ${{ inputs.dev && '--dev' || '' }} \
+            --no-interaction --no-progress --no-scripts -- "${pkgs[@]}"
+
+      # modules/ and themes/ are tracked — ADR 0010 is withdrawn — so a package
+      # of type liberu-module installed by composer-installer lands in the tree
+      # and belongs in this commit. `git add -A` over the three paths keeps
+      # deletions (an uninstall) as well as additions.
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A composer.json composer.lock modules themes 2>/dev/null || git add -A composer.json composer.lock
+          if git diff --cached --quiet; then
+            echo "Nothing changed — the requirement was already satisfied."
+            exit 0
+          fi
+          git commit -m "chore(deps): require ${{ inputs.packages }}"
+          git push origin HEAD:${{ github.ref_name }}
