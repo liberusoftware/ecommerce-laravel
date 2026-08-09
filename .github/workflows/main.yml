@@ -90,7 +90,7 @@ jobs:
       # naming 32 assets while containing none of them. Both were invisible to a
       # build-exit-code check. The smoke step below is what those needed.
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -138,7 +138,7 @@ jobs:
 
       # Reuses the layers just built and verified; this only uploads them.
       - name: Push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
