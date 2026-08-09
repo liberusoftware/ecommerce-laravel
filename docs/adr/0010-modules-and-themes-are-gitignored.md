@@ -1,6 +1,14 @@
 # `/modules` and `/themes` are gitignored; a promoted package leaves the host tree
 
-**Status**: accepted
+**Status**: **withdrawn 2026-08-09** — [#972](https://github.com/liberusoftware/ecommerce-laravel/issues/972). `/modules` and `/themes` stay tracked, as `THEMES.md` §3.2 requires. The deviation this ADR argued for was never implemented — `.gitignore` never named either directory, because nothing has been promoted yet — so withdrawal costs one line of prose per referring document and no code.
+
+Kept rather than deleted: the reasoning below is the record of why the flip looked attractive, and the next person who proposes it should read the counter-argument before re-proposing.
+
+**What replaces it.** Promotion becomes what `boilerplate-laravel` already does — the installed tree stays committed, and the host holds a copy of code whose authoritative source is Composer. That duplication is real and this ADR was right that it is a cost. It is now an accepted cost rather than a deviation, and the guard against drift is `git diff --exit-code --stat -- modules themes`, the mechanism this ADR rejected. The upstream issue arguing §3.2 should change is withdrawn with it.
+
+**Withdrawn as a side effect: the `theme.json` files under `app/Modules/`.** Four module stubs each shipped one, describing a theme that does not exist. Nothing read them. A `theme.json` belongs to a theme package and to nothing else; in a module it is a manifest that would be discovered and validated as a claim the module cannot honour.
+
+---
 
 `THEMES.md` §3.2 states *"the current decision, matching `/modules`, is **not** to add `/themes` to `.gitignore`"*, restated in §20's definition of done, and changeable *"only through an ADR and migration plan"* — the standard names the instrument, and this is it.
 

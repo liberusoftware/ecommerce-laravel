@@ -246,7 +246,7 @@ Eight steps, scripted as `fleet promote <module>`, because a hundred repetitions
 2. Create the repository **if absent** — most already exist as stubs. 103 of the catalogue's 105 are provisioned; Checkout and Checkout Extensibility are not.
 3. Force-push the split history over the stub. The generated README records nothing worth keeping, and merging on top of it would leave a wrong `composer require` line permanently in the history.
 4. Scaffold the three workflows and Composer script aliases.
-5. Flip `.gitignore` for that module — its files leave the host tree. **⚠ deviation** — [ADR 0010](./adr/0010-modules-and-themes-are-gitignored.md).
+5. Move the module's files from `app/` into the tracked `modules/` tree. They stay committed — the installed copy is the host's, the authoritative copy is the package, and `git diff --exit-code --stat -- modules themes` in `release.yml` is what keeps them equal. [ADR 0010](./adr/0010-modules-and-themes-are-gitignored.md) proposed gitignoring instead and was withdrawn.
 6. Swap the host's path entry for a VCS `repositories` entry.
 7. Update `.liberu-meta.json`.
 8. Run the host composition test.
