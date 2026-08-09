@@ -104,6 +104,6 @@
             "ext-posix": "1.0.0"
         }
     },
-    "minimum-stability": "beta",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
