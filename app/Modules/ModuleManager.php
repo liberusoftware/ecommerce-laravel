@@ -8,6 +8,7 @@ use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class ModuleManager
 {
@@ -69,7 +70,7 @@ class ModuleManager
             $mdl->config = $module->getConfig();
             $mdl->save();
         } catch (\Throwable $e) {
-            \Log::warning("Failed to persist enabled state for module '{$name}': ".$e->getMessage());
+            Log::warning("Failed to persist enabled state for module '{$name}': ".$e->getMessage());
         }
 
         return true;
@@ -94,7 +95,7 @@ class ModuleManager
             $mdl->enabled = false;
             $mdl->save();
         } catch (\Throwable $e) {
-            \Log::warning("Failed to persist disabled state for module '{$name}': ".$e->getMessage());
+            Log::warning("Failed to persist disabled state for module '{$name}': ".$e->getMessage());
         }
 
         return true;
@@ -215,7 +216,7 @@ class ModuleManager
                 try {
                     require_once $mainFile;
                 } catch (\Throwable $e) {
-                    \Log::warning("Failed requiring external module file: ".$e->getMessage());
+                    Log::warning('Failed requiring external module file: '.$e->getMessage());
                 }
             }
         }
@@ -226,11 +227,11 @@ class ModuleManager
 
         try {
             $module = new $moduleClass;
-            if ($module instanceof \App\Modules\Contracts\ModuleInterface) {
+            if ($module instanceof ModuleInterface) {
                 $this->register($module);
             }
         } catch (\Throwable $e) {
-            \Log::warning("Failed loading external module '{$moduleName}': ".$e->getMessage());
+            Log::warning("Failed loading external module '{$moduleName}': ".$e->getMessage());
         }
     }
 
@@ -244,7 +245,7 @@ class ModuleManager
                 try {
                     require_once $mainFile;
                 } catch (\Throwable $e) {
-                    \Log::warning("Failed requiring main file for module {$moduleName}: ".$e->getMessage());
+                    Log::warning("Failed requiring main file for module {$moduleName}: ".$e->getMessage());
                 }
             }
         }
@@ -256,7 +257,7 @@ class ModuleManager
         try {
             $module = new $moduleClass;
         } catch (\Throwable $e) {
-            \Log::warning("Failed instantiating module class {$moduleClass}: ".$e->getMessage());
+            Log::warning("Failed instantiating module class {$moduleClass}: ".$e->getMessage());
 
             return;
         }
@@ -275,7 +276,7 @@ class ModuleManager
                     ]
                 );
             } catch (\Throwable $e) {
-                \Log::warning("Failed to persist module '{$moduleName}' metadata: ".$e->getMessage());
+                Log::warning("Failed to persist module '{$moduleName}' metadata: ".$e->getMessage());
             }
         }
     }
@@ -293,7 +294,9 @@ class ModuleManager
             $module = new class($moduleClass) implements ModuleInterface
             {
                 private string $moduleClass;
+
                 private bool $enabled = false;
+
                 private $moduleInstance;
 
                 public function __construct(string $moduleClass)
@@ -383,10 +386,10 @@ class ModuleManager
                     ]
                 );
             } catch (\Throwable $e) {
-                \Log::warning("Failed to persist modular module '{$moduleName}' metadata: ".$e->getMessage());
+                Log::warning("Failed to persist modular module '{$moduleName}' metadata: ".$e->getMessage());
             }
         } catch (\Throwable $e) {
-            \Log::warning("Failed loading modular module '{$moduleName}': ".$e->getMessage());
+            Log::warning("Failed loading modular module '{$moduleName}': ".$e->getMessage());
         }
     }
 

@@ -11,8 +11,10 @@ on:
 permissions:
   contents: read
 
-# This gate is a ratchet, not a sweep. It checks only the PHP files a pull
-# request actually touches, and deliberately leaves the rest of the tree alone.
+# Two static gates, deliberately scoped differently.
+#
+# Pint is a ratchet, not a sweep: it checks only the PHP files a pull request
+# actually touches, and deliberately leaves the rest of the tree alone.
 #
 # Running `pint` across the repository would rewrite most of ~400 files in one
 # commit: it would bury every real change under formatting noise, conflict with
@@ -21,9 +23,15 @@ permissions:
 # The cost of that is paid once and the benefit arrives gradually either way, so
 # the trade lands on gradual — files get formatted as they get edited.
 #
-# The consequence to know about: a red Lint job here is about the diff, never
+# The consequence to know about: a red Pint job here is about the diff, never
 # about the file. Editing a long-unformatted file means adopting its formatting
 # in the same commit, which is the point.
+#
+# PHPStan is the opposite and has to be. Formatting is per-file; type analysis
+# is whole-program — a changed signature breaks callers that the diff never
+# names, and analysing only the diff would never see them. The baseline is a
+# whole-tree snapshot too, so only a whole-tree run can tell that an entry in it
+# has gone stale. See phpstan.neon for what is analysed and why.
 jobs:
   pint:
     name: Pint (changed files)
@@ -80,3 +88,40 @@ jobs:
       - name: Run Pint
         if: steps.changed.outputs.count != '0'
         run: xargs -a changed.txt -d '\n' ./vendor/bin/pint --test -v --
+
+  phpstan:
+    name: PHPStan (whole tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          # PHPStan holds the whole inferred type graph in memory. The default
+          # CLI limit is enough today and won't be forever; raising it here is
+          # cheaper than a job that dies with an OOM that reads like a bug.
+          ini-values: memory_limit=1G
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      # --no-scripts for the same reason as the Pint job: this needs
+      # vendor/ on disk and nothing else. PHPStan reads the code, it
+      # does not boot the application.
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHPStan
+        run: ./vendor/bin/phpstan analyse --no-progress
