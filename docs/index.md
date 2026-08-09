@@ -35,6 +35,18 @@ Edited as the work lands. If your change makes one of these wrong, fix it in the
 | --- | --- |
 | [`adr/`](./adr/) | Eleven architecture decision records, plus a [README](./adr/README.md) that carries the index and the one rule for adding another: an ADR exists for a deviation from the Liberu documentation or a deliberate loss of behaviour, and nothing else. ADRs are immutable — a decision is superseded by a new record, not rewritten. Current as a set: the README's table is maintained. |
 
+## Reconciliation
+
+Dated comparisons against code that lives in another repository. Each answers one question — *what is
+already on the other side, and what would be lost by picking either implementation* — so that a move
+deferred today is mechanical when it becomes possible. They are neither living documents nor frozen
+snapshots: each carries its own verification date and is re-verified when the other side moves, not
+edited in place to stay plausible.
+
+| Document | What it is | Status |
+| --- | --- | --- |
+| [`reconciliation/cms-owned-code.md`](./reconciliation/cms-owned-code.md) | The CMS-owned clusters tracked by [#942](https://github.com/liberusoftware/ecommerce-laravel/issues/942) — Article/Page/FAQ, SEO and sitemap, and the contact form — measured against `cms-laravel` and `crm-laravel`. Finds the CMS modules already implemented (inside `cms-laravel`'s own tree, unpublished), gives a per-cluster verdict of duplicate / empty / contested, diffs the duplicates field by field in the manner of [ADR 0008](./adr/0008-reviews-and-ratings-merge.md), and lists what the move costs in order. | Verified 2026-08-09. Two of its nine checklist steps do not depend on the CMS and are available now. |
+
 ## Running the thing
 
 | Document | What it is | Status |
