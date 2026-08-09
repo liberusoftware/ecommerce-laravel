@@ -415,7 +415,15 @@ Catalog first: it has the largest existing footprint, and it is where the god mo
 
 Prerequisites specific to this wave, from [`CONFORMANCE.md` §5](./CONFORMANCE.md#5-duplicate-stacks):
 
-- The **tax merge** (`TaxCalculator` wins, after diffing `TaxService`) lands before Pricing.
+- ~~The **tax merge** (`TaxCalculator` wins, after diffing `TaxService`) lands before Pricing.~~ — ✅ **done, and the diff was the point.**
+
+  `TaxService` was referenced by nothing but its own test, which is exactly why it could not be deleted unread: nobody had checked whether it held a rule the live engine lacked, and deleting tax logic unread surfaces a quarter later in a VAT return. It held one, in a single test — **tax lands on the amount after a cart discount**. `TaxCalculator` had no notion of a discount at all.
+
+  The rule was already live, and in the wrong place: both checkouts computed a pro-rata discount factor themselves, identically, in the six lines before the call. So the merge moved it into the engine as a `$discount` argument, and both call sites lost their copy. A tax rule living at two call sites is a rule that will eventually live at one.
+
+  **Pro-rata rather than `TaxService`'s flat subtraction**, which took the discount off one blended subtotal — correct only while every line shares a rate. The moment a cart mixes a standard-rated and a reduced-rated item, the answer depends on which line the discount is deemed to have come off, and the engine now shrinks every line by the same proportion. Untaxable lines count in the denominator: the coupon was given against the whole cart, and leaving them out concentrates the discount on what remains and under-taxes it.
+
+  Rejected rather than ported: `parseAddress`, which regex-guessed a country, state and ZIP out of a free-text address string and **defaulted the country to `US`** — a guess wearing a lookup's clothes, against an engine that already takes a structured address. `getTaxDetails` was superseded by `calculateCartTax`'s `lines`, which are grouped and compound-aware. `calculateTax(amount, country, …)` had no caller and no tax class.
 - The **cart merge** lands before the Cart module, which is the tier after this one.
 - The **recommender rename** lands with Recommendations.
 

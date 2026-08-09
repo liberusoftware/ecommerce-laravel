@@ -239,20 +239,19 @@ class CheckoutController extends Controller
                 'city' => $request->input('city'),
                 'postal_code' => $request->input('postal_code'),
             ];
-            $discountFactor = $subtotal > 0 ? max(0, $subtotal - $discountAmount) / $subtotal : 1;
+            // Every line goes over, missing product included: those are not taxed
+            // — nothing says at what rate — but they are part of the cart the
+            // coupon was given against, so the calculator counts them when it
+            // spreads the discount.
             $taxItems = [];
             foreach ($cart as $productId => $item) {
-                $product = Product::find($productId);
-                if (! $product) {
-                    continue;
-                }
                 $taxItems[] = [
-                    'product' => $product,
+                    'product' => Product::find($productId),
                     'quantity' => $item['quantity'],
-                    'price' => $item['price'] * $discountFactor,
+                    'price' => $item['price'],
                 ];
             }
-            $taxResult = $this->taxCalculator->calculateCartTax($taxItems, $taxAddress, $shippingCost);
+            $taxResult = $this->taxCalculator->calculateCartTax($taxItems, $taxAddress, $shippingCost, $discountAmount);
             $taxAmount = $taxResult['total'];
             $taxLines = $taxResult['lines'];
         }

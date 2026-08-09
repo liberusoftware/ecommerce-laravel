@@ -56,8 +56,7 @@ class HeadlessCheckoutService
         if ($reverseCharge) {
             [$taxAmount, $taxLines] = [0, []];
         } else {
-            $discountFactor = $subtotal > 0 ? max(0, $subtotal - $discount) / $subtotal : 1.0;
-            [$taxAmount, $taxLines] = $this->calculateTax($cart, $input, $shippingCost, $discountFactor);
+            [$taxAmount, $taxLines] = $this->calculateTax($cart, $input, $shippingCost, $discount);
         }
 
         // Floor at 0 — a discount can zero an order but must never make it negative.
@@ -132,7 +131,7 @@ class HeadlessCheckoutService
     }
 
     /** @return array{0: float, 1: array} */
-    private function calculateTax(Collection $cart, array $input, float $shippingCost, float $discountFactor = 1.0): array
+    private function calculateTax(Collection $cart, array $input, float $shippingCost, float $discount = 0.0): array
     {
         $address = [
             'country' => $input['country'] ?? null,
@@ -141,14 +140,15 @@ class HeadlessCheckoutService
             'postal_code' => $input['postalCode'] ?? null,
         ];
 
+        // Every line, product or not: a line whose product has gone is not
+        // taxable, but it is part of the cart the coupon was given against, so
+        // the calculator counts it when it spreads the discount pro-rata.
         $taxItems = [];
         foreach ($cart as $item) {
-            if ($item->products) {
-                $taxItems[] = ['product' => $item->products, 'quantity' => $item->quantity, 'price' => (float) $item->price * $discountFactor];
-            }
+            $taxItems[] = ['product' => $item->products, 'quantity' => $item->quantity, 'price' => (float) $item->price];
         }
 
-        $result = $this->taxCalculator->calculateCartTax($taxItems, $address, $shippingCost);
+        $result = $this->taxCalculator->calculateCartTax($taxItems, $address, $shippingCost, $discount);
 
         return [$result['total'], $result['lines']];
     }
