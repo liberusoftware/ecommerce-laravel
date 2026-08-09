@@ -17,7 +17,7 @@ class CouponServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new CouponService();
+        $this->service = new CouponService;
     }
 
     public function test_invalid_coupon_code_returns_error(): void

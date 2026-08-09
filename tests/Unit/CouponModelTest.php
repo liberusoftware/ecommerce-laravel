@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Coupon;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -98,7 +99,7 @@ class CouponModelTest extends TestCase
     {
         $coupon = $this->makeCoupon();
 
-        $this->assertInstanceOf(\Carbon\Carbon::class, $coupon->valid_until);
+        $this->assertInstanceOf(Carbon::class, $coupon->valid_until);
     }
 
     public function test_is_valid_handles_usage_limit_without_error(): void
