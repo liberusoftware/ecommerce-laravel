@@ -35,7 +35,7 @@ return new class extends Migration
     private const TABLES = [
         'product_categories', 'products', 'payment_methods', 'customers', 'wishlists',
         'orders', 'coupons', 'groups', 'product_reviews', 'downloadable_products',
-        'images', 'cart_items', 'collections', 'invoices', 'articles', 'product_rating',
+        'images', 'cart_items', 'collections', 'invoices', 'product_rating',
     ];
 
     public function up(): void

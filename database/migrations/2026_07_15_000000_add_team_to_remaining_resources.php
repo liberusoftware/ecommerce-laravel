@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
-    protected $tables = ['invoices', 'articles', 'product_rating'];
+    protected $tables = ['invoices', 'product_rating'];
 
     public function up(): void
     {

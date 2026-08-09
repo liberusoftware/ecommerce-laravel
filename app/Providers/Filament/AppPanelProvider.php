@@ -57,8 +57,8 @@ class AppPanelProvider extends PanelProvider
             // ->emailVerification()
             // Without this, a resource with no policy is wide open: Filament's
             // get_authorization_response() returns allow() when no policy exists.
-            // That is how ArticleResource and CollectionResource shipped with
-            // unguarded CRUD. Strict mode throws instead, so the next policy-less
+            // That is how ArticleResource (since deleted) and CollectionResource
+            // shipped with unguarded CRUD. Strict mode throws instead, so the next policy-less
             // resource fails loudly in CI rather than silently granting everyone.
             //
             // Scoped to this panel deliberately: the Admin panel still has

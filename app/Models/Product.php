@@ -135,11 +135,6 @@ class Product extends Model implements Orderable
         return $this->hasMany(InventoryItem::class);
     }
 
-    public function seoSettings()
-    {
-        return $this->morphOne(SeoSetting::class, 'seoable');
-    }
-
     public function analyticsEvents()
     {
         return $this->hasMany(AnalyticsEvent::class);
