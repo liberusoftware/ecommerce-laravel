@@ -53,7 +53,7 @@ Nothing can be extracted before this wave. A module ships **no `extra.laravel.pr
 | Create **`theme-ecommerce`** — `type: public`, `parent: default` | The storefront layout moves **once**, and every later extraction targets an existing theme instead of a moving one |
 | Declare **`supported_locales`** in `config/app.php` | The key is absent and `localization-core` reads it. One line, arriving with the localization adoption already committed to |
 | Add the **translation lint step** to `package-tests.yml` | A static catalogue check belongs with the enforcement layer, not with the first module that ships a catalogue |
-| Generate **badge versions from `composer.lock`** | `REPOSITORIES.md` §6.1 forbids hard-coding a version CI does not verify. The README hard-codes PHP 8.5, Laravel 13, Filament 5, Livewire 4 |
+| ~~Generate **badge versions from `composer.lock`**~~ — ✅ **verified instead, see below** | `REPOSITORIES.md` §6.1 forbids hard-coding a version CI does not verify. The README hard-codes PHP 8.5, Laravel 13, Filament 5, Livewire 4 |
 | `package-testbench` upstream contribution — **timeboxed** | The boundary-rule architecture tests belong upstream so every module gets them. Fall back to `commerce-testbench` if it stalls |
 | `spatie/laravel-permission` `^8.0` support upstream in `roles-permissions` | This repo is on `^8.3`, the reference app on `^7.0`. **Downgrading a security-relevant dependency to match a module is the wrong direction of travel** |
 | Vendor rename `liberu-eccommerce` → `liberusoftware` | Free today — 0 downloads, 0 dependents, no tags. It stops being free the moment anything depends on it. [ADR 0009](./adr/0009-vendor-rename-to-liberusoftware.md) |
@@ -129,6 +129,16 @@ Both from [`OPERATIONS.md`](./OPERATIONS.md#a-widget-or-resource-does-not-appear
 `MenuResource` being "registered twice" — recorded in the conformance snapshot — **is not a defect**. The plugin registers the same class that discovery finds, and `Panel::getResources()` returns `array_unique($this->resources)`.
 
 `app/Filament/Resources/CustomerSegmentResource` stays where it is for now. It is discovered by neither panel, but both panels are tenant-scoped and `customer_segments` has no `team_id`, so moving it reproduces [#958](https://github.com/liberusoftware/ecommerce-laravel/issues/958) on a third table. It follows the tenant scope in wave 1.5.
+
+### The README's versions — checked rather than generated
+
+The standard forbids hard-coding a version CI does not verify, and the README hard-codes four: PHP, Laravel, Filament and Livewire, in badges at the top and again in prose. Fifteen claims in all, spread over five sections — the badge, the strapline, the About paragraph, the feature list and the requirements line. A README is the first thing anyone reads and the last thing anyone updates, so a stale claim outlives the upgrade that invalidated it, and the reader debugs against the wrong framework.
+
+**Generating them was the plan's wording; verifying them is what the standard asks for, and it is the cheaper half.** A generator is a script, a commit step and a way for the two to disagree — machinery to spare a four-character edit that happens once per major upgrade. `ReadmeVersionsTest` reads every `Name version` and `Name-version` in the README and checks each against `composer.lock`, segment by segment, so `Laravel 13` and `Laravel 13.23` both pass and `1` is not accepted as a prefix of `13`. When it fails, the fix is to type the new number.
+
+It catches the prose too, which is where the drift actually happens: nobody forgets the badge at the top, and everybody forgets the sentence in the middle.
+
+The eight GitHub links pointing at `liberu-ecommerce/ecommerce-laravel` are corrected in the same change. They resolve — GitHub keeps a redirect after a rename — which is why nobody noticed, and a redirect is a courtesy rather than a guarantee.
 
 ### The first architecture test, ahead of the enforcement layer
 
