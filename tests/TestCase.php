@@ -2,7 +2,11 @@
 
 namespace Tests;
 
+use App\Models\CartItem;
+use App\Models\Store;
+use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -27,5 +31,40 @@ abstract class TestCase extends BaseTestCase
         // asserts on asset URLs, and the assets are verified where they actually
         // matter, in the image (see the docker job's smoke step).
         $this->withoutVite();
+    }
+
+    /**
+     * Put a cart in the store the storefront reads.
+     *
+     * Replaces `withSession(['cart' => …])`. There is one cart store now — see
+     * `CartService` — and a guest's claim on their rows is a token in the
+     * session rather than the cart itself.
+     *
+     * @param  array<int, array{price?: float|int, quantity?: int}>  $lines  keyed by product id
+     * @param  User|null  $user  the cart's owner, or null for a guest
+     * @param  Store|null  $store  the storefront it was filled on; needed only
+     *                             where the test has more than one, since the
+     *                             cart is store-scoped like everything else
+     */
+    protected function withStoredCart(array $lines, ?User $user = null, ?Store $store = null): static
+    {
+        $token = (string) Str::uuid();
+        $owner = $user !== null ? ['user_id' => $user->id] : ['guest_token' => $token];
+
+        foreach ($lines as $productId => $line) {
+            $item = new CartItem($owner + [
+                'product_id' => $productId,
+                'quantity' => $line['quantity'] ?? 1,
+                'price' => $line['price'] ?? 0,
+            ]);
+
+            if ($store !== null) {
+                $item->store_id = $store->id;
+            }
+
+            $item->save();
+        }
+
+        return $user !== null ? $this : $this->withSession(['cart_token' => $token]);
     }
 }

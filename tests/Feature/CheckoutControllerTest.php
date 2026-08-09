@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -53,14 +54,14 @@ class CheckoutControllerTest extends TestCase
     public function test_initiate_checkout_returns_view_with_cart(): void
     {
         $product = $this->makeProduct();
-        $this->withSession(['cart' => [
+        $this->withStoredCart([
             $product->id => [
                 'name' => $product->name,
                 'price' => $product->price,
                 'quantity' => 1,
                 'is_downloadable' => false,
             ],
-        ]]);
+        ]);
 
         $response = $this->get(route('checkout.initiate'));
 
@@ -90,18 +91,21 @@ class CheckoutControllerTest extends TestCase
     public function test_guest_checkout_stores_session_data(): void
     {
         $product = $this->makeProduct();
-        $this->withSession(['cart' => [
+        $this->withStoredCart([
             $product->id => [
                 'name' => $product->name,
                 'price' => 50.00,
                 'quantity' => 1,
                 'is_downloadable' => false,
             ],
-        ]]);
+        ]);
 
         $response = $this->post(route('checkout.initiate'));
 
-        $this->assertNotNull(session('cart'));
+        // The cart is not in the session any more — the session holds only the
+        // token that claims these rows, and checkout reads the rows.
+        $this->assertNotNull(session('cart_token'));
+        $this->assertSame(1, CartItem::count());
     }
 
     public function test_show_confirmation_returns_view(): void

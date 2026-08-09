@@ -14,7 +14,10 @@ class CartItem extends Model
     protected $table = 'cart_items';
 
     protected $fillable = [
+        // Exactly one of these two identifies the cart. `CartService::owner()`
+        // is what decides which, and it is the only thing that should.
         'user_id',
+        'guest_token',
         'product_id',
         'quantity',
         'price',

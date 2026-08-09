@@ -58,11 +58,28 @@ class CheckoutStoreScopeTest extends TestCase
         ]), $store);
     }
 
+    /**
+     * A guest cart on a storefront: the rows carry the store, and the session
+     * carries only the token that claims them.
+     */
+    private function guestCartAt(Store $store, float $price = 100): void
+    {
+        $token = 'guest-'.$store->id;
+
+        $this->withSession(['cart_token' => $token]);
+
+        $this->stamp(CartItem::create([
+            'guest_token' => $token,
+            'product_id' => $this->stamp(Product::factory()->create(), $store)->id,
+            'quantity' => 1,
+            'price' => $price,
+        ]), $store);
+    }
+
     private function cartItemAt(Store $store, User $user, Product $product): CartItem
     {
         return $this->stamp(CartItem::create([
             'user_id' => $user->id,
-            'session_id' => 'api',
             'product_id' => $product->id,
             'quantity' => 1,
             'price' => 10,
@@ -73,13 +90,14 @@ class CheckoutStoreScopeTest extends TestCase
 
     public function test_a_coupon_issued_by_another_merchant_does_not_discount_this_basket(): void
     {
-        $this->storefront('mine.example.com');
+        $mine = $this->storefront('mine.example.com');
         $theirs = $this->storefront('theirs.example.com');
 
         $this->couponAt($theirs, 'THEIRS50');
 
+        $this->guestCartAt($mine);
+
         $this->from('http://mine.example.com/cart')
-            ->withSession(['cart' => [['price' => 100, 'quantity' => 1]]])
             ->post('http://mine.example.com/cart/apply-coupon', ['coupon_code' => 'THEIRS50'])
             ->assertSessionHas('error')
             ->assertSessionMissing('coupon');
@@ -91,8 +109,9 @@ class CheckoutStoreScopeTest extends TestCase
 
         $this->couponAt($mine, 'MINE50');
 
+        $this->guestCartAt($mine);
+
         $this->from('http://mine.example.com/cart')
-            ->withSession(['cart' => [['price' => 100, 'quantity' => 1]]])
             ->post('http://mine.example.com/cart/apply-coupon', ['coupon_code' => 'MINE50'])
             ->assertSessionHas('success')
             ->assertSessionHas('coupon.code', 'MINE50');

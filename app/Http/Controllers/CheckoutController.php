@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShippingMethod;
 use App\Notifications\OrderConfirmationNotification;
+use App\Services\CartService;
 use App\Services\CheckoutService;
 use App\Services\ShippingService;
 use App\Services\TaxCalculator;
@@ -27,18 +28,21 @@ class CheckoutController extends Controller
 
     protected $viesService;
 
-    public function __construct(ShippingService $shippingService, TaxCalculator $taxCalculator, CheckoutService $checkoutService, ViesService $viesService)
+    protected $cart;
+
+    public function __construct(ShippingService $shippingService, TaxCalculator $taxCalculator, CheckoutService $checkoutService, ViesService $viesService, CartService $cart)
     {
         $this->shippingService = $shippingService;
         $this->taxCalculator = $taxCalculator;
         $this->checkoutService = $checkoutService;
         $this->viesService = $viesService;
+        $this->cart = $cart;
     }
 
     public function initiateCheckout(Request $request)
     {
         $isGuest = Session::get('is_guest', false);
-        $cart = Session::get('cart', []);
+        $cart = $this->cart->contents();
 
         if (empty($cart)) {
             return redirect()->route('products.index')
@@ -80,7 +84,7 @@ class CheckoutController extends Controller
             'street1' => 'nullable|string|max:255',
         ]);
 
-        $cart = Session::get('cart', []);
+        $cart = $this->cart->contents();
         if (empty($cart)) {
             return response()->json(['rates' => [], 'error' => 'Your cart is empty.'], 422);
         }
@@ -141,7 +145,7 @@ class CheckoutController extends Controller
                 ->withInput();
         }
 
-        $cart = Session::get('cart', []);
+        $cart = $this->cart->contents();
 
         if (empty($cart)) {
             return redirect()->route('products.index')
@@ -364,7 +368,7 @@ class CheckoutController extends Controller
         $this->checkoutService->grantDownloads($order);
 
         // Clear cart and coupon
-        Session::forget('cart');
+        $this->cart->clear();
         Session::forget('coupon');
 
         return redirect()->route('checkout.confirmation', ['order' => $order->id])
@@ -388,7 +392,7 @@ class CheckoutController extends Controller
 
     public function guestCheckout(Request $request)
     {
-        $cart = Session::get('cart', []);
+        $cart = $this->cart->contents();
 
         // Store cart in guest session
         Session::put('guest_cart', $cart);

@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Livewire\ShoppingCart;
+use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Session;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -29,9 +29,9 @@ class CartInputTamperingTest extends TestCase
             productId: $product->id, name: 'HACKED', price: 0.01, quantity: 1, isDownloadable: false, weight: 0
         );
 
-        $cart = Session::get('cart');
-        $this->assertEquals(100, $cart[$product->id]['price'], 'Cart must use the product price, not the client value');
-        $this->assertEquals($product->name, $cart[$product->id]['name']);
+        $item = CartItem::where('product_id', $product->id)->first();
+        $this->assertNotNull($item);
+        $this->assertEquals(100, $item->price, 'Cart must use the product price, not the client value');
     }
 
     public function test_livewire_add_to_cart_ignores_forged_downloadable_flag(): void
@@ -44,7 +44,7 @@ class CartInputTamperingTest extends TestCase
             productId: $product->id, name: 'x', price: 50, quantity: 1, isDownloadable: true, weight: 0
         );
 
-        $this->assertArrayNotHasKey($product->id, Session::get('cart', []), 'A forged downloadable flag must not bypass the stock check');
+        $this->assertSame(0, CartItem::where('product_id', $product->id)->count(), 'A forged downloadable flag must not bypass the stock check');
     }
 
     public function test_livewire_add_to_cart_never_stores_a_non_positive_quantity(): void
@@ -56,9 +56,9 @@ class CartInputTamperingTest extends TestCase
             productId: $product->id, name: 'x', price: 100, quantity: -5, isDownloadable: false, weight: 0
         );
 
-        $cart = Session::get('cart', []);
-        if (isset($cart[$product->id])) {
-            $this->assertGreaterThanOrEqual(1, $cart[$product->id]['quantity']);
+        $quantity = CartItem::where('product_id', $product->id)->value('quantity');
+        if ($quantity !== null) {
+            $this->assertGreaterThanOrEqual(1, $quantity);
         }
     }
 
@@ -69,6 +69,6 @@ class CartInputTamperingTest extends TestCase
         $this->post(route('cart.add', $product), ['quantity' => -5])
             ->assertSessionHasErrors('quantity');
 
-        $this->assertArrayNotHasKey($product->id, Session::get('cart', []));
+        $this->assertSame(0, CartItem::where('product_id', $product->id)->count());
     }
 }
