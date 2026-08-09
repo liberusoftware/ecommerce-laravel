@@ -2,36 +2,37 @@
 
 namespace Tests\Feature;
 
-use App\Models\CartItem;
+use App\Models\Order;
 use App\Models\Product;
-use App\Models\Store;
-use App\Services\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/** Temporary: works out why a seeded guest cart is invisible inside a request. */
+/** Temporary: works out why a seeded guest cart fails at checkout. */
 class CartSeedDiagnosticTest extends TestCase
 {
     use RefreshDatabase;
 
     public function test_diagnose(): void
     {
-        $product = Product::factory()->create(['price' => 10, 'inventory_count' => 5]);
+        $product = Product::factory()->create(['price' => 50, 'inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withStoredCart([$product->id => ['quantity' => 1, 'price' => 10]]);
-
-        $row = CartItem::withoutGlobalScope('store')->first();
-
-        $response = $this->get(route('cart.index'));
+        $response = $this->withStoredCart([
+            $product->id => ['quantity' => 1, 'price' => 50.0],
+        ])->post(route('checkout.process'), [
+            'email' => 'buyer@example.com',
+            'has_physical_products' => 0,
+            'country' => 'de',
+            'payment_method' => 'stripe',
+            'stripeToken' => 'tok_test',
+        ]);
 
         $this->fail(sprintf(
-            'rows=%d store_id=%s stores=%d token=%s visible_after=%d status=%d',
-            CartItem::withoutGlobalScope('store')->count(),
-            var_export($row?->store_id, true),
-            Store::count(),
-            var_export(session('cart_token'), true),
-            app(CartService::class)->count(),
+            'status=%d location=%s errors=%s error=%s orders=%d',
             $response->getStatusCode(),
+            var_export($response->headers->get('Location'), true),
+            json_encode(session('errors')?->getBag('default')?->all() ?? []),
+            var_export(session('error'), true),
+            Order::count(),
         ));
     }
 }
