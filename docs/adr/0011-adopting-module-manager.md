@@ -1,6 +1,10 @@
 # Adopting `liberusoftware/module-manager` over the host's own module system
 
-**Status**: proposed — the adoption itself needs Composer network this repository's agent environment does not have
+**Status**: **accepted — landed 2026-08-09**
+
+The Composer network problem this ADR recorded as a blocker was diagnosed rather than waited out. PHP's libcurl is built against c-ares, which resolves over UDP; UDP :53 is black-holed on the maintainer's network, which is why `/etc/resolv.conf` carries `options use-vc`. glibc honours that and resolves over TCP — so `curl`, `git` and `gh` all work — and c-ares ignores it, so Composer alone could not resolve a single host. It was never a Composer fault or an offline machine. `.github/workflows/composer-require.yml` runs the require on a runner that has working DNS.
+
+**One thing found at adoption time that this ADR did not predict**, and it is why the swap had to be a single commit rather than "install now, replace later": both systems name their config file `config/modules.php`. The host's declares `'cache' => ['enabled' => …, 'key' => …, 'ttl' => …]`, an array. `ModuleManagerServiceProvider::register()` reads the same key as `(bool) config('modules.cache')` — a non-empty array casts to `true` — and then `(string) config('modules.cache_path')`, which the host config does not define, giving `""`. Installing the package against the host's config would have switched the registry cache on and pointed it at the empty path, in `register()`, on every boot. There was no safe intermediate state to stop at.
 
 `MIGRATION_PLAN.md` wave 0 has always said `module-manager` is *"the only registrar"* and that adopting it deletes `app/Modules/`. It described that directory as *"1,095 lines of unused scaffolding"*. That was wrong: `AppServiceProvider` registers it, `app/Console/Commands/ModuleCommand.php` drives it, `config/modules.php` configures it, a `modules` table backs it, and two test files cover it.
 
