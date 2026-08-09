@@ -25,12 +25,11 @@ class CartSeedDiagnosticTest extends TestCase
         $response = $this->get(route('cart.index'));
 
         $this->fail(sprintf(
-            'rows=%d store_id=%s stores=%d token_before=%s token_after=%s visible_after=%d status=%d',
+            'rows=%d store_id=%s stores=%d token=%s visible_after=%d status=%d',
             CartItem::withoutGlobalScope('store')->count(),
             var_export($row?->store_id, true),
             Store::count(),
             var_export(session('cart_token'), true),
-            var_export($response->getRequest()?->session()?->get('cart_token'), true),
             app(CartService::class)->count(),
             $response->getStatusCode(),
         ));
