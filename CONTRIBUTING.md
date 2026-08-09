@@ -24,7 +24,8 @@ is sequenced, and a change that lands out of order costs more to reconcile than 
 
 ## The gates
 
-Three commands. `composer check` runs all three in order and is what CI amounts to:
+There are three: formatting, static analysis, tests. `composer check` runs them in that order and is
+what CI amounts to.
 
 ```bash
 composer lint      # Pint, --test (check only)
