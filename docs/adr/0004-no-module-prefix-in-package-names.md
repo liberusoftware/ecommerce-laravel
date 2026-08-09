@@ -13,7 +13,7 @@ This deviates from §9's five presentation-adapter rows and nothing else. Domain
 | §9 row | Convention | This fleet |
 | --- | --- | --- |
 | Product capability | `liberusoftware/{product}-{capability}` | `liberusoftware/ecommerce-cart` — conformant |
-| Shared core | `liberusoftware/{capability}-core` | `liberusoftware/ecommerce-core` — conformant |
+| Shared core | `liberusoftware/{capability}-core` | `liberusoftware/ecommerce-commerce-core` — conformant |
 | Filament / Livewire / API / React Native / Flutter adapters | `liberusoftware/module-…` | `liberusoftware/ecommerce-cart-filament` — **deviates** |
 
 The namespace deviation belongs here too rather than to an ADR of its own, being the same rows of the same table: namespaces derive mechanically from the package name, so `ecommerce-cart-filament` becomes `Liberu\Ecommerce\Cart\Filament\` — three segments against §9's two-segment `Liberu\{Domain}\{Capability}`.

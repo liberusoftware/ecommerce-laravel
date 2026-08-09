@@ -13,7 +13,7 @@ How `ecommerce-laravel` gets from the state recorded in [`CONFORMANCE.md`](./CON
 **Tier order, then most-code-first within a tier.**
 
 ```
-ecommerce-core
+ecommerce-commerce-core
   └─ catalog · pricing · inventory
        └─ cart
             └─ checkout
@@ -35,7 +35,7 @@ That rule orders the ~100 modules after wave 3 without enumerating them.
 
 Two things the plan deliberately does not contain.
 
-**No throwaway first extraction.** A small commerce leaf was proposed as a rehearsal — Back-in-Stock and Price Alerts — and that was wrong on the facts: `StockNotification` `belongsTo` `Product`, `ProductVariant` *and* `User`, and `ProductBackInStockNotification` imports `Product` and `ProductVariant`. **Essentially every commerce leaf hangs off `Product`**, so there is no dependency-free leaf to rehearse on. `ecommerce-core` keeps the rehearsal property anyway (§3).
+**No throwaway first extraction.** A small commerce leaf was proposed as a rehearsal — Back-in-Stock and Price Alerts — and that was wrong on the facts: `StockNotification` `belongsTo` `Product`, `ProductVariant` *and* `User`, and `ProductBackInStockNotification` imports `Product` and `ProductVariant`. **Essentially every commerce leaf hangs off `Product`**, so there is no dependency-free leaf to rehearse on. `ecommerce-commerce-core` keeps the rehearsal property anyway (§3).
 
 **No storefront wave.** Each module takes its routes, views and Livewire components when it is extracted — in the same commit as its domain code, because the route name and the view that calls it live together. Only the shared layer (`theme-ecommerce`) is scheduled, in wave 0.
 
@@ -213,23 +213,31 @@ The **tenant scope fix is not gated on the enforcement layer** — it is a live 
 
 ---
 
-## Wave 1 — the first extraction: `ecommerce-core`
+## Wave 1 — the first extraction: `ecommerce-commerce-core` — ✅ **shipped**
 
-`ecommerce-core` is tier 0 and, uniquely among commerce modules, has **no inbound dependency on the god models**. `Store`, `Channel` and the shared value types — money, quantity, address, tax class — are greenfield.
+Four packages, released and green: [`ecommerce-commerce-core`](https://github.com/liberusoftware/module-ecommerce-commerce-core) `0.4.0`, plus `-api`, `-filament` and `-livewire` at `0.2.0`. 411 tests. [#839](https://github.com/liberusoftware/ecommerce-laravel/issues/839) records what shipped and what deliberately did not.
+
+Two things it leaves open, both outside the packages themselves: **none of the four is on Packagist**, so a consumer needs a VCS `repositories` entry — and Composer honours `repositories` only from the *root* manifest, so a package declaring its own dependency's repository does not help its consumer. And **the host has not swapped yet**: this repository still runs `App\Models\{Store,Channel,ChannelDomain}` and `App\Services\{ChannelResolver,StoreContext}`. That swap is the first thing that will find out whether the boundary is right, which is why the domain package is `0.4.0` and not `1.0.0`.
+
+`ecommerce-commerce-core` is tier 0 and, uniquely among commerce modules, has **no inbound dependency on the god models**. `Store`, `Channel` and the shared value types — money, quantity, address, tax class — are greenfield.
 
 So the first extraction exercises packaging, testbench wiring, migration ownership, panel registration, translation loading and CI **without simultaneously fighting a 99-model graph**. It is small, self-contained, cheap to redo, and it unblocks both tier 1 and wave 1.5.
 
 Its promotion gate is [`MODULE_DEVELOPMENT.md` §6.1](./MODULE_DEVELOPMENT.md#61-promotion-gate--all-provable-inside-the-monorepo). Being greenfield, its coverage floor is `--min=100` — no ADR 0001 ratchet applies.
 
-**What `ecommerce-core` owns on day one:**
+**What `ecommerce-commerce-core` owns on day one:**
 
 - `Store`, `Channel`, `channel_domains` — the schema wave 1.5 needs
 - `ChannelResolver` — the domain question *which channel is `shop.example.com`?* belongs to the module that owns `Channel`. The HTTP question — *how does a request carry it* — stays in the host as middleware
 - The shared value types
 
-`ecommerce-core` is provisioned in all four flavours, so promotion pushes into existing repositories.
+`ecommerce-commerce-core` is provisioned in all four flavours, so promotion pushes into existing repositories.
 
-**One prerequisite is a contribution rather than a fix, and it is nobody's defect report.** [ADR 0006](./adr/0006-late-bound-host-model-resolution.md) has commerce modules resolve host models late and never import them. That needs a **team resolver** in `organizations-teams`, and it does not exist. Until it lands, a commerce module cannot resolve a team — which is a hard block on wave 1, not a nice-to-have.
+**One prerequisite was a contribution rather than a fix, and it turned out not to be a block at all.** ~~[ADR 0006](./adr/0006-late-bound-host-model-resolution.md) has commerce modules resolve host models late and never import them. That needs a **team resolver** in `organizations-teams`, and it does not exist. Until it lands, a commerce module cannot resolve a team — which is a hard block on wave 1, not a nice-to-have.~~ — ✅ **sidestepped, and the sidestep is the better answer.**
+
+`CurrentTeamResolver` did land, in `organizations-teams` 1.4.1, and it is unusable here twice over: it queries `team_user.status`, `effective_from` and `effective_until`, none of which this host has, and it returns *that package's* `Team` rather than the host's. So the extraction took the other route — `Store::team()` reads `config('commerce-core.team_model')` at call time, defaulting to `App\Models\Team`.
+
+Which satisfies ADR 0006 more cheaply than the contribution would have: a module that needs a **class name** does not need a package. The dependency the ADR was written to avoid was never required to avoid it.
 
 It is recorded here because it was previously recorded *only* inside [#961](https://github.com/liberusoftware/ecommerce-laravel/issues/961), the upstream-issue tracker, as the one item of 24 that had never been filed anywhere. #961 is now closed ([ADR 0013](./adr/0013-cms-and-crm-packages-are-built-from-ground.md)), and a wave 1 prerequisite belongs in the wave 1 section rather than in a list of other repositories' bugs.
 
@@ -533,7 +541,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | Wave | Reversible? | How |
 | --- | --- | --- |
 | **0** — enforcement, installer, theme | **Yes, cheaply.** Config, CI and deletions of dead code. The riskiest item is deleting `app/Modules/`, which serves zero modules | Revert the commit |
-| **1** — `ecommerce-core` | **Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package | See §2 |
+| **1** — `ecommerce-commerce-core` | **Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
 | **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation | See §2 |

@@ -21,9 +21,9 @@ A module carries four names in two forms. Only the repository keeps the `module-
 | `extra.liberu.name` | `ecommerce-cart-filament` | package minus vendor |
 | Namespace | `Liberu\Ecommerce\Cart\Filament\` | package, `StudlyCase` per segment |
 
-**⚠ deviation** — [ADR 0004](./adr/0004-no-module-prefix-in-package-names.md). `MODULES.md` §9's five presentation-adapter rows put `module-` in the *package* name and give namespaces two segments. Domain packages (`liberusoftware/ecommerce-cart`, `liberusoftware/ecommerce-core`) are fully conformant.
+**⚠ deviation** — [ADR 0004](./adr/0004-no-module-prefix-in-package-names.md). `MODULES.md` §9's five presentation-adapter rows put `module-` in the *package* name and give namespaces two segments. Domain packages (`liberusoftware/ecommerce-cart`, `liberusoftware/ecommerce-commerce-core`) are fully conformant.
 
-The product word is **`ecommerce`**, always. Where earlier planning said `commerce-core`, read `ecommerce-core`.
+The product word is **`ecommerce`**, always. Where earlier planning said `commerce-core`, read `ecommerce-commerce-core`.
 
 ### 1.2 Module names come from the catalogue
 
@@ -98,7 +98,7 @@ Ten rules, applicable mechanically. R1 and R8 are **extensions** of the document
 **R5 — Commerce is strictly tiered, and a test enforces it.**
 
 ```
-ecommerce-core
+ecommerce-commerce-core
   └─ catalog · pricing · inventory
        └─ cart
             └─ checkout
@@ -110,7 +110,7 @@ An architecture test asserts the graph is acyclic and that no package requires o
 
 **R6 — Orchestration sits at the top and depends downward.** A flow spanning several capabilities lives in the higher-tier module. `CheckoutService` becomes `ecommerce-checkout`, depending on promotions, reservations, payments, digital fulfillment and dropshipping.
 
-**R7 — Shared value types live in `ecommerce-core`.** Money, quantity, address, tax class. They move to a contracts package only when a non-commerce product needs them without the implementation — a tax class fails §5.1's domain-neutral test, so the foundation is not its home.
+**R7 — Shared value types live in `ecommerce-commerce-core`.** Money, quantity, address, tax class. They move to a contracts package only when a non-commerce product needs them without the implementation — a tax class fails §5.1's domain-neutral test, so the foundation is not its home.
 
 ### Across products
 
