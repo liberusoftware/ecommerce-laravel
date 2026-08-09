@@ -75,8 +75,13 @@ jobs:
           set -euo pipefail
           base="${{ github.base_ref }}"
           git fetch --no-tags origin "${base:-main}"
+          # modules/ and themes/ are tracked (ADR 0010 is withdrawn) but they
+          # hold installed package copies whose authoritative source is another
+          # repository. Formatting them here would fight `composer install` and
+          # trip the release guard that requires the tree to match the package.
           git diff --name-only --diff-filter=ACMR \
-            "FETCH_HEAD...HEAD" -- '*.php' > changed.txt
+            "FETCH_HEAD...HEAD" -- '*.php' \
+            ':(exclude)modules/**' ':(exclude)themes/**' > changed.txt
           echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
           cat changed.txt
 
