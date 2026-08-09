@@ -15,6 +15,13 @@ Deferring the merge until after extraction was rejected because the two stacks w
 
 ## Consequences
 
-The merge is the most expensive of the four and touches GDPR paths, so it is rehearsed against production-shaped data rather than run directly.
+~~The merge is the most expensive of the four and touches GDPR paths, so it is rehearsed against production-shaped data rather than run directly.~~
+
+**Superseded, and the decision above survives it.** There are no production rows — every database here is built from the migrations — so there was nothing to rehearse against and no data migration to write. Both load-bearing details still had to be honoured, in a different place each:
+
+- `approved` was **added to `product_reviews`** rather than carried across in a migration, and the moderation surface it implies (a flag the panel can see, filter and set) came with it.
+- The `Customer` backfill moved **into the write path**: `ReviewController` and `RatingController` call `getOrCreateCustomer()`, so a shopper with an account and no customer record gets one instead of having their review dropped.
+
+The GDPR paths were touched as predicted: export and erasure now read one stack, and the export keeps the keys `reviews` and `ratings` — the words a person understands — rather than the surviving table names.
 
 Reviews and ratings remain genuinely separate concepts afterwards — see [`CONTEXT.md`](../../CONTEXT.md). A rating without a review is normal, not an incomplete record.

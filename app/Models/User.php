@@ -52,7 +52,6 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     use HasRoles, HasTeams {
         HasTeams::teams insteadof HasRoles;
     }
-
     use Notifiable;
 
     // use SetsProfilePhotoFromUrl;
@@ -187,10 +186,9 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->hasMany(BrowsingHistory::class);
     }
 
-    public function ratings(): HasMany
-    {
-        return $this->hasMany(Rating::class);
-    }
+    // A user's ratings are reached through their Customer since ADR 0008 —
+    // `$user->customer->rating`. The relation that hung off `User` belonged to
+    // the retired stack and pointed at a table that no longer exists.
 
     public function membership(): BelongsToMany
     {

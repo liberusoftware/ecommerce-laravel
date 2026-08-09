@@ -6,8 +6,6 @@ use App\Models\GiftRegistry;
 use App\Models\Order;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
-use App\Models\Rating;
-use App\Models\Review;
 use App\Models\User;
 
 /**
@@ -60,10 +58,10 @@ class GdprExportService
                 'name' => $pm->name,
                 'is_default' => (bool) $pm->is_default,
             ])->all(),
-            'reviews' => $this->reviews($user),
-            'ratings' => $this->ratings($user),
-            'product_reviews' => $customer ? $this->productReviews($customer->id) : [],
-            'product_ratings' => $customer ? $this->productRatings($customer->id) : [],
+            // One stack since ADR 0008, keyed to the customer. The keys keep the
+            // names a person understands rather than the table names.
+            'reviews' => $customer ? $this->reviews($customer->id) : [],
+            'ratings' => $customer ? $this->ratings($customer->id) : [],
             'gift_registries' => $this->giftRegistries($user),
             'browsing_history' => $this->browsingHistory($user),
             'product_interactions' => $this->productInteractions($user),
@@ -99,40 +97,20 @@ class GdprExportService
         ])->all();
     }
 
-    private function reviews(User $user): array
-    {
-        return Review::where('user_id', $user->id)->latest('id')->get()->map(fn (Review $r) => [
-            'product_id' => $r->product_id,
-            'rating' => $r->rating,
-            'review' => $r->review,
-            'created_at' => optional($r->created_at)->toIso8601String(),
-        ])->all();
-    }
-
-    private function ratings(User $user): array
-    {
-        return Rating::where('user_id', $user->id)->latest('id')->get()->map(fn (Rating $r) => [
-            'product_id' => $r->product_id,
-            'rating' => $r->rating,
-            'overall_rating' => $r->overall_rating,
-            'quality_rating' => $r->quality_rating,
-            'value_rating' => $r->value_rating,
-            'price_rating' => $r->price_rating,
-            'created_at' => optional($r->created_at)->toIso8601String(),
-        ])->all();
-    }
-
-    private function productReviews(int $customerId): array
+    private function reviews(int $customerId): array
     {
         return ProductReview::where('customer_id', $customerId)->latest('id')->get()->map(fn (ProductReview $r) => [
             'product_id' => $r->product_id,
             'comments' => $r->comments,
+            // Their own review's moderation state is theirs to see: a pending
+            // review is data held about them that no page shows them.
+            'approved' => (bool) $r->approved,
             'is_verified_purchase' => (bool) $r->is_verified_purchase,
             'created_at' => optional($r->created_at)->toIso8601String(),
         ])->all();
     }
 
-    private function productRatings(int $customerId): array
+    private function ratings(int $customerId): array
     {
         return ProductRating::where('customer_id', $customerId)->latest('id')->get()->map(fn (ProductRating $r) => [
             'product_id' => $r->product_id,

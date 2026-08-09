@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
-use App\Models\Review;
+use App\Models\ProductReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -33,27 +33,51 @@ class ReviewControllerTest extends TestCase
             ]);
 
         $response->assertStatus(201);
-        $this->assertDatabaseHas('reviews', [
-            'user_id' => $user->id,
+
+        // The account had no customer record until the review was written. It
+        // has one now rather than the review being dropped as unmappable.
+        $customer = $user->fresh()->customer;
+        $this->assertNotNull($customer, 'No Customer was backfilled for the reviewer.');
+
+        $this->assertDatabaseHas('product_reviews', [
+            'customer_id' => $customer->id,
             'product_id' => $product->id,
-            'rating' => 5,
-            'review' => 'Great product!',
+            'comments' => 'Great product!',
             'approved' => false,
+        ]);
+    }
+
+    public function test_store_also_records_the_score_as_a_rating(): void
+    {
+        $user = User::factory()->create();
+        $product = Product::factory()->create();
+
+        $this->actingAs($user)->postJson('/reviews', [
+            'product_id' => $product->id,
+            'rating' => 4,
+            'review' => 'Good.',
+        ])->assertStatus(201);
+
+        // A review carries a score, and after the merge a score is a rating —
+        // its own record, so the product card and the averages endpoint see it.
+        $this->assertDatabaseHas('product_rating', [
+            'customer_id' => $user->fresh()->customer->id,
+            'product_id' => $product->id,
+            'rating' => 4,
+            'overall_rating' => 4,
         ]);
     }
 
     public function test_approve()
     {
-
-        $review = Review::factory()->create([
-            'rating' => 5,
-            'review' => 'Great product!',
+        $review = ProductReview::factory()->create([
+            'comments' => 'Great product!',
             'approved' => false,
         ]);
 
         $this->actingAs($this->admin())->post(route('reviews.approve', ['id' => $review->id]));
 
-        $this->assertDatabaseHas('reviews', [
+        $this->assertDatabaseHas('product_reviews', [
             'id' => $review->id,
             'approved' => true,
         ]);
@@ -69,26 +93,20 @@ class ReviewControllerTest extends TestCase
     public function test_show_returns_only_approved_reviews(): void
     {
         $product = Product::factory()->create();
-        $approved = Review::factory()->create([
-            'product_id' => $product->id,
-            'approved' => true,
-        ]);
-        $pending = Review::factory()->create([
-            'product_id' => $product->id,
-            'approved' => false,
-        ]);
+        $approved = ProductReview::factory()->approved()->create(['product_id' => $product->id]);
+        $pending = ProductReview::factory()->create(['product_id' => $product->id]);
 
         $response = $this->getJson("/product/{$product->id}/reviews");
 
         $response->assertStatus(200);
         $ids = array_column($response->json(), 'id');
         $this->assertContains($approved->id, $ids);
-        $this->assertNotContains($pending->id, $ids);
+        $this->assertNotContains($pending->id, $ids, 'An unmoderated review reached the public listing.');
     }
 
     public function test_vote_helpful_increments_helpful_votes(): void
     {
-        $review = Review::factory()->create(['helpful_votes' => 0]);
+        $review = ProductReview::factory()->create(['helpful_votes' => 0]);
 
         $response = $this->actingAs(User::factory()->create())->postJson("/reviews/{$review->id}/vote", ['vote' => 'helpful']);
 
@@ -98,7 +116,7 @@ class ReviewControllerTest extends TestCase
 
     public function test_vote_unhelpful_increments_unhelpful_votes(): void
     {
-        $review = Review::factory()->create(['unhelpful_votes' => 0]);
+        $review = ProductReview::factory()->create(['unhelpful_votes' => 0]);
 
         $response = $this->actingAs(User::factory()->create())->postJson("/reviews/{$review->id}/vote", ['vote' => 'unhelpful']);
 
@@ -108,7 +126,7 @@ class ReviewControllerTest extends TestCase
 
     public function test_vote_returns_400_for_invalid_type(): void
     {
-        $review = Review::factory()->create();
+        $review = ProductReview::factory()->create();
 
         $response = $this->actingAs(User::factory()->create())->postJson("/reviews/{$review->id}/vote", ['vote' => 'bogus']);
 
@@ -135,6 +153,9 @@ class ReviewControllerTest extends TestCase
         $this->actingAs($user)->postJson('/reviews', $payload)->assertStatus(201);
         $this->actingAs($user)->postJson('/reviews', $payload)->assertStatus(409);
 
-        $this->assertEquals(1, Review::where('user_id', $user->id)->where('product_id', $product->id)->count());
+        $this->assertEquals(
+            1,
+            ProductReview::where('customer_id', $user->fresh()->customer->id)->where('product_id', $product->id)->count(),
+        );
     }
 }
