@@ -290,7 +290,7 @@ Seven pairs were reported by the inventory. **Three are not duplicates.**
 
 | Pair | Why not |
 | --- | --- |
-| `RecommendationService` (82 lines) / `ProductRecommendationService` (230) | Not the read/generator split this table first recorded — reading the code, both read and only one writes. The short one derives suggestions from a single shopper's own orders, browsing and ratings at request time and stores nothing; the long one captures interactions, builds the `product_recommendations` table from cross-customer co-occurrence, and serves it back. Different signals, not two halves of one algorithm. Both belong to Recommendations. **Renamed** to `UserHistoryRecommender` and `ProductRecommendationEngine` |
+| `RecommendationService` (82 lines) / `ProductRecommendationService` (230) | A read/generator split of one module — one serves `Frontend/ProductController`, the other is driven by the `GenerateProductRecommendations` command. Both belong to Recommendations; rename to say so |
 | Products / Reports / Settings across both Filament panels | **`MODULES.md` §5.6 requires it**: a `-filament` package "presents only its matching domain module, covers **all panels** that module requires". The real work is deduplicating the shared schema *inside* that one package — choosing a panel is what §5.6 forbids |
 | Two `MenuResource` classes | A 13-line wrapper over `biostate/filament-menu-builder`'s `BaseMenuResource` and a 76-line hand-written resource on the same model. Keep the wrapper — but **diff the hand-written one against the package base first**, so anything it does that the base doesn't is known before it goes |
 
