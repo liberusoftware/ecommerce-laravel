@@ -1,0 +1,8 @@
+parameters:
+    level: 8
+    paths:
+        - app
+        - bootstrap
+        - database
+        - routes
+    treatPhpDocTypesAsCertain: false
