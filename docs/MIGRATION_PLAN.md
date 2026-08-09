@@ -502,7 +502,9 @@ Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion
 
 **Promotion is per-package, the moment each qualifies** — not per wave. Batching promotions adds a synchronisation barrier where the slowest module holds the rest. A hundred small reviewable host commits beat four large ones.
 
-**Promotion is a source-of-truth flip, not a code move.** During the path phase a module's code is committed to the host. At promotion its `.gitignore` flips, its files **leave the host tree**, and Composer becomes the only source. Whether a module is promoted becomes answerable by `ls`. [ADR 0010](./adr/0010-modules-and-themes-are-gitignored.md).
+**Promotion is a source-of-truth flip, and the code stays.** During the path phase a module's code is committed to the host under `app/`; at promotion it moves to `modules/` and **stays tracked there**, with Composer as the authoritative source and the host tree as an installed copy. Whether a module is promoted is answerable by its `composer.json` entry, not by `ls`.
+
+[ADR 0010](./adr/0010-modules-and-themes-are-gitignored.md) argued the opposite — flip `.gitignore` per package so promotion is visible in the file tree — and is **withdrawn**, [#972](https://github.com/liberusoftware/ecommerce-laravel/issues/972). It was never implemented: `.gitignore` has never named `/modules` or `/themes`, because nothing has been promoted yet. So this is a plan correction with no code behind it, which is the cheapest moment such a reversal is ever available. The duplication ADR 0010 objected to is real and now accepted; `git diff --exit-code --stat -- modules themes` is what stops it drifting.
 
 **The soak is retrospective.** No cross-boundary edit in its last N commits, computed from `git log` at promotion time — not a thirty-day calendar wait. Both measure whether the boundary has stopped moving; only one cannot be waived under schedule pressure.
 
