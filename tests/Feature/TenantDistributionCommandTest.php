@@ -37,7 +37,7 @@ class TenantDistributionCommandTest extends TestCase
         $this->wishlist($mine, $product->id);
 
         $this->artisan('tenants:distribution')
-            ->expectsOutputToContain('are already attributed across a tenancy boundary')
+            ->expectsOutputToContain('One row is already attributed across a tenancy boundary')
             ->expectsOutputToContain('| wishlists | product_id → products | 1 |')
             ->assertSuccessful();
     }
