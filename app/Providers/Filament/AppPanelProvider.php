@@ -7,11 +7,9 @@ use App\Filament\App\Pages\CreateTeam;
 use App\Filament\App\Pages\EditProfile;
 use App\Filament\App\Pages\EditTeam;
 use App\Http\Middleware\TeamsPermission;
-use App\Listeners\CreatePersonalTeam;
 use App\Listeners\SwitchTeam;
 use App\Models\Team;
 use Filament\Actions\Action;
-use Filament\Events\Auth\Registered;
 use Filament\Events\TenantSet;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
@@ -150,14 +148,6 @@ class AppPanelProvider extends PanelProvider
          * Disable Jetstream routes.
          */
         // Jetstream::$registersRoutes = false;
-
-        /**
-         * Listen and create personal team for new accounts.
-         */
-        // Event::listen(
-        //     Registered::class,
-        //     CreatePersonalTeam::class,
-        // );
 
         /**
          * Listen and switch team if tenant was changed.
