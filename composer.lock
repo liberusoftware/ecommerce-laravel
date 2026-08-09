@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3d1bbe2e66af02afd23ffbc6d748183c",
+    "content-hash": "84a58287e458b34448f22a2ea8a2655a",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -1038,6 +1038,83 @@
                 }
             ],
             "time": "2025-01-03T16:18:33+00:00"
+        },
+        {
+            "name": "composer/semver",
+            "version": "3.4.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/composer/semver.git",
+                "reference": "198166618906cb2de69b95d7d47e5fa8aa1b2b95"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/composer/semver/zipball/198166618906cb2de69b95d7d47e5fa8aa1b2b95",
+                "reference": "198166618906cb2de69b95d7d47e5fa8aa1b2b95",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^5.3.2 || ^7.0 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.11",
+                "symfony/phpunit-bridge": "^3 || ^7"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Composer\\Semver\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nils Adermann",
+                    "email": "naderman@naderman.de",
+                    "homepage": "http://www.naderman.de"
+                },
+                {
+                    "name": "Jordi Boggiano",
+                    "email": "j.boggiano@seld.be",
+                    "homepage": "http://seld.be"
+                },
+                {
+                    "name": "Rob Bast",
+                    "email": "rob.bast@gmail.com",
+                    "homepage": "http://robbast.nl"
+                }
+            ],
+            "description": "Semver library that offers utilities, version constraint parsing and validation.",
+            "keywords": [
+                "semantic",
+                "semver",
+                "validation",
+                "versioning"
+            ],
+            "support": {
+                "irc": "ircs://irc.libera.chat:6697/composer",
+                "issues": "https://github.com/composer/semver/issues",
+                "source": "https://github.com/composer/semver/tree/3.4.4"
+            },
+            "funding": [
+                {
+                    "url": "https://packagist.com",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/composer",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-08-20T19:15:30+00:00"
         },
         {
             "name": "danharrin/date-format-converter",
@@ -4974,6 +5051,96 @@
                 }
             ],
             "time": "2026-03-08T20:05:35+00:00"
+        },
+        {
+            "name": "liberusoftware/composer-installer",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/liberusoftware/composer-installer.git",
+                "reference": "470e3b95f6232424c69d67e4f7dad6f3619c37c4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/liberusoftware/composer-installer/zipball/470e3b95f6232424c69d67e4f7dad6f3619c37c4",
+                "reference": "470e3b95f6232424c69d67e4f7dad6f3619c37c4",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.6",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "composer/composer": "^2.6",
+                "laravel/pint": "^1.14",
+                "pestphp/pest": "^5.0"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Liberu\\ComposerInstaller\\Plugin",
+                "plugin-modifies-install-path": true
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\ComposerInstaller\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Deterministic Composer 2 installer for tracked Liberu modules and themes.",
+            "support": {
+                "issues": "https://github.com/liberusoftware/composer-installer/issues",
+                "source": "https://github.com/liberusoftware/composer-installer/tree/1.1.0"
+            },
+            "time": "2026-08-05T07:59:00+00:00"
+        },
+        {
+            "name": "liberusoftware/module-manager",
+            "version": "1.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/liberusoftware/module-module-manager.git",
+                "reference": "688fc9c01008bfd5258afa2a78587c48804ec2e7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/liberusoftware/module-module-manager/zipball/688fc9c01008bfd5258afa2a78587c48804ec2e7",
+                "reference": "688fc9c01008bfd5258afa2a78587c48804ec2e7",
+                "shasum": ""
+            },
+            "require": {
+                "composer/semver": "^3.4",
+                "illuminate/contracts": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "liberusoftware/package-testbench": "^1.5",
+                "pestphp/pest": "^5.0"
+            },
+            "type": "liberu-module",
+            "extra": {
+                "liberu": {
+                    "name": "module-manager"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\Foundation\\ModuleManager\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Deterministic manifest discovery and runtime enablement for Liberu modules.",
+            "support": {
+                "issues": "https://github.com/liberusoftware/module-module-manager/issues",
+                "source": "https://github.com/liberusoftware/module-module-manager/tree/1.4.2"
+            },
+            "time": "2026-08-07T14:25:25+00:00"
         },
         {
             "name": "livewire/livewire",
