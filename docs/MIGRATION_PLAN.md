@@ -56,7 +56,7 @@ Nothing can be extracted before this wave. A module ships **no `extra.laravel.pr
 | ~~Generate **badge versions from `composer.lock`**~~ — ✅ **verified instead, see below** | `REPOSITORIES.md` §6.1 forbids hard-coding a version CI does not verify. The README hard-codes PHP 8.5, Laravel 13, Filament 5, Livewire 4 |
 | `package-testbench` upstream contribution — **timeboxed** | The boundary-rule architecture tests belong upstream so every module gets them. Fall back to `commerce-testbench` if it stalls |
 | `spatie/laravel-permission` `^8.0` support upstream in `roles-permissions` | This repo is on `^8.3`, the reference app on `^7.0`. **Downgrading a security-relevant dependency to match a module is the wrong direction of travel** |
-| ~~Vendor rename `liberu-eccommerce` → `liberusoftware`~~ — ✅ **done, with one step left outside this repository** | Free today — 0 downloads, 0 dependents. It stops being free the moment anything depends on it. [ADR 0009](./adr/0009-vendor-rename-to-liberusoftware.md), which is also corrected: the package **does** have five published tags, and that is what leaves a Packagist step for a maintainer |
+| ~~Vendor rename `liberu-eccommerce` → `liberusoftware`~~ — ✅ **done, with one step left outside this repository** | Free today — 0 downloads, 0 dependents. It stops being free the moment anything depends on it. [ADR 0009](./adr/0009-vendor-rename-to-liberusoftware.md), which is also corrected: the package **does** have five published tags, and that is what leaves a Packagist step for a maintainer — [#1000](https://github.com/liberusoftware/ecommerce-laravel/issues/1000), which needs maintainer rights this repository cannot grant itself |
 
 ### Also in wave 0, because they are one-line and shipping today — ✅ **done**
 
@@ -385,6 +385,8 @@ Two items from this wave were never really about attributing existing rows, and 
   **The `Customer` backfill moved from a migration to the write path.** It was going to be a migration because reviews already existed keyed to a `User` with no `Customer`; with no rows, the same requirement lands where a review is created — `getOrCreateCustomer()`, which already existed for exports. A shopper who has never had a customer record gets one rather than having their review dropped as unmappable.
 
   Two things fell out that the ADR did not name. The star rating on a review is a *rating* now that ratings are their own record, so a review writes both — `firstOrCreate`, so a breakdown the shopper already left is not flattened to one number. And the panel had no moderation surface at all: approving was an HTTP endpoint and nothing else, which is a queue with no queue. The review resource now shows the flag, filters on it, and can set it.
+
+  **A footnote the merge left behind: `resources/views/reviews.blade.php` is gone.** No route rendered it — `ReviewController::show` returns JSON — and it could not have rendered if one had: it read `$review->rating->overall_rating` against a model with no `rating` relation, in Bootstrap 4 markup, driven by a jQuery this application does not load. It was a storefront review page that never existed, and a dead template is worse than no template, because the next person to want that page starts by fixing this one instead of asking whether the merged models still make it the right shape.
 - ~~**The cart `'api'` session sentinel**, which is a code fix in the cart's identity handling.~~ — ✅ **done, by deleting the column rather than the sentinel.**
 
   `cart_items.session_id` was `NOT NULL`, written by every path and read by none. `user_id` on the same table is a **required** foreign key, so a cart item never belonged to a session in the first place — guests are not persisted at all. The API and the GraphQL mutation, having no session and no way to leave the column empty, wrote the literal string `'api'`: one identity shared by every API client, sitting in a column shaped like an identity. Nothing scoped by it, which is the only reason it was not a leak — the same "not a leak yet" that `default(1)` was.
@@ -433,7 +435,15 @@ Prerequisites specific to this wave, from [`CONFORMANCE.md` §5](./CONFORMANCE.m
   `guest_token` is deliberately **not** a session id. A session id is a credential, and this column is read by staff tooling and abandoned-cart jobs. It is also not the `session_id` column deleted a few commits earlier: that one was written by every path and read by none, which is what made the API's `'api'` sentinel possible. This one has one writer, one reader, and a constraint.
 
   A consequence worth naming: the cart is store-scoped like everything else in wave 1.5, so a guest's cart no longer follows them between merchants' storefronts. That was the defect this plan describes as *"items added on one storefront appearing on another means a shopper checks out a competitor's basket"* — it was only ever half-fixed, because the session copy was never scoped by anything.
-- The **recommender rename** lands with Recommendations.
+- ~~The **recommender rename** lands with Recommendations.~~ — ✅ **done, and the pair is not what `CONFORMANCE.md` §5.1 recorded.**
+
+  The snapshot calls it *"a read/generator split of one module"*. It is not. Both read, only one writes, and they read different things: the short service derives suggestions at request time from **one shopper's own** orders, browsing and ratings, and stores nothing; the long one captures interactions, builds `product_recommendations` from **cross-customer** co-occurrence, and serves the stored set back. Two recommenders over two signals, not two halves of one algorithm — and of the long one's nine methods exactly one generates.
+
+  So the obvious `…Reader` / `…Generator` pair would have been a fresh lie in both directions: the "reader" is the one that computes from scratch, and the "generator" is mostly reads. They are `UserHistoryRecommender` and `ProductRecommendationEngine`, because the question a caller actually has is *whose behaviour is the signal* — this shopper's, or the crowd's.
+
+  **`UserHistoryRecommender` has no live caller.** `Frontend/ProductController` injects it, but the only call sits in a commented-out block alongside a commented-out `BrowsingHistory::create` — so the whole personal read path is dormant, and its test asserts nothing but that the container can build it. §5.1 said keep both, on a characterisation that turned out wrong; whether a dormant recommender is worth keeping is a decision for Recommendations, not for a rename.
+
+  Left standing deliberately: `BrowsingHistory` and `ProductInteraction` rows of type `view` record the same fact in two tables, and both services run a same-category "similar products" query. Real duplication, but a rename that also refactors is a rename nobody can review.
 
 After wave 3 the sequencing rule in §1 carries the rest with no further enumeration.
 

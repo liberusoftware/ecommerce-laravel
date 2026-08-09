@@ -7,19 +7,18 @@ use App\Models\BrowsingHistory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StockNotification;
-use App\Services\RecommendationService;
+use App\Services\UserHistoryRecommender;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
 {
-    protected $recommendationService;
+    protected $recommender;
 
-    public function __construct(RecommendationService $recommendationService)
+    public function __construct(UserHistoryRecommender $recommender)
     {
-        $this->recommendationService = $recommendationService;
+        $this->recommender = $recommender;
     }
 
     /**
@@ -131,7 +130,7 @@ class ProductController extends Controller
         // // Get recommendations
         // $recommendations = [];
         // if (auth()->check()) {
-        //     $recommendations = $this->recommendationService->getRecommendations(auth()->user());
+        //     $recommendations = $this->recommender->getRecommendations(auth()->user());
         // }
 
         // $metaTitle = $product->meta_title ?? $product->name;
