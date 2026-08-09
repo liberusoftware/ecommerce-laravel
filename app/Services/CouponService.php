@@ -13,7 +13,7 @@ class CouponService
     {
         $coupon = Coupon::where('code', $couponCode)->first();
 
-        if (!$coupon) {
+        if (! $coupon) {
             return [
                 'valid' => false,
                 'error' => 'Invalid coupon code.',
@@ -21,7 +21,7 @@ class CouponService
             ];
         }
 
-        if (!$coupon->isValid()) {
+        if (! $coupon->isValid()) {
             return [
                 'valid' => false,
                 'error' => 'This coupon has expired or reached its usage limit.',
@@ -79,7 +79,7 @@ class CouponService
      */
     public function canApplyCoupon(Coupon $coupon, float $subtotal): bool
     {
-        if (!$coupon->isValid()) {
+        if (! $coupon->isValid()) {
             return false;
         }
 
@@ -96,9 +96,17 @@ class CouponService
     public function getActiveCoupons()
     {
         $now = now();
+
         return Coupon::where('valid_from', '<=', $now)
             ->where('valid_until', '>=', $now)
-            ->leftJoin('orders', 'coupons.code', '=', 'orders.coupon_code')
+            // Joined on the store as well as the code: the global scope reaches
+            // `coupons` and not the table joined to it, so on code alone this
+            // counts every merchant's use of the same code against one
+            // merchant's `max_uses`.
+            ->leftJoin('orders', function ($join) {
+                $join->on('coupons.code', '=', 'orders.coupon_code')
+                    ->on('coupons.store_id', '=', 'orders.store_id');
+            })
             ->select('coupons.*')
             ->selectRaw('COUNT(orders.id) as usage_count')
             ->groupBy('coupons.id')

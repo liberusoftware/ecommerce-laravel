@@ -34,7 +34,16 @@ class Coupon extends Model
     public function orders()
     {
         // Orders link to coupons by code, not coupon_id (see orders.coupon_code column).
-        return $this->hasMany(Order::class, 'coupon_code', 'code');
+        //
+        // Codes are unique per store rather than per installation, so the code
+        // alone no longer names one coupon. Without the store this counts
+        // another merchant's orders, and `max_uses` — which is derived from
+        // this count — gets spent by somebody else's customers. (Which also
+        // means this relation must not be eager-loaded across coupons of
+        // different stores: one instance's store would filter them all.
+        // Nothing does today.)
+        return $this->hasMany(Order::class, 'coupon_code', 'code')
+            ->where('orders.store_id', $this->store_id);
     }
 
     public function isValid()

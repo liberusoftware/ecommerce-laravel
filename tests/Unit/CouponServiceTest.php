@@ -17,7 +17,7 @@ class CouponServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new CouponService();
+        $this->service = new CouponService;
     }
 
     public function test_invalid_coupon_code_returns_error(): void
@@ -140,7 +140,7 @@ class CouponServiceTest extends TestCase
 
     public function test_usage_limit_reached_returns_error(): void
     {
-        Coupon::create([
+        $coupon = Coupon::create([
             'code' => 'USEDUP',
             'type' => 'percentage',
             'value' => 10,
@@ -160,8 +160,12 @@ class CouponServiceTest extends TestCase
             'state' => 'CA',
             'postal_code' => '00000',
         ]);
+        // Stamped with the coupon's store, as the application writes it. Codes
+        // are unique per store, so an order that names no store is nobody's use
+        // of nobody's coupon.
         DB::table('orders')->insert([
             'customer_id' => $customerId,
+            'store_id' => $coupon->store_id,
             'order_date' => now()->toDateString(),
             'total_amount' => 100,
             'payment_status' => 'paid',
