@@ -265,7 +265,7 @@ Panels keep `->tenant(Team::class, …)`. Switching them to `Store` tenancy woul
 
 `exists:products,id` in the cart's request rules still spans every merchant — **validation rules do not run through Eloquent, so no global scope reaches them.** The model lookup behind the rule does, which is what turns adding a foreign product into a 404 rather than a cart row pointing at something this storefront does not sell. Worth remembering wherever an `exists` rule is the only check.
 
-**`coupons.code` is globally unique**, so no two merchants can issue the same code today. The scope is right regardless; the index grain is wrong and belongs with wave 2's other grain corrections, not here.
+**`coupons.code` is globally unique**, so no two merchants can issue the same code today. The scope is right regardless; the index grain is wrong and belongs with wave 2's other grain corrections, not here. *(Corrected there — the code is unique per store now, and the queries that identified a coupon by code alone had to move with it.)*
 
 **The sweep finished, and is now checked rather than trusted.** Articles, reviews, ratings, invoices, wishlists, groups and downloadable products took the scope; their read paths all run through storefront requests, so none needed an exemption.
 
@@ -327,7 +327,7 @@ The cause is not the missing column. `$isScopedToTenant` is declared by Filament
 
 **The ratchet asks it the only way that works.** Not *is this resource tenant-scoped* — an unscoped resource may be deliberate — but *if it is not, did this class say so*, by checking that the property is declared on the resource itself. That is the only form that distinguishes a written-down exemption from somebody else's side effect, and it covers both panels, because the slot they share is one slot. Both panel tests now go over HTTP: the scope is registered when the panel boots, the panel boots in middleware, and `Livewire::test` skips all of it.
 
-Three tables took `team_id` and not `store_id`, against this wave's own rule, with the reason recorded next to the exemption: the menu builder's storefront component queries `Biostate\FilamentMenuBuilder\Models\Menu` **by class name**, not the model this application configures, so a store scope on `App\Models\Menu` would control the panel and leave the storefront reading exactly what it reads today. Per-storefront navigation is a product change and sits with wave 2's grain corrections, next to `coupons.code`.
+Three tables took `team_id` and not `store_id`, against this wave's own rule, with the reason recorded next to the exemption: the menu builder's storefront component queries `Biostate\FilamentMenuBuilder\Models\Menu` **by class name**, not the model this application configures, so a store scope on `App\Models\Menu` would control the panel and leave the storefront reading exactly what it reads today. Per-storefront navigation is a product change and sits with wave 2's grain corrections, alongside the `coupons.code` grain that has since been corrected.
 
 ### Rules this wave establishes
 
@@ -383,7 +383,13 @@ Two items from this wave were never really about attributing existing rows, and 
 
 And the grain corrections this plan has been collecting, which are now edits to the migrations that got the grain wrong rather than corrections layered on top:
 
-- **`coupons.code` is globally unique**, so no two merchants can issue the same code. `discounts.code` has the same fault.
+- ~~**`coupons.code` is globally unique**, so no two merchants can issue the same code. `discounts.code` has the same fault.~~ — ✅ **done**, and the uniqueness turned out to be the smaller half.
+
+  The `->unique()` is gone from both create migrations and `2026_08_09_000002` adds the composite: `(store_id, code)` on coupons, `(team_id, code)` on discounts. The grain differs because the models do — discounts are team-scoped and deliberately not store-scoped yet, so team is the finest grain their schema can express today, and the constraint moves when that does. Null owners collide freely, which is what SQL does with NULLs in a unique index and also what is wanted: a row nothing can attribute is not sellable, because nothing resolves a store for it.
+
+  **The half that was not about the index:** once two merchants hold `SUMMER10`, every query that identifies a coupon *by code alone* crosses the boundary — and `max_uses` is derived from exactly such a query. `Coupon::orders()` matched orders on `coupon_code` and nothing else, and `CouponService::getActiveCoupons()` joined `orders` on the same column; the store scope reaches `coupons` and not the table joined to it. Left alone, a competitor's customers would spend a merchant's coupon and withdraw it from their own storefront. Both now carry the store, and the two tests that would have caught it are the two that matter most in that file.
+
+  A global unique index is not a constraint that was merely too strict. It reads as correctness and behaves as a land grab: the first merchant to issue a code takes it from everyone else, and finds out through a database error on a form that could not have known.
 
 ### Why this no longer gates wave 3
 
