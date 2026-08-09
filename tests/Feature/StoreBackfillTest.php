@@ -45,7 +45,19 @@ class StoreBackfillTest extends TestCase
      * Per-storefront navigation is a product change, not a backfill, and it sits
      * with wave 2's other grain corrections next to `coupons.code`.
      */
-    private const NOT_STORE_GRAINED_YET = ['discounts', 'menus', 'menu_items'];
+    private const NOT_STORE_GRAINED_YET = [
+        'discounts', 'menus', 'menu_items',
+
+        // The eight roots, which took `team_id` when `IsTenantModel` started
+        // writing the key. Team-grained today and read by nothing on a
+        // storefront, so a store scope on them would be a control over a path
+        // nobody walks. Several have an obvious store grain waiting —
+        // `seo_settings` and `inventory_locations` most of all — and each gets
+        // it when something reads it per storefront, which is the same rule the
+        // rest of this wave followed.
+        'ab_tests', 'cart_recovery_campaigns', 'customer_groups', 'customer_segments',
+        'inventory_locations', 'recommendation_rules', 'seo_settings', 'taxonomy_categories',
+    ];
 
     public function test_every_team_scoped_table_has_a_store_id(): void
     {

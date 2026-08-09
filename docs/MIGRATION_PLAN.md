@@ -225,7 +225,7 @@ The list is cached and cleared by `ChannelDomain` itself on save and delete, rat
 
 **2. Backfill `store_id` alone.** — ✅ **done**
 
-On a today-single-store deployment this is a constant, so it needs no rehearsal — which is exactly why it can be separated from wave 2 without breaking that wave's rehearse-once discipline.
+On a today-single-store deployment this is a constant, so it needs no rehearsal — which is exactly why it could be separated from wave 2 while that wave still had a rehearse-once discipline to break.
 
 It was **derived from `team_id`** rather than written as a constant. The 16 tables that carry `team_id` gained a nullable `store_id`, filled from the row's own team; every team without a store got one first. On a single-team deployment the two approaches agree, and on a deployment that already has several teams the constant would have handed one merchant's rows to another. Rows with a null `team_id` keep a null `store_id` — they belong to nobody rather than to whoever sorts first.
 
@@ -356,40 +356,38 @@ Nothing read `->team` on any of the twenty; the only readers in the tree are `St
 
 ---
 
-## Wave 2 — the backfill wave
+## Wave 2 — ~~the backfill wave~~ the wave that stopped being a backfill
 
-**Gated on** [the tenant-distribution query checklist](https://github.com/liberusoftware/ecommerce-laravel/issues/944), which needs a human at a real database and cannot be run from this repository. That gate is an argument for running the checklist **now**, not a reason to reorder the waves.
+**The premise is gone.** This wave was three data migrations, one rehearsal against a production-shaped copy, a quarantine rule, and a gate on [#944](https://github.com/liberusoftware/ecommerce-laravel/issues/944) — a query checklist somebody had to run against each real environment.
 
-Three backfills — `store_id` already landed in wave 1.5 — shipped as **one sequenced data migration with a single rehearsal against a production-shaped copy**:
+All of that existed for one reason: **rows that already exist and cannot be attributed.** Every `team_id = 1` row was unverified because the column carried `default(1)` and no application code wrote it, so a row created by the API, a controller, a seeder or a factory became team 1 without anybody deciding that — and afterwards nothing could tell those rows from rows that really were team 1's. Quarantine, rehearsal and the checklist are all answers to *"which of these existing rows can we prove anything about?"*
 
-| Order | Backfill | Note |
-| --- | --- | --- |
-| 1 | `team_id` | Every `team_id = 1` row is **unverified** (below) |
-| 2 | The reviews `Customer` backfill | Touches the same customer graph as 3 |
-| 3 | The cart `'api'` session sentinel | Guest rows keep their identifier; **nothing is truncated** |
+**There are no such rows.** The application is pre-production: every database is built from the migrations, and nothing has to be migrated *from*. So the question is not which rows to attribute, it is why the schema allowed an unattributed row in the first place.
 
-Four independent migrations shipped with their own modules would discover any deadlock or half-application in production instead of in rehearsal.
+### What replaced it
 
-### The `team_id` rule
+| Was | Is |
+| --- | --- |
+| Backfill `team_id`, quarantine what cannot be attributed | **`default(1)` deleted from the migrations, and `IsTenantModel` writes the key on create** — derived from the store, which belongs to exactly one team. A row nothing can attribute is left null, which an operator can see and fix |
+| Run #944 against each environment before migrating | Nothing to run it against. The report itself stays — it is how a database gets checked rather than assumed — but it gates nothing |
+| One sequenced data migration, rehearsed once | Migrations edited where they are wrong. There is no deployment to upgrade, so a correction belongs in the migration that created the fault |
 
-**No application code writes `team_id`.** The only writers are Filament's tenancy and the migration's `default(1)`, so any row created by the API, a frontend controller, a seeder or a factory silently became team 1.
+`team_id` stays **nullable**, and that is not the old default in disguise. Null means *nobody said*, which is a true statement about a row created by a console command with no store and no panel; the fault was never nullability, it was a default that answered the question on the row's behalf.
 
-- **Treat every `team_id = 1` row as unverified.** Attribute it positively from other evidence — a creating user, an order's customer, a parent record's team.
-- **Quarantine what cannot be attributed. Do not assign it.** Under a real tenancy boundary a wrong attribution is a cross-merchant leak that the global scope will then enforce and hide. Quarantine is recoverable; a confident wrong assignment is not.
-- **After backfill, `team_id` becomes non-nullable and `default(1)` is dropped.** A default on a tenant key means a forgotten assignment silently becomes team 1 instead of failing loudly — the mechanism that created this ambiguity. With no code path writing it outside Filament, keeping the default guarantees the same drift resumes the moment the migration lands.
+### What genuinely remains, and is not a backfill
 
-### The reviews merge
+Two items from this wave were never really about attributing existing rows, and they survive as ordinary work:
 
-The most expensive of the four, and the only one that is a merge rather than a fill. [ADR 0008](./adr/0008-reviews-and-ratings-merge.md). Two details are load-bearing:
+- **The reviews and ratings merge** — [ADR 0008](./adr/0008-reviews-and-ratings-merge.md). Two duplicate stacks, one of which must win. **Port the `approved` column** onto `product_reviews`: `ReviewController` creates reviews `approved = false`, exposes an approve endpoint, and the public listing filters `where('approved', true)`, so dropping it turns a moderated listing into an unmoderated one. The `Customer` backfill it carried is now schema work rather than a data migration.
+- **The cart `'api'` session sentinel**, which is a code fix in the cart's identity handling.
 
-- **Port the `approved` column** onto `product_reviews`. `ReviewController` creates reviews `approved = false`, exposes an approve endpoint, and the public listing filters `where('approved', true)`. Dropping it turns that listing from moderated to unmoderated the moment the merge lands.
-- **Backfill a `Customer`** for every user with reviews but no `Customer` record. Both stacks are in the GDPR export and erasure paths; dropping unmappable reviews deletes user-authored personal data to simplify a migration.
+And the grain corrections this plan has been collecting, which are now edits to the migrations that got the grain wrong rather than corrections layered on top:
 
-Because it runs through GDPR paths, it is **rehearsed against production-shaped data rather than run directly** — which is the same rehearsal this whole wave gets.
+- **`coupons.code` is globally unique**, so no two merchants can issue the same code. `discounts.code` has the same fault.
 
-### Why this wave precedes any tier-1 extraction
+### Why this no longer gates wave 3
 
-Every module extracted over mis-attributed rows inherits the problem into its own migrations and tests. Doing it once against tables the host still owns is far cheaper than doing it across N packages.
+It gated tier-1 extraction because *"every module extracted over mis-attributed rows inherits the problem into its own migrations and tests"*. With no mis-attributed rows, there is nothing to inherit. **Wave 3 is unblocked.**
 
 ---
 
@@ -432,7 +430,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **0** — enforcement, installer, theme | **Yes, cheaply.** Config, CI and deletions of dead code. The riskiest item is deleting `app/Modules/`, which serves zero modules | Revert the commit |
 | **1** — `ecommerce-core` | **Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
-| **2** — backfills | **Partially.** Quarantine is recoverable by design; a wrong positive attribution is not, which is why quarantine is the default | Single rehearsal, then a reversible migration per step |
+| **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
 | **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation | See §2 |
 
 Two asymmetries drive the whole plan:

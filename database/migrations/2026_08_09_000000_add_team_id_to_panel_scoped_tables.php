@@ -15,14 +15,12 @@ use Illuminate\Support\Facades\Schema;
  * actually queries, and a panel query is the difference between a dormant wrong
  * claim and a live one.
  *
- * **No `default(1)`, unlike the two migrations that added `team_id` before it.**
- * A default on a tenant key is what made every row created outside Filament
- * silently team 1, which is the ambiguity wave 2 exists to unpick — adding three
- * more tables to it to save one operator query would be paying the same cost
- * twice. Existing rows keep a null `team_id` and are therefore invisible in a
- * tenant-scoped panel until somebody attributes them. That is the plan's
- * asymmetry applied literally: hiding a row from its owner is recoverable,
- * handing it to the wrong merchant is not.
+ * **No `default(1)`.** A default on a tenant key is what made every row created
+ * outside Filament silently team 1. The two migrations that added `team_id`
+ * before this one carried that default; they no longer do, and `IsTenantModel`
+ * writes the key instead. Rows that nothing can attribute keep a null
+ * `team_id`, which is a state an operator can see and fix — unlike a row that
+ * quietly claims to be team 1's.
  */
 return new class extends Migration
 {
