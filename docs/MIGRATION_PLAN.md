@@ -99,11 +99,15 @@ The default also inverts, in the right direction. `isModuleEnabled()` returns `t
 
 The small faults that needed nobody's permission. Landed ahead of the rest of wave 0, since none of them depends on the packaging mechanism existing.
 
+Three of these came from the severity table at the foot of [`research/standards-gap-audit.md`](./research/standards-gap-audit.md), whose own summary makes the point that **the most urgent items are not the most severe**: the three it named as *"small, mechanical and shipping today"* were an API endpoint serving every tenant's catalogue to any Sanctum token, a seeder printing a generated admin password into every CI log, and a controller returning webhook signing secrets to every staff user. All three are now closed — the catalogue one not by a fix in the endpoint at all, but by `Product` picking up `IsStoreScoped` in wave 1.5, exactly as `OwnsTeamResources`' docblock predicted it would be.
+
 | Fault | Fix |
 | --- | --- |
 | `UserSeeder.php:36` printed a generated admin password, and `install.yml:85` runs `db:seed --force` | Printed only under `app()->environment('local')`. Off `local` the password now comes from `config('seeding.admin_password')`, and without one no admin is created — see below |
 | `DummyDataSeeder` sat in `DatabaseSeeder`'s baseline chain, so `db:seed --force` created demo data in production | Called only when `! app()->isProduction()`, in the same position |
 | `DropxlService.php:23` and `SubscriptionController.php:21` read keys via `env()` in constructors — `null` under `config:cache` | Read `config('services.dropxl.*')` and `config('services.stripe.secret')`. `services.dropxl` added; **no `env()` call remains outside `config/`** |
+| `composer.json` declared `minimum-stability: beta` (audit finding 27) | `stable`. **Zero packages in the lock are alpha, beta, RC or dev**, so the loosened constraint admitted nothing `prefer-stable` had not already rejected — a weakened gate with no beneficiary, in the place a contributor reads as permission. Tightening can only remove candidates and none of the removed ones was chosen, so the lock's package list is untouched and only its `content-hash` moves |
+| No `CONTRIBUTING.md`, `SECURITY.md`, `docs/index.md` or PR template (audit findings 17 and 28) | Written. The index is the one that earns its place: `docs/` mixes the living plan, a frozen snapshot, eleven ADRs, four research dumps and several documents of unaudited currency, and nothing said which was which |
 | `error_log` committed at the root, leaking `/home/liberu/projects/ecommerce-laravel` | Deleted and gitignored |
 | `ScreeningDataEncryptor` — property-rental leftover, encrypts fields absent from this schema | Deleted |
 | `app/database/seeders/MenuSeeder.php` — no `<?php` tag, no class | Deleted |
