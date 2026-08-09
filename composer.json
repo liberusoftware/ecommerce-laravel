@@ -1,7 +1,7 @@
 {
-    "name": "liberu-eccommerce/ecommerce-laravel",
+    "name": "liberusoftware/ecommerce-laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Liberu Ecommerce — an open-source e-commerce platform built on Laravel, Filament and Livewire.",
     "keywords": [
         "laravel",
         "framework"
@@ -74,6 +74,9 @@
         ],
         "lint:fix": [
             "@php vendor/bin/pint"
+        ],
+        "test": [
+            "@php artisan test"
         ]
     },
     "extra": {
