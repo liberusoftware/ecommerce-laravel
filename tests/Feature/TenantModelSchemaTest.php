@@ -2,33 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\AbandonedCart;
 use App\Models\ABTest;
-use App\Models\ABTestAssignment;
-use App\Models\AnalyticsEvent;
-use App\Models\CartRecoveryAttempt;
 use App\Models\CartRecoveryCampaign;
 use App\Models\CustomerGroup;
-use App\Models\CustomerMetric;
 use App\Models\CustomerSegment;
-use App\Models\GiftCard;
-use App\Models\GiftCardTransaction;
-use App\Models\GiftRegistry;
-use App\Models\GiftRegistryItem;
-use App\Models\GiftRegistryPurchase;
-use App\Models\InventoryAdjustment;
-use App\Models\InventoryItem;
-use App\Models\InventoryLevel;
 use App\Models\InventoryLocation;
-use App\Models\ProductInteraction;
-use App\Models\ProductOption;
-use App\Models\ProductPerformance;
-use App\Models\ProductRecommendation;
-use App\Models\ProductTaxonomyValue;
-use App\Models\ProductVariant;
 use App\Models\RecommendationRule;
 use App\Models\SeoSetting;
-use App\Models\TaxonomyAttribute;
 use App\Models\TaxonomyCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,73 +17,51 @@ use Tests\TestCase;
 
 /**
  * `App\Traits\IsTenantModel` is a `team()` BelongsTo relation and nothing else.
- * A model that uses it therefore promises a `team_id` column — and 28 of the 37
- * models that use it have no such column on their table, so the relation is
- * dead on arrival and any tenant scope added later would raise an unknown-column
+ * A model that uses it therefore promises a `team_id` column, and eight of the
+ * seventeen that use it have no such column on their table — so the relation is
+ * dead on arrival and a tenant scope added later would raise an unknown-column
  * error rather than isolating anything.
  *
- * It was 31. `Discount`, `Menu` and `MenuItem` left the list because they are
- * the three a tenant-scoped Filament resource actually queries, which is the
- * difference between a dormant wrong claim and a live one — #958. The remaining
- * 28 are dormant: no panel and no scope reads them, so `team()` returns null
- * quietly rather than isolating anything.
+ * It was 31 of 37, and the list shrank twice for opposite reasons.
  *
- * This test is a ratchet. The allow-list below can only shrink: a model may not
- * newly join it, and every entry removed is a table that got its column. It is
- * deliberately a list of names rather than a count, so shrinking it requires
- * naming what was fixed.
+ * `Discount`, `Menu` and `MenuItem` got the column, because a tenant-scoped
+ * Filament resource queries them — a live wrong claim rather than a dormant one
+ * (#958). Twenty more lost the trait, because their owner is their parent's:
+ * `ProductVariant` belongs to a product, `GiftCardTransaction` to a gift card,
+ * `InventoryLevel` to an inventory item. Copying `team_id` onto every child
+ * table is the blanket migration that produced half of this, and a relation to
+ * a column that will never exist is a claim, not a plan.
+ *
+ * What is left are the eight roots: no tenant-owned parent to inherit from, so
+ * the column is the only way they could ever be tenanted.
+ *
+ * This test is a ratchet. The allow-list below can only shrink — a model may
+ * not newly join it — and it is a list of names rather than a count, so
+ * shrinking it means naming what changed.
  */
 class TenantModelSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Models using IsTenantModel whose table has no team_id column today.
+     * The roots: merchant-owned, with no tenant-owned parent to inherit an
+     * owner from, and no table column to be owned by yet.
      *
-     * Not a to-do list to be worked top to bottom, and not one question either.
-     * A model here is one of two different things, and the fix differs:
-     *
-     * - independently owned by a merchant — `GiftCard`, `InventoryLocation`,
-     *   `CustomerSegment`, `SeoSetting` — which wants the column;
-     * - a child of something already owned — `GiftCardTransaction`,
-     *   `ProductVariant`, `ProductOption`, `ABTestAssignment` — where the owner
-     *   is the parent's and the trait is the thing that is wrong. Copying a
-     *   `team_id` onto every child table is the blanket migration that produced
-     *   half of this in the first place.
-     *
-     * Which is which is a per-model judgement nobody has made yet, so the list
-     * shrinks as models are judged rather than as columns are added.
+     * Still not a to-do list. Nothing reads any of them through a panel or a
+     * scope, so adding eight columns today buys eight columns nothing writes
+     * and nothing filters. Each one gets its `team_id` when something needs to
+     * ask whose it is — which is how `discounts` and `menus` got theirs.
      *
      * @var list<class-string<Model>>
      */
     private const MISSING_TEAM_ID = [
         ABTest::class,
-        ABTestAssignment::class,
-        AbandonedCart::class,
-        AnalyticsEvent::class,
-        CartRecoveryAttempt::class,
         CartRecoveryCampaign::class,
         CustomerGroup::class,
-        CustomerMetric::class,
         CustomerSegment::class,
-        GiftCard::class,
-        GiftCardTransaction::class,
-        GiftRegistry::class,
-        GiftRegistryItem::class,
-        GiftRegistryPurchase::class,
-        InventoryAdjustment::class,
-        InventoryItem::class,
-        InventoryLevel::class,
         InventoryLocation::class,
-        ProductInteraction::class,
-        ProductOption::class,
-        ProductPerformance::class,
-        ProductRecommendation::class,
-        ProductTaxonomyValue::class,
-        ProductVariant::class,
         RecommendationRule::class,
         SeoSetting::class,
-        TaxonomyAttribute::class,
         TaxonomyCategory::class,
     ];
 
