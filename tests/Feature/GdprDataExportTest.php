@@ -13,8 +13,6 @@ use App\Models\Product;
 use App\Models\ProductInteraction;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
-use App\Models\Rating;
-use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -91,8 +89,6 @@ class GdprDataExportTest extends TestCase
         $customer = $user->getOrCreateCustomer();
         $product = Product::factory()->create();
 
-        Review::create(['user_id' => $user->id, 'product_id' => $product->id, 'rating' => 5, 'review' => 'MY-REVIEW-TEXT']);
-        Rating::create(['user_id' => $user->id, 'product_id' => $product->id, 'rating' => 4]);
         (new ProductReview)->forceFill(['product_id' => $product->id, 'customer_id' => $customer->id, 'comments' => 'MY-COMMENT'])->save();
         (new ProductRating)->forceFill(['product_id' => $product->id, 'customer_id' => $customer->id, 'rating' => 3, 'overall_rating' => 3])->save();
 
@@ -110,10 +106,10 @@ class GdprDataExportTest extends TestCase
         $response = $this->actingAs($user)->getJson(route('account.data-export'));
 
         $response->assertOk();
-        $response->assertJsonPath('reviews.0.review', 'MY-REVIEW-TEXT');
-        $response->assertJsonPath('ratings.0.rating', 4);
-        $response->assertJsonPath('product_reviews.0.comments', 'MY-COMMENT');
-        $response->assertJsonPath('product_ratings.0.overall_rating', 3);
+        // One stack since ADR 0008, under the keys a person understands.
+        $response->assertJsonPath('reviews.0.comments', 'MY-COMMENT');
+        $response->assertJsonPath('reviews.0.approved', false);
+        $response->assertJsonPath('ratings.0.overall_rating', 3);
         $response->assertJsonPath('gift_registries.0.name', 'MyRegistry');
         $response->assertJsonPath('gift_registries.0.items.0.notes', 'ITEM-NOTE');
 

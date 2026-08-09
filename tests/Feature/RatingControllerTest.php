@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
-use App\Models\Rating;
+use App\Models\ProductRating;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -17,11 +17,12 @@ class RatingControllerTest extends TestCase
     {
         $category = ProductCategory::create([
             'name' => 'Rating Cat',
-            'slug' => 'rating-cat-' . uniqid(),
+            'slug' => 'rating-cat-'.uniqid(),
         ]);
+
         return Product::create([
             'name' => 'Rating Product',
-            'slug' => 'rating-prod-' . uniqid(),
+            'slug' => 'rating-prod-'.uniqid(),
             'price' => 30.00,
             'category_id' => $category->id,
             'inventory_count' => 5,
@@ -42,20 +43,22 @@ class RatingControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201);
-        $this->assertDatabaseHas('ratings', [
-            'user_id' => $user->id,
+
+        // Keyed to the Customer, backfilled by the write — the account alone is
+        // not who leaves a rating.
+        $this->assertDatabaseHas('product_rating', [
+            'customer_id' => $user->fresh()->customer->id,
             'product_id' => $product->id,
             'overall_rating' => 4,
+            'rating' => 4,
         ]);
     }
 
     public function test_calculate_average_rating_returns_averages(): void
     {
-        $user = User::factory()->create();
         $product = $this->makeProduct();
 
-        Rating::create([
-            'user_id' => $user->id,
+        ProductRating::factory()->create([
             'product_id' => $product->id,
             'rating' => 4,
             'overall_rating' => 4,
@@ -84,16 +87,15 @@ class RatingControllerTest extends TestCase
 
     public function test_overall_average_is_mean_of_category_averages(): void
     {
-        $user = User::factory()->create();
         $product = $this->makeProduct();
 
         // Category averages: overall=3, quality=3, value=3, price=3 -> overallAverage 3.0
-        Rating::create([
-            'user_id' => $user->id, 'product_id' => $product->id, 'rating' => 5,
+        ProductRating::factory()->create([
+            'product_id' => $product->id, 'rating' => 5,
             'overall_rating' => 5, 'quality_rating' => 5, 'value_rating' => 5, 'price_rating' => 5,
         ]);
-        Rating::create([
-            'user_id' => User::factory()->create()->id, 'product_id' => $product->id, 'rating' => 1,
+        ProductRating::factory()->create([
+            'product_id' => $product->id, 'rating' => 1,
             'overall_rating' => 1, 'quality_rating' => 1, 'value_rating' => 1, 'price_rating' => 1,
         ]);
 
@@ -115,6 +117,9 @@ class RatingControllerTest extends TestCase
         $this->actingAs($user)->postJson('/ratings', $payload)->assertStatus(201);
         $this->actingAs($user)->postJson('/ratings', $payload)->assertStatus(409);
 
-        $this->assertEquals(1, Rating::where('user_id', $user->id)->where('product_id', $product->id)->count());
+        $this->assertEquals(
+            1,
+            ProductRating::where('customer_id', $user->fresh()->customer->id)->where('product_id', $product->id)->count(),
+        );
     }
 }

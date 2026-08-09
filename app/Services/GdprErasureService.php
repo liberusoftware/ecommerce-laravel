@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
-use App\Models\Review;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -50,8 +49,6 @@ class GdprErasureService
 
             // User-authored content (Art. 17). Deleting registries cascades (DB FK) to
             // their items and purchases.
-            Review::where('user_id', $user->id)->delete();
-            $user->ratings()->delete();
             $user->giftRegistries()->delete();
             if ($customer !== null) {
                 ProductReview::where('customer_id', $customer->id)->delete();

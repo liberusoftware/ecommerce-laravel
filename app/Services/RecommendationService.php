@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\Product;
+use App\Models\User;
 
 class RecommendationService
 {
@@ -53,7 +53,9 @@ class RecommendationService
 
     private function getRatedProducts(User $user)
     {
-        return $user->ratings()->with('product')->get()->pluck('product');
+        // Through the Customer since ADR 0008: ratings belong to the shopper,
+        // and a user with no customer record has rated nothing.
+        return $user->customer?->rating()->with('product')->get()->pluck('product') ?? collect();
     }
 
     private function getRelatedProducts($products)

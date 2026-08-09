@@ -378,7 +378,13 @@ All of that existed for one reason: **rows that already exist and cannot be attr
 
 Two items from this wave were never really about attributing existing rows, and they survive as ordinary work:
 
-- **The reviews and ratings merge** — [ADR 0008](./adr/0008-reviews-and-ratings-merge.md). Two duplicate stacks, one of which must win. **Port the `approved` column** onto `product_reviews`: `ReviewController` creates reviews `approved = false`, exposes an approve endpoint, and the public listing filters `where('approved', true)`, so dropping it turns a moderated listing into an unmoderated one. The `Customer` backfill it carried is now schema work rather than a data migration.
+- ~~**The reviews and ratings merge** — [ADR 0008](./adr/0008-reviews-and-ratings-merge.md).~~ — ✅ **done.** `ProductReview` and `ProductRating` won; `Review`, `Rating`, their tables and their factories are gone.
+
+  **`approved` was ported**, which was the ADR's whole reason for existing: the retiring stack held the moderation flag, the surviving one had none, and a merge that simply dropped the loser would have published every review on arrival. Nothing in that diff would have said so — the tests that pass are the tests that no longer exist — so the column arrives with a schema test naming it, a factory that is unapproved by default, and a `approved()` scope the public listing goes through.
+
+  **The `Customer` backfill moved from a migration to the write path.** It was going to be a migration because reviews already existed keyed to a `User` with no `Customer`; with no rows, the same requirement lands where a review is created — `getOrCreateCustomer()`, which already existed for exports. A shopper who has never had a customer record gets one rather than having their review dropped as unmappable.
+
+  Two things fell out that the ADR did not name. The star rating on a review is a *rating* now that ratings are their own record, so a review writes both — `firstOrCreate`, so a breakdown the shopper already left is not flattened to one number. And the panel had no moderation surface at all: approving was an HTTP endpoint and nothing else, which is a queue with no queue. The review resource now shows the flag, filters on it, and can set it.
 - **The cart `'api'` session sentinel**, which is a code fix in the cart's identity handling.
 
 And the grain corrections this plan has been collecting, which are now edits to the migrations that got the grain wrong rather than corrections layered on top:
