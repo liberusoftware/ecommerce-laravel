@@ -472,11 +472,21 @@ It gated tier-1 extraction because *"every module extracted over mis-attributed 
 
 ---
 
-## Wave 3 — tier 1, most-code-first
+## Wave 3 — tier 1, most-code-first — ✅ **shipped**
 
 **Catalog**, then **Pricing**, then **Inventory Ledger**.
 
 Catalog first: it has the largest existing footprint, and it is where the god model lives. `Product` stays whole in Catalog; Pricing and Inventory Ledger extend it through their own tables keyed by product id, never by adding columns or relations to a model they do not own.
+
+Twelve packages, four per module, all at `0.1.0` and green on Tests, Install and Compatibility. 1,753 tests. [#833](https://github.com/liberusoftware/ecommerce-laravel/issues/833), [#891](https://github.com/liberusoftware/ecommerce-laravel/issues/891) and [#862](https://github.com/liberusoftware/ecommerce-laravel/issues/862) record what shipped and what deliberately did not.
+
+**The three were built concurrently, and that is what tested the boundary rather than asserting it.** Catalog carries no price and no stock — a `SchemaTest` case proves `price`/`inventory_*`/`cost` are absent from `products` *and* `product_variants`, and a read-model case proves the serialised JSON never mentions them. Pricing prices product `987654321`, which nothing in its database has heard of. Inventory's whole suite runs with no catalogue present. Three modules keyed on `products.id`, none able to import the others, none waiting on the others.
+
+**One live bug, found by CI on Catalog's first run.** `availableOn` ignored `hidden`, so a hidden product stayed reachable by direct URL — one fix, in the single scope every reachability question routes through, which is the entire argument for having such a scope.
+
+**One thing open by design.** Catalog's `GET /staff/stores/{store}/products` is scoped by store and nothing else: `ProductQuery::paginate()` scopes on store while the policies scope on team, and `stores` belongs to `ecommerce-commerce-core`, which Catalog cannot depend on. A multi-team deployment must guard the route parameter itself. Stated in six places and pinned by a test named for it, so it fails loudly the day somebody closes it properly.
+
+**A pattern confirmed twice now, and worth carrying into every later module.** A model with no policy is not safe, it is exposed: Laravel's unanswered gate case is permissive. Commerce Core's `ChannelResource` was the first instance; Inventory Ledger's `StockMovement`, `StockLevel` and `StockReservation` were the next three, all un-policied and all defaulting open. Every presentation package now restates the abilities explicitly rather than trusting the absence of a policy to mean anything.
 
 Prerequisites specific to this wave, from [`CONFORMANCE.md` §5](./CONFORMANCE.md#5-duplicate-stacks):
 
@@ -514,7 +524,9 @@ Prerequisites specific to this wave, from [`CONFORMANCE.md` §5](./CONFORMANCE.m
 
   Left standing deliberately: `BrowsingHistory` and `ProductInteraction` rows of type `view` record the same fact in two tables, and both services run a same-category "similar products" query. Real duplication, but a rename that also refactors is a rename nobody can review.
 
-After wave 3 the sequencing rule in §1 carries the rest with no further enumeration.
+After wave 3 the sequencing rule in §1 carries the rest with no further enumeration. **The next tier is Cart, then Checkout, then Orders, then Fulfillment and Returns** — and Cart's duplicate-stack merge already landed, above, so nothing gates it but the work.
+
+Sixteen packages exist across the first four modules and **none is on Packagist**, which is now the single blocker with the widest reach: it is what keeps the host running its own `Store`, `Channel`, `Product` and the rest, and the host swap is the first thing that finds out whether any of these boundaries is right. Tracked on [#1000](https://github.com/liberusoftware/ecommerce-laravel/issues/1000).
 
 ---
 
@@ -541,10 +553,10 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | Wave | Reversible? | How |
 | --- | --- | --- |
 | **0** — enforcement, installer, theme | **Yes, cheaply.** Config, CI and deletions of dead code. The riskiest item is deleting `app/Modules/`, which serves zero modules | Revert the commit |
-| **1** — `ecommerce-commerce-core` | **Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package | See §2 |
+| **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing and Inventory Ledger are past it** — all twelve packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
