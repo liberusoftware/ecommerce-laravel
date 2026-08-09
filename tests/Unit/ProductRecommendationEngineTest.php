@@ -7,32 +7,32 @@ use App\Models\ProductCategory;
 use App\Models\ProductInteraction;
 use App\Models\ProductRecommendation;
 use App\Models\User;
-use App\Services\ProductRecommendationService;
+use App\Services\ProductRecommendationEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class ProductRecommendationServiceTest extends TestCase
+class ProductRecommendationEngineTest extends TestCase
 {
     use RefreshDatabase;
 
-    private ProductRecommendationService $service;
+    private ProductRecommendationEngine $service;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = app(ProductRecommendationService::class);
+        $this->service = app(ProductRecommendationEngine::class);
     }
 
     private function makeProduct(array $overrides = []): Product
     {
         $category = ProductCategory::create([
             'name' => 'Rec Category',
-            'slug' => 'rec-cat-' . uniqid(),
+            'slug' => 'rec-cat-'.uniqid(),
         ]);
 
         return Product::create(array_merge([
             'name' => 'Rec Product',
-            'slug' => 'rec-prod-' . uniqid(),
+            'slug' => 'rec-prod-'.uniqid(),
             'price' => 25.00,
             'category_id' => $category->id,
             'inventory_count' => 5,
@@ -41,7 +41,7 @@ class ProductRecommendationServiceTest extends TestCase
 
     public function test_service_can_be_resolved(): void
     {
-        $this->assertInstanceOf(ProductRecommendationService::class, $this->service);
+        $this->assertInstanceOf(ProductRecommendationEngine::class, $this->service);
     }
 
     public function test_product_recommendation_model_can_be_created(): void

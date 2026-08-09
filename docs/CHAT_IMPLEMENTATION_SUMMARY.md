@@ -380,7 +380,7 @@ Successfully added enterprise-grade features inspired by **Shopify Winter 2026 E
 ### Service Layer
 ```
 3 Service Classes:
-├── ProductRecommendationService
+├── ProductRecommendationEngine
 │   ├── getPersonalizedRecommendations()
 │   ├── getAlsoBoughtRecommendations()
 │   ├── getSimilarProducts()
@@ -497,7 +497,7 @@ $segment->calculateMembers();
 
 ### Product Recommendations
 ```php
-$service = app(ProductRecommendationService::class);
+$service = app(ProductRecommendationEngine::class);
 
 // Personalized
 $recommendations = $service->getPersonalizedRecommendations($userId, limit: 10);

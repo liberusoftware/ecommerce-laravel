@@ -3,13 +3,26 @@
 namespace App\Services;
 
 use App\Models\Product;
-use App\Models\ProductRecommendation;
 use App\Models\ProductInteraction;
+use App\Models\ProductRecommendation;
 use App\Models\RecommendationRule;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class ProductRecommendationService
+/**
+ * Owns the stored recommendation set end to end: it captures the interactions
+ * (`trackView` and friends write ProductInteraction rows), builds the
+ * `product_recommendations` table from them by collaborative filtering — that half is
+ * driven offline by the `recommendations:generate` command — and serves the result
+ * back to requests. "Engine" rather than "reader" or "generator" because it is
+ * genuinely both, and splitting the write half out would leave two classes over one
+ * table with no caller asking for the seam.
+ *
+ * Its recommendations are cross-customer: what other people bought together, what is
+ * trending this week. For suggestions drawn from a single shopper's own history, and
+ * needing no precomputed table, see UserHistoryRecommender.
+ */
+class ProductRecommendationEngine
 {
     /**
      * Get personalized recommendations for a user

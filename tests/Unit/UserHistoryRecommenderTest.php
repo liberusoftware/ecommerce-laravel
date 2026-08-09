@@ -4,19 +4,19 @@ namespace Tests\Unit;
 
 use App\Models\Product;
 use App\Models\User;
-use App\Services\RecommendationService;
+use App\Services\UserHistoryRecommender;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class RecommendationServiceTest extends TestCase
+class UserHistoryRecommenderTest extends TestCase
 {
     use RefreshDatabase;
 
     public function test_service_can_be_resolved(): void
     {
-        $service = app(RecommendationService::class);
+        $service = app(UserHistoryRecommender::class);
 
-        $this->assertInstanceOf(RecommendationService::class, $service);
+        $this->assertInstanceOf(UserHistoryRecommender::class, $service);
     }
 
     public function test_browsing_history_can_be_recorded_and_related(): void

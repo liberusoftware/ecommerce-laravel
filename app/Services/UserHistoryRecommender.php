@@ -5,7 +5,18 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\User;
 
-class RecommendationService
+/**
+ * Recommends from what one shopper has already done: their orders, their browsing
+ * history and the products they rated. Everything is derived at request time and
+ * nothing is stored — this half of Recommendations never reads or writes the
+ * `product_recommendations` table, so it has no batch to wait for and works on a
+ * user who signed up a minute ago.
+ *
+ * Its counterpart is ProductRecommendationEngine, which serves the precomputed,
+ * cross-customer recommendations. Reach for this one when the signal you want is
+ * the individual's own history; reach for that one when it is the crowd's.
+ */
+class UserHistoryRecommender
 {
     public function getRecommendations(User $user, $limit = 5)
     {
