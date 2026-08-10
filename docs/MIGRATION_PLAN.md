@@ -588,6 +588,110 @@ Twenty-four packages now exist across six modules, and **none is on Packagist**.
 
 ---
 
+## Wave 5 — tier 3, and the first tier that is genuinely sequential — ✅ **shipped**
+
+**Orders**, then **Fulfillment** and **Returns**.
+
+Twelve packages, four per module. [#882](https://github.com/liberusoftware/ecommerce-laravel/issues/882), [#859](https://github.com/liberusoftware/ecommerce-laravel/issues/859) and [#906](https://github.com/liberusoftware/ecommerce-laravel/issues/906) record what shipped and what deliberately did not.
+
+**Wave 4 found that a tier edge was an adoption edge rather than an import edge, and wave 5 deliberately did not generalise that finding.** It held for Cart and Checkout because a checkout session is definitionally *not* about a cart — it snapshots lines handed to it. It does not hold here: Fulfillment and Returns are definitionally about an **order line**. Built concurrently, all three would have independently invented the same contract for the same thing, and the two later ones would have invented it differently. So Orders went alone, and Fulfillment and Returns fanned out only once it was tagged — against a published contract rather than against each other's guesses.
+
+The boundary rule did not soften to pay for that. None of the three imports any of the others; each one's whole suite runs with none of the rest installed, over ids nothing in its database has heard of, under a test named for the fact.
+
+### Orders
+
+**The state machine is the module.** Twelve transitions are illegal and throw rather than no-op, self-transitions included, and the status history is append-only, so what happened to an order is a record rather than a current value with amnesia.
+
+**Six statuses were refused as facts Orders does not own.** Anything that describes where goods physically are belongs to Fulfillment; anything describing what came back belongs to Returns. An order that reports its own shipping state is a second answer to a question another module already answers.
+
+**The line contract was designed to be held by modules that did not exist yet.** `OrderLineData`, reached through `OrderQuery`, carries the line's identity, its product and variant, its quantity, and three counters — `fulfilled`, `cancelled`, `returned` — plus both derived counts, `outstandingQuantity()` and `returnableQuantity()`, so that no downstream module derives one itself and gets it wrong. A line id is **stable and public**: a line is never deleted and never replaced, and cancelling raises a counter rather than removing a row.
+
+**One action writes all three counters**, append-only, refused rather than clamped, with `returned <= fulfilled` enforced as arithmetic. Nothing can come back that never went out. Money on a line is frozen and never recomputed, including after a cancellation.
+
+**The cancellation/return line is drawn at delivery**, and enforced in three places rather than documented in one. Cancelling is calling off something that has not happened, so `completed → cancelled` is not a legal transition and `CancelOrder` refuses an order with anything fulfilled.
+
+**Idempotency is `unique(source, placement_key)`** — a client-supplied key, scoped by who supplied it, with two exception classes rather than one. Wave 4 shipped a single class for two opposite conditions and had to rebuild a message downstream to tell them apart; that is recorded in §wave-4 as a seam, and this is the first module that did not repeat it.
+
+The host column-by-column split is in the issue: shipping and dropshipping columns refused, `shipping_cost` kept as a `kind = shipping` line rather than a column, addresses and `recipient_*` kept because an invoice address must not change when a shipment reroutes, `billing_country` / `vat_number` / `reverse_charge` kept as customer evidence, `payment_*` refused, and `total_amount decimal(10,2)` refused outright — money is integer minor units everywhere in this fleet.
+
+### Fulfillment
+
+**A parcel, not an order, is the unit.** One order ships in as many parcels, on as many carriers, at as many times as it takes, each parcel carrying its own destination and its own evidence. A destination per shipment rather than per order is what makes a split delivery expressible at all.
+
+**A reservation counter and a dispatch counter are told apart**, because taking goods on is not the same fact as goods leaving. Over-shipping is refused rather than clamped; dispatched quantities are final; a dispatched parcel is never un-shipped. Cancellation is allowed before dispatch and not after — the same line Orders draws, drawn in the same place.
+
+**Every carrier is a string this module has no opinion about.** No integration, no provider list, no service-level enum. A host that wants tracking URLs owns that.
+
+**`ShipmentDispatched` fires once per parcel and only when goods actually leave**, because reporting the same goods twice puts an order's fulfilled count ahead of the warehouse. A redelivered recording replays and announces nothing. A parcel that has already gone can be written down in a single call by passing `dispatchedAt` — two calls for that case would mean a redelivered job replaying the first and being refused by the second, which is idempotency that only works once.
+
+### Returns
+
+**A refund is recorded as an amount and a reference, not taken.** The money belongs to whoever owns the tender, and this module writes down what somebody else moved.
+
+**Five clocks, and requested / approved / received kept as three separate facts** rather than one number that gets overwritten. They are refused rather than clamped when they disagree: a short receipt is fine, an over-receipt throws, and goods that were never authorised throw *differently* — adopting them would be this module deciding a merchant's answer for them.
+
+**Eligibility is an input, never a lookup.** No return window, no policy, no rule about what is returnable lives here. The caller passes `returnableQuantity` and this module refuses anything past it.
+
+**Inspection publishes a restock decision; it does not restock.** Saleable and rejected are counted separately, and what happens to stock is the Inventory Ledger's business via a host listener.
+
+**Receipts are deltas, not totals.** A return arriving in two parcels dispatches its event twice, with two and then three, never with two and then five — the counter on the far side is append-only, so a total posted twice is double the goods. That listener is where the two modules' invariants meet: Orders refuses `returned > fulfilled`, and Returns refuses to resolve or refund a return that took delivery of nothing.
+
+### The surfaces are where the security decisions live
+
+Wave 4 recorded two surfaces where the boundary turned out to be a security question rather than a layering one. Wave 5 is the wave where that stopped being an observation and became the bulk of the work: nine of the twelve packages are surfaces, and what each one **refuses** is the interesting half of it.
+
+**A tracking number goes in once and never comes out.** Fulfillment's API accepts it at intake, returns it from no operation, keeps it out of the logs and ships no correction endpoint. The domain leaves it reachable for the one surface that renders it to the customer who owns the parcel — and this is not that surface and cannot become it, because a shipment carries a `team_id` and no customer, so nothing there can answer *is this yours* for a shopper. What is left holding the credential is a machine, and returning evidence to a machine credential is a bulk export of every carrier reference in the business behind one `GET`. Likewise a destination appears on a single parcel and a single order, never in a pick list, because a page of a hundred entries is a bulk address export.
+
+**An intake token can mark a parcel dispatched, and that is written down rather than hidden.** Recording-and-dispatching in one call is what keeps a redelivered job idempotent — two calls would mean the replay being refused by the second — so an intake credential does raise the order's fulfilled count. That is why intake is its own route group with its own scope and middleware, and why it appears in the README, the domain doc and the OpenAPI field description.
+
+**A shopper advances exactly one of Returns' five clocks.** Seven operations are refused by name with a test apiece, cancelling included: a self-service cancel closes a workflow whose parcel may be in a van at that moment. **Recording money is its own token scope**, deliberately outside the staff grant, and the route is named so the name-derived scope rule keeps them apart — an operator token holding the whole staff grant is refused and writes nothing.
+
+**Eligibility never comes from a caller.** `returnable_quantity` in a request body is a 422 rather than an ignored key, and a line the host did not resolve has zero returnable — so the module states the refusal in its own words and the adapter writes no eligibility rule at all. A deployment that resolves nothing publishes a surface that accepts no return, which is the safe direction to fail in.
+
+**Every failed lookup answers identically, byte for byte.** Both APIs converged on it independently — missing, another tenant's, or never existed all produce one response, on reads and on writes. Returns went further than the sibling orders-api, which answers 403 cross-tenant, because a return authorisation number is minted to be quoted: a differing answer makes a shared support queue enumerable. In both, `403` survives only where the refusal is about the credential and names no resource, and a resource in a refusing state is 409 rather than 403.
+
+**No incrementing id in any URL.** Parcels by public reference, orders by number, returns by authorisation number, pinned by tests that walk the route URIs. The Filament panel needed a fix for the same reason, and the fix is worth recording because the two halves are separate: `getRecordRouteKeyName()` is read in exactly one place, `resolveRecordRouteBinding()`, which is the *inbound* half. URL generation goes through plain Laravel `route()`, and `RouteUrlGenerator::formatParameters()` renders a model as `$model->{field}` only when the route declares a binding field. So the resource declared its route key and still emitted the id, until the page was registered as `/{record:reference}`. An id in a URL enumerates everybody else's parcels, and a URL is the part of a page that gets pasted into a support ticket.
+
+**No free text on either API.** Wave 4 found that a free-text field next to an event logger is where PII gets typed. Returns' API refuses the module's one free-text field outright, reasons are a closed enum, transition reasons are short slugs, and a refund reference admits no whitespace so it cannot become a note in an accounting export.
+
+**Two projections rather than one blanked.** A shopper's view of a return is a separate method over a separate schema — no row id, no tenant, no dispositions, no refund reference — but it does carry the amount, because it is their money.
+
+### The permissive gate, a fourth and fifth time
+
+Every panel in this wave forces the unpublished abilities false by name, on the resources and on the relation managers, and refuses `canAssociate` / `canDissociate` / `canDissociateAny`. A model with no policy is exposed rather than safe; a *partial* policy is the same hazard and harder to see, because the file exists and looks like a control. Tenancy scopes are written `whereRaw('1 = 0')` for the null-team case, never `where('col', null)`, which compiles to `is null` and lists exactly the orphan rows the policy denies.
+
+### Three failures that are silent by construction
+
+These are the ones that will not page anybody, so they are in the runbooks rather than in anybody's memory.
+
+**Attribution disappears on a ULID or UUID deployment.** `Auth::id()` guarded by `is_numeric()` returns null, so every status change and every refund records "not a person", with no error anywhere — because `(int) '01H…'` is `1`, and attributing a refund to user 1 is worse than attributing it to nobody.
+
+**The same guard on the storefront returns null for every signed-in shopper**, which renders as "sign in to see your returns", forever. That silence is deliberate — a guest is an *answer* there, not an error, which is what stops a signed-out response being an enumeration oracle — but it means a misconfigured host is indistinguishable from a logged-out one.
+
+**A non-numeric store id disables the storefront filter rather than tightening it.** It arrives as a ticket about seeing another shop's returns.
+
+The shape they share is worth naming: a value that fails to parse is being treated as an absent value, and absent means *unfiltered* in two of the three. A guard that narrows on a good input and opens on a bad one is a guard pointing the wrong way.
+
+### The exception seam, paid down and reopened
+
+Wave 4 left one class published for two opposite conditions and marked it as a seam. Fulfillment's domain shipped the fix — `FulfillmentConflict` and `FulfillmentInFlight` as two classes, mapped by `instanceof` to 409 and 423 with `Retry-After` — and where one class still covered two conditions its API **removed the ambiguity rather than decoding it**, resolving the request in the controller (which tenancy required anyway) so only the body failure could reach the action.
+
+Returns did not, and it is now recorded rather than carried: [module-ecommerce-returns#2](https://github.com/liberusoftware/module-ecommerce-returns/issues/2). `UnexpectedReturnLine` means both "these goods were never authorised" — permanent — and "this return is no longer open to goods" — a race between a page rendering and a button being pressed. The panel labels the race with the permanent message for a line the return plainly does cover; the advice that falls out is right by coincidence of class rather than by design. The API tells them apart by calling the module's own message factories with sentinels and matching the invariant tail, pinning every side against the factory that produces it, so a domain reword breaks the suite rather than a client, and an unrecognised case falls to 409 as the safer wrong answer. That is a consumer working round a domain, and the fix belongs in the domain.
+
+### Two things found by writing the documentation
+
+Both packages that were documented after the fact turned up something the code did not.
+
+**A doc overclaimed and no test was watching.** `returns-livewire`'s domain doc said no incrementing id appeared anywhere in the package, "not in the rendered markup". Two did — a row id as a `wire:key`, and an order line id in a hidden form field posted back. Both safe, matched by identity against lines already resolved for that shopper's purchase, but the sentence was false and nothing failed. It now says "no incrementing id travels as state", with a table naming both and why neither is a lookup key.
+
+**A docblock contradicted its own code.** `ReturnRequestPolicy` claimed an orphan return was visible so it could be found and fixed; `view()` calls `ownsIt()`, which is false for a null team, so orphans are visible to nobody. Code and tests agree with each other; only the comment was out of step, and an adopter reading it would have taken it at face value ([module-ecommerce-returns#1](https://github.com/liberusoftware/module-ecommerce-returns/issues/1)).
+
+Both were found because someone had to write down what the code does for a reader who cannot see it. That is a second use for the docs beyond the one they were commissioned for.
+
+**Thirty-six packages now exist across nine modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -614,7 +718,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart and Checkout are all past it** — all twenty-four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment and Returns are all past it** — all thirty-six packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
