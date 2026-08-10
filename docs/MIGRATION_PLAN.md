@@ -530,6 +530,64 @@ Sixteen packages exist across the first four modules and **none is on Packagist*
 
 ---
 
+## Wave 4 — tier 2, and the tier edge that turned out not to be one — ✅ **shipped**
+
+**Cart** and **Checkout**, built concurrently.
+
+Eight packages, four per module, all at `0.1.0` and green on Tests, Install and Compatibility. 929 tests. [#829](https://github.com/liberusoftware/ecommerce-laravel/issues/829) and [#836](https://github.com/liberusoftware/ecommerce-laravel/issues/836) record what shipped and what deliberately did not.
+
+**§1's diagram puts Cart above Checkout, and that edge is an adoption edge, not an import edge.** A checkout session must snapshot its own lines, because prices freeze at the moment checkout begins — the copy is forced by the domain, not chosen. So Checkout never reads a cart, the two have no import relationship, and they built concurrently exactly as tier 1 did. Cart's whole suite runs with no catalogue and no pricing present, over a product id nothing in its database has heard of; Checkout's runs with no cart module present, under a test named for the fact.
+
+### Cart
+
+The identity model wave 1.5 decided was carried forward rather than reinvented, and gained a third case: `user_id` / `guest_token` / `company_id`, **exactly one set**. A company cart is a third identity, not a customer cart with a flag — `user_id = 4` and `company_id = 4` are provably different carts.
+
+The invariant is enforced on `saving`, not `creating`, because the dangerous write is the update that sets `user_id` without clearing the token. It routes through `CartOwner`, which always writes all three columns, so no save passes through a state claiming two. There is **no DB CHECK constraint** — Laravel's schema builder has no portable one across SQLite, MySQL and Postgres — so the guard is the model's single write path, and a test proves a raw `forceFill()->save()` cannot get round it. Stated in `docs/domain.md` rather than left to be discovered.
+
+**Merge is where a cart module is most likely to be wrong, so each edge was decided rather than left implicit.** Over a per-line or per-cart limit **clamps and reports** — a merge runs inside the login event, so throwing fails the sign-in over something the shopper cannot fix, and dropping silently discards a product they chose. `AddLine` throws on the same limits, because there the shopper is present and can be told. Currency mismatch and a stale cart both **refuse**, leaving the account cart untouched and marking the guest cart abandoned rather than deleting it. The guest cart is **copied, not emptied, and its token is not nulled** — nulling it would leave a row with no owner, the one thing a cart may never be; the claim dies with the terminal status instead, so the next visitor inherits nothing.
+
+**One live bug, found by CI.** `totalsAreCurrent()` compared `recalculated_at >= last_activity_at`. At one-second timestamp resolution that answers *true* for a cart whose lines changed in the same second as the last recalculation — failing in the direction that shows a shopper a stale total. Now `carts.revision` against `recalculated_revision`: a stale in-memory model stamps a lower number, which reads as needing recalculation.
+
+### Checkout
+
+**Order placement is an event, not an order.** There is no `orders` table here — Orders is [#882](https://github.com/liberusoftware/ecommerce-laravel/issues/882). `CheckoutCompleted` carries a `PlacedCheckout`: a plain readonly value complete enough to write a whole order from, so no listener needs to read Checkout's tables.
+
+**Idempotency is a first-class domain feature, and the ordering is the interesting part.** The key is checked **before** the guards. A retry arrives after the first call closed the session, so a guard-first ordering would answer `CheckoutNotOpen` and the client would never learn its order exists. A throw releases the claim, so a checkout that failed validation does not burn its key — both properties hold at once. The guarantee is a unique index on `(scope, key)`, not a `select`.
+
+**The honest gap is recorded where it will be read.** SQLite `:memory:` on one connection inside `RefreshDatabase` cannot prove a concurrent race. What is proved is that the unique index is declared, asserted directly against the schema, and that the loser's recovery branch is *executed* — entered by writing the competing row from a `creating` hook, the exact window a real race lands in. That proves the branch, not concurrency, and the test file header says so.
+
+`ApplyDiscount` **refuses** when a line's tax arrived as an amount rather than a rate: scaling it would mean deriving a rate, which the module has promised not to do. A one-way door, documented rather than silently approximated.
+
+### The permissive-gate pattern, confirmed a third time — and it is worse than wave 3 recorded
+
+Wave 3 established that a model with no policy is exposed rather than safe. Cart's Filament package found the sharper version by reading Filament's source: `get_authorization_response()` returns **allow** when a *present* policy has no method for the ability asked about. A partial policy is the same hazard as no policy, and it is harder to see, because the file exists and looks like a control.
+
+There is a second edge underneath it. `CartPolicy::view/update/delete` are typed against `Cart`, so any default gate call about a `CartItem` would be a `TypeError` raised from inside the policy — not a denial. The relation manager returns `isReadOnly()` unconditionally rather than overriding per ability, which Filament consults *before* any policy, sidestepping both.
+
+And a third, on the relation managers themselves: **`canAssociate` and `canDissociate` are live for a `hasMany`** and default open. That is how a tender ends up filed against someone else's order. Checkout's `EvidenceRelationManager` refuses sixteen abilities by name across `lines`, `tenders` and `consents` — three tables with no policy at all — and restates `canViewAny()` as `view` on the session.
+
+Every presentation package now forces the unpublished abilities false and asserts the policy's *yes* first, so the overrides read as deliberately stricter rather than as dead code.
+
+### Two surfaces where the boundary is a security decision, not a layering one
+
+**`guest_token` gets a different answer per transport, from the same principle.** The domain says it is not a session id, not a credential, and that the gate answers *no* for every guest cart — so matching it belongs to whoever issues it.
+
+The **API** must transport it, so it mints server-side with 256 bits, returns it in exactly one response, and **ignores** a client-supplied token that does not already name a live cart — because a client that could pick its token could pick a predictable one, which is the `session_id = 'api'` defect wearing a better name. It travels in `X-Cart-Token`, never a path or query value, because a URL lands in access logs, browser history and `Referer`. Every failure is the identical 404, so a guess never confirms a hit.
+
+The **Livewire** surface does not have to transport it, so it does not: the token lives in the server-side session and never reaches the browser in any form. There is no cart identifier in the public surface at all — not locked, *absent* — and the cart is re-resolved every request. A line id must travel, since a quantity box has to name what it changes, so it arrives as a method argument and is looked up through the resolved cart's own items; another basket's id finds nothing and gets the same answer a second tab's removal gets. The accepted cost is that a guest basket lives as long as the session, with both ways out written down.
+
+**Nothing reachable from a browser can zero a balance.** The checkout Livewire component's `recordTender()` takes no amount and no status: the amount is the server-computed outstanding, the status is always `pending`, which the domain does not count toward settlement. Only the host's server-side confirmation can settle. Likewise the cart API ships **no discount endpoint** — `ApplyDiscount` records an authoritative amount and the cart's owner is exactly who must not set it — and `POST /cart/recalculation` takes no body at all, because otherwise a token holder could write `tax_minor: 0` into the row support and recovery emails read. An OpenAPI test forbids those keys ever appearing in a request schema.
+
+**Two refusals of a surface, rather than a guarded one.** Checkout's panel has no `IdempotencyKey` resource at all: that table has no `team_id`, so any listing of it is cross-tenant by construction, and no surface is the stronger form of the refusal. And placing is deliberately absent from the panel — `PlaceCheckout` takes its idempotency key *from its caller*, and that key is the whole guarantee, so a button minting a fresh one per press charges twice on a double click. The panel reports whether a commit happened instead. In the same spirit the abandonment reason is a `Select` over five slugs rather than a text box, because the domain's event logger copies that value straight into `checkout.abandoned`, and a text box is where a customer's email gets typed into a log line.
+
+### Open by design
+
+The Checkout domain publishes **one** exception class for two opposite conditions: the payload conflict (permanent) and the in-flight claim (transient). The API has to tell them apart to answer 409 or 423, and does it by rebuilding the in-flight message from the domain's own factory rather than guessing at a substring, with both factories pinned by a test so a domain reword fails the suite instead of a client. It is marked in the source as the seam it is. The proper fix belongs to the domain — two exception cases — and to whichever release next touches Checkout.
+
+Twenty-four packages now exist across six modules, and **none is on Packagist**. The blocker named at the end of wave 3 has not moved, and every wave widens it.
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -556,7 +614,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing and Inventory Ledger are past it** — all twelve packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart and Checkout are all past it** — all twenty-four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
