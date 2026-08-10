@@ -41,7 +41,7 @@ jobs:
     steps:
       # fetch-depth: 0 — the diff below needs the base branch's history, and the
       # default shallow checkout does not have it.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -100,7 +100,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
