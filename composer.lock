@@ -4244,16 +4244,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.9.0",
+            "version": "2.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529"
+                "reference": "73cb188c785abfa7a7bec73487148202968274c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/73cb188c785abfa7a7bec73487148202968274c6",
+                "reference": "73cb188c785abfa7a7bec73487148202968274c6",
                 "shasum": ""
             },
             "require": {
@@ -4347,7 +4347,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-03T13:42:31+00:00"
+            "time": "2026-08-09T14:10:38+00:00"
         },
         {
             "name": "league/config",
@@ -8536,16 +8536,16 @@
         },
         {
             "name": "spatie/laravel-query-builder",
-            "version": "7.3.1",
+            "version": "7.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-query-builder.git",
-                "reference": "85e9ead77fd54555a07201ac7e9fc93ab9cfdde3"
+                "reference": "eb1e0835018fff80900160d4bfd730c560c54ec4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-query-builder/zipball/85e9ead77fd54555a07201ac7e9fc93ab9cfdde3",
-                "reference": "85e9ead77fd54555a07201ac7e9fc93ab9cfdde3",
+                "url": "https://api.github.com/repos/spatie/laravel-query-builder/zipball/eb1e0835018fff80900160d4bfd730c560c54ec4",
+                "reference": "eb1e0835018fff80900160d4bfd730c560c54ec4",
                 "shasum": ""
             },
             "require": {
@@ -8606,7 +8606,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-07-29T16:10:36+00:00"
+            "time": "2026-08-07T11:50:57+00:00"
         },
         {
             "name": "spatie/laravel-settings",
