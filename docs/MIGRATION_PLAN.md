@@ -692,6 +692,66 @@ Both were found because someone had to write down what the code does for a reade
 
 ---
 
+## Wave 6 — Payment Operations, and the end of the tier diagram — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 639 tests. [#883](https://github.com/liberusoftware/ecommerce-laravel/issues/883) records what shipped.
+
+**§1's tier diagram is exhausted after wave 5**, so the sequencing rule falls back to what is forced by dependency and by most-existing-code. Payments is forced on both counts: Checkout ships tenders provider-neutral with no gateway, Refunds ([#901](https://github.com/liberusoftware/ecommerce-laravel/issues/901)), multi-tender ([#875](https://github.com/liberusoftware/ecommerce-laravel/issues/875)) and gift cards ([#860](https://github.com/liberusoftware/ecommerce-laravel/issues/860)) all need a tender lifecycle to exist first, and the host carries two gateways, a factory, a service, an interface and three controllers.
+
+### What the host's contract encoded, and why none of it survived
+
+`app/Interfaces/PaymentGatewayInterface.php` was three methods with four load-bearing faults. **`float $amount`** — every module since wave 3 uses integer minor units, and a float in a payment contract is the one that shows up in somebody's bank reconciliation. **No authorize/capture split**: `processPayment` was one step, which is precisely why payment operations had never been a module. **`processSubscription`**, which belongs to [#918](https://github.com/liberusoftware/ecommerce-laravel/issues/918) — a gateway contract that knows about plans has taken on a second domain. And **`array` in, `array` out**, so the shape lived only in the two implementations.
+
+`app/Models/PaymentMethod.php` was a live leak: `details` in `$fillable`, no `$hidden`, no cast, and `CONFORMANCE.md` records the controller returning it raw.
+
+**The module makes the equivalent unrepresentable rather than merely unexposed.** There is no column that could hold a PAN, CVV or IBAN, asserted by name in `SchemaTest`. `$hidden` was rejected as the answer, because it is a serialisation default that a `makeVisible()` or a raw query walks straight past — and the host's own webhook controller already calls `makeVisible('secret')` deliberately. A column that cannot hold the secret cannot leak it. `docs/adoption.md` leads with the migration off it: verify the contents, `$hidden` as a same-day stopgap explicitly not the fix, migrate only real provider tokens, drop the column, delete the controller.
+
+### State is a fold, and the fold is proved total
+
+There is no status column and no cached total anywhere — both asserted absent by name. Authorize, capture, void, refund and settle are rows on an append-only ledger, and `PaymentState::fold()` derives the rest. `CONFORMANCE.md` records what the alternative buys: `Order::transitionTo()` throwing, deriving payment status, writing audit, firing webhooks and generating an invoice in one method, with `OrderResource` exposing `payment_status` as a free `Select` beside an editable `total_amount` and bypassing the transitions entirely.
+
+The fold is proved three ways rather than asserted. A `match` over `EntryKind` with **no `default` arm**, plus a test folding a ledger containing every `EntryKind::cases()`, so an unhandled case fails the build instead of contributing zero in silence. **Commutativity** over every permutation of four multisets — which is *why* out-of-order provider callbacks need no reordering logic at all, rather than a claim that they are handled. And all 400 sequences of kinds up to length three enumerated against a nine-branch cascade, with a hand-built dataset reaching every branch so totality is not achieved by collapsing everything into one answer.
+
+Two holes the tests found. `PaymentInstrumentPolicy::detach` silently reopened Filament's relation-manager `detach`, because a subclass method wins over the trait's — now `detachInstrument`. And **model events do not fire for `query()->update()`/`->delete()`**, so append-only had a gap; `LedgerBuilder` closes it, and the remaining raw `DB::table()` path is named in the runbook with the trigger and GRANT fix rather than papered over.
+
+### Multi-currency: record it, convert nothing
+
+Presentment is fixed at authorization, every entry must match it or the write is refused, and it is the only currency any arithmetic happens in. Settlement amount, currency, exponent and rate ride on the entry — the rate as a **string** — and never enter the fold, are never summed, never converted back.
+
+Refusing cross-currency settlement outright was considered and rejected: it does not stop the case happening, it only moves the fact out of the ledger that recorded the money. The cost is stated instead of hidden — **this module cannot tell you what you netted**, and `capturedForOrder()` throws for a mixed-currency order rather than answering. Every surface carries that refusal forward as a sentence rather than a blank cell.
+
+### A provider callback is hostile input
+
+`verify()` is the only method producing a `ProviderEvent`; there is no `parse()`, so verify-first is a property of the type rather than a convention. The API controller holds no `json_decode`, no `$request->input()` and no validation rule — it hands `getContent()` over — and the gateway is in the **path**, because reading it from the body would mean decoding the body to choose which secret to check it against.
+
+**A signature failure is 401**, and nothing is written. Not 422: that invites retry, implies the body was parsed, and confirms to a forger that it got that far. Not 403: there is no identity.
+
+**One 2xx covers all four verified outcomes** — applied, duplicate, unmatched, unrecognised — with the outcome in the body. A provider branches on 2xx-versus-not, so four distinct codes would invite it to branch on this deployment's business, and an unrecognised event answered with a 500 turns the provider's retry queue into an outage. Dedupe is the domain's `unique(gateway, provider_event_id)` row, belted by the entry key, so the same event cannot move money twice even if the callbacks row is deleted by hand. The raw body is never stored — only a SHA-256 digest.
+
+Impossible ledgers are **reported, never clamped**: provider-origin entries are never refused, and `needsReconciliation()` surfaces the result.
+
+### The same mechanism, three answers — and why copying the pattern would have been the bug
+
+Wave 4's Checkout and this module both mint an idempotency key once when the paying step is entered and hold it locked. What a **conflict** means underneath is not the same, and the Livewire package reasoned it through rather than copying:
+
+- In **checkout**, a conflict means nothing was committed under that key, so dropping it and minting a fresh one is safe.
+- In **payments**, a conflict means a payment already exists under that key with different facts — so a fresh key would authorize a **second** payment for the new total. It refuses and mints nothing.
+- A **decline** does mint a fresh key, because a decline is a committed `failed` entry the old key can now only replay, and the shopper needs to try another card.
+
+Both exception classes are told apart by `instanceof` throughout — 409 permanent, 423 with `Retry-After` transient. The seam wave 4 recorded and wave 5's Fulfillment fixed does not recur here.
+
+### The surfaces refuse more than they offer
+
+The shopper-facing Livewire package is three components — pay, receipt, saved instruments — and the shortness of the list is the design: everything else either moves somebody else's money or reads hostile input. **No amount is a client input at all**; the component holds an opaque locked reference and the host's resolver prices it on the request that charges, so re-pricing between mount and click charges the newer server number. The three components render **no `<input>`, `<select>` or `<textarea>`** anywhere, asserted across all three at once, and the provider token arrives as an argument rather than a property, with a 12–19 digit run or an IBAN refused before the gateway is called.
+
+The operator panel offers three actions — take the reserved money, release it, give it back — each re-reading the ledger before calling the domain. **No amount is ever typed**: capture takes everything reserved, refund gives back everything refundable, and the package constructs no form input of any kind, which a boundary test greps for. Partial movements are refused because a money field is where a typo becomes a charge, and a partial's idempotency key belongs to whoever decided the amount. The key a button uses is **derived, not minted** (`panel:PAY-…:capture:5000GBP`), and the honest limit is printed on the page: a panel cannot tell a second identical instruction from a second click, so a second identical movement needs a caller that owns its key. That guard also stops `CapturePayment` writing a zero-amount row, which it would otherwise do happily.
+
+Two absences argued rather than assumed. **No instrument resource**, because `PaymentInstrumentPolicy` publishes `detachInstrument` but the domain ships no action performing it — a presentation package writing `detached_at` would be a second write path in a module where every write is an action ([module-ecommerce-payment-operations#1](https://github.com/liberusoftware/module-ecommerce-payment-operations/issues/1) is the upstream `DetachInstrument` this wants). And **unmatched callbacks are not in the panel**: they carry a null `team_id` because the team is copied off the matched payment, so showing them would be a second tenancy answer over rows that might be anybody's money. The page says they are absent and gives the runbook's console read, because an invisible queue is worse than an unread one.
+
+**Forty packages now exist across ten modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
