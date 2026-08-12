@@ -831,6 +831,84 @@ Two honest limits are printed rather than implied. SQLite compiles `lockForUpdat
 
 ---
 
+## Wave 8 — Multi-Tender Payments, and the fact that there is no transaction across gateways — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 433 tests, 7,554 assertions. [#875](https://github.com/liberusoftware/ecommerce-laravel/issues/875) records what shipped.
+
+**The line the wave is organised around: Multi-Tender Payments owns the plan and the arithmetic. It never moves money and it never holds a balance.** Payment Operations authorises and captures; Gift Cards holds a redeemable balance; Refunds decides what is owed back; Orders owns the total. This module imports **none of the four** — the boundary suite names all four namespaces and both their `require` and `require-dev` entries — and what crosses is an identifier, an amount in minor units, or a currency code.
+
+This closes the payments cluster, and it is the last module whose neighbours were all already built. Every prior wave could assert a boundary against something absent; this one had to hold a line against four things that exist.
+
+### The host had no multi-tender concept, which is worse than having a bad one
+
+Nine faults, and the first is the one that matters. **`orders.payment_method` is a single nullable free-text `string`** — no enum, no FK, no validation. One order, one tender. Multi-tender is not unimplemented in the host, it is **unrepresentable**, which is a different and larger problem than a table modelled wrongly.
+
+The rest follow from it. **`orders.transaction_id`** (`2026_07_13_000005`) holds one gateway charge id on the order, so a second tender's charge has nowhere to go but on top of the first. **`orders.payment_status` and `invoices.payment_status`** are two independent denormalised status strings that can disagree, with nothing between "pending" and "paid" — partial payment has no value to be in. **`orders.total_amount` is `decimal(10,2)`** (`2026_07_14_001101`, itself a fix for an integer column truncating cents), and allocation is the one place money arithmetic is *not* a single addition: splitting a total across N tenders and reconciling the remainder. **`payment_methods.details` is a `text` blob**, unstructured and unencrypted; **`is_default` is a bare boolean** with no unique constraint, so two rows can both be default; and **`user_id` FKs into `users` with `onDelete('cascade')`** with no tenant column at all, so deleting a user silently deletes payment history. **There is no allocation record anywhere**, so an outstanding balance cannot be computed, only asserted by a status string. And **deposits and instalments do not exist in any form** — no table, no column, no model, which meant every decision below was made for the first time with no precedent to inherit.
+
+### The fact that shaped the whole module
+
+**There is no transaction across gateways.** A three-tender plan is three separate movements of real money, at three institutions, at three instants. When tender 2 declines, tender 1's capture has already happened and no application-level rollback can un-happen it. Any design treating a plan as atomic is lying about the world.
+
+Four consequences, all visible in the code rather than in a comment. The tender ledger is **append-only** — no update path, no delete path, and reversal is a *new* entry carrying its own reason. A declined tender never erases an earlier captured one. **There is no "plan failed" state**: a plan is satisfied or it has an outstanding balance, and both are computed, never stored. And **partial satisfaction is the normal case**, designed for first, with full satisfaction falling out as the special case where the balance is zero.
+
+The rule also decided a mechanism three sections later. In-flight idempotency is detected with a **cache lock rather than a claim row**, because a claim row would have needed an update path and contradicted append-only. The constraint propagated on its own.
+
+### The wave-7 deferral, settled by reversing it
+
+Wave 7's gift-card box refused a card short of the total rather than partly spending it, and said why: *split tender needs a domain-published answer against a caller-supplied figure, which is not a transport's to invent*. Wave 8 supplies the answer, so **a short tender is now partly spent and the shortfall becomes the outstanding balance**.
+
+The mechanism is wave 7's `ResolvesRefundability` seam applied twice. **`ResolvesPayableTotal`** is published with no implementation and **no default binding**; unbound is a 503, a null answer for an order that exists is a 422, and the two never collapse into one. **`ResolvesTenderCapacity`** is keyed by tender kind and host-bound, so the module never asks Gift Cards what a card is worth. A `null` capacity means **"no ceiling known", not zero** — the ordinary answer for a card, and the distinction is load-bearing: a host returning `0` for a card would admit every card at nothing.
+
+Ten decisions were pre-settled in the brief so the agents would implement rather than rediscover them. The four that carry weight: **over-allocation is refused, never clamped** (clamping silently changes a number the caller gave you), **under-allocation is valid** and is the outstanding balance, **no tender kind has a hardcoded priority** — caller-declared order, recorded — and **all tenders in a plan share the order's currency**, mixed refused with its own exception, no default, no conversion. Two more were forced by the shape of the domain: **a deposit is just a tender** recorded before the order completes, not a parallel ledger; and **instalments are external references only** — the module records a schedule's identifier and no due date is authoritative.
+
+**Reversal is not refund.** Recording that a tender was reversed is a ledger entry here; deciding money is owed back is `ecommerce-refunds`. The README says so, because the two are one careless import apart.
+
+### Allocation is the first arithmetic in the fleet that needed a property test
+
+Every previous module's money handling is addition and comparison, which examples cover. Splitting a total proportionally across N tenders in integer minor units is not: the parts must sum to the total with **no residue**, and the failure mode is a single minor unit appearing or vanishing on inputs nobody picked by hand.
+
+So the split is largest-remainder with an explicit tie-break (declared order), pinned by a property-style test sweeping totals against split counts and asserting `array_sum($parts) === $total` on every one. The domain package's ratio of assertions to tests is **57:1**, an order above every prior package in the fleet, and that sweep is where it comes from.
+
+Two related refusals. **Decimal-to-minor truncates, never rounds** — rounding a caller's figure invents money. And **a plan declares amounts or shares, never both**; the brief mandated exact proportional splitting without saying how a caller expresses it, and mixing the two is ambiguous, so it is refused.
+
+### Outstanding balance is a fold, proved three ways including order-independence
+
+No status column, no cached total, no `amount_paid_minor`. The balance folds the append-only ledger, and the test builds a non-trivial one — mixed kinds, a reversal, a partial capture, an out-of-sequence entry — then proves the same number three independent ways: fold forward from empty; subtract applied tenders from the payable total; and **replay in a different order**. The third is the one that matters, because order-independence is the property that makes a fold over a distributed set of movements trustworthy at all.
+
+### A fail-closed check that was failing open
+
+CI caught the wave's one real bug, and it is worth recording because it is a shape the fleet has now hit three times in three different guises.
+
+The API's token-scope middleware guarded on `is_callable([$user, 'tokenCan'])`. **That is true for any Eloquent model**, because `__call()` answers every method name. The fail-closed scope check was therefore failing *open* — reaching the call, raising `BadMethodCallException`, and rendering 500 instead of 403. Now gated on `method_exists()`.
+
+It is the same class as "a present policy missing a method is permissive" from wave 4 and "an unanswered gate allows" from wave 5: **a capability probe that answers yes by construction**. The general lesson, now written into the build brief, is that asking a PHP object whether it can do something is not a security check unless you ask in a form that can say no.
+
+### The surfaces each found a different way to hold the same line
+
+**The API's input walk is the output walk inverted.** Wave 7 hunted a secret through every response body and header; wave 8 pushes a total, a balance, a capacity, a currency and a tenant id *into* every route's body, query **and** headers on all five routes, and asserts the server-resolved figures come back unmoved. The structural half enumerates every accepted key from one `Payload::rules()` table and greps `src/` proving there is no `->input()`, `->all()`, `->query()`, `->json()`, `->merge()`, `$_POST` or `$_GET`, and exactly one header read. A tender's own `amount_minor` **is** accepted — it is the caller's offer, measured against the server-resolved total — but a **currency is not**, so mixed-currency is unreachable from a body at all and only a host resolver can trigger it. `ProblemTest` constructs the two idempotency classes with an **identical message** and asserts different statuses, so a message-decoding regression cannot pass.
+
+**Filament's append-only guarantee rests on `isReadOnly()`, not on a policy.** That closes edit and delete paths in Filament *before* a policy is consulted, which means it survives a host `Gate::before` answering yes to everything — every prior wave's permissive-gate defence was policy-shaped and therefore defeatable by exactly that. Backed by an `instanceof` sweep asserting no `Edit`, `Delete`, `ForceDelete`, `Restore`, `Replicate`, `Associate`, `Attach`, `Detach` or `Dissociate` action exists on either table, with `getRecordActions()` naming exactly `['reverse']`, and by a reflection sweep over the nine `can*` abilities that could otherwise default open. Attaching the plugin to a panel with `hasTenancy()` raises `PanelContextUnavailable` rather than serving unscoped rows.
+
+**Livewire's answer is to make money not be an input.** The shopper offers a tender **for the outstanding balance**, so no money value crosses the wire at all — which sidesteps the entire class of hole the wave's other two packages spend tests defending. No arithmetic on minor units exists anywhere in its `src/`, asserted against the source rather than claimed. Every public property is `#[Locked]`, verified by reflection over the registry. The tender allow-list is **`card`, `gift_card`, `store_credit` only**: `bank_transfer`, `cash` and `instalment` record movements *somebody else witnessed*, so a shopper self-serving one asserts a movement nobody saw — validated server-side, not left to which buttons the form renders.
+
+Two contracts were added by the Livewire package because the domain genuinely had no answer, both unbound by default and 503 when missing. **`AuthorizesOrderAccess`**, because the domain holds no user FK and no tenant column, so "never display another customer's tender" had no mechanism — and it deliberately did *not* use Laravel's `Gate`, since the unanswered gate is permissive and a published contract with no binding fails loudly instead. **`OffersTender`**, because the package may import neither Payment Operations nor Gift Cards and the domain never moves money, so the host moves it and returns a reference or `null`; without that seam the shopper surface has no honest state-changing action and idempotency would have had nothing to attach to.
+
+### Five limits printed rather than implied
+
+**No tenant or site column anywhere.** Host fault 7 is fixed by holding *no* user FK at all rather than by adding tenancy, and scoping stays at the resolver seam. Flagged as a `0.2.0` decision if a deployment needs database-level partitioning.
+
+**Filament's reversal preconditions are mirrored nowhere.** The reason field is not `required()` and the action has no state-based `visible()`, because "only a captured tender, only once, only with a reason" are `ReverseTender`'s invariants and restating them as form validation is the duplication the standard forbids. The cost is that the action is offered on an already-reversed entry and the operator sees the domain's refusal as a notification instead of a greyed-out button. Three tests pin that path.
+
+**`GET /plans/{order}` materialises the plan row**, because the domain publishes no finder and the `-api` rule forbids importing the model. The row is inert — reference and currency, no status, no balance — so the response is identical either way, and a domain-published finder is named as the `0.2.0` path.
+
+**Reversal idempotency is carried by the ledger, not by the key.** `ReverseTender` takes no key and has no column to store one, so an identical replay returns 200 and a second reversal under a different reason is a 409. The `Idempotency-Key` header is still required so every state-changing route has one contract — stated plainly rather than pretended otherwise.
+
+**One resolver call per row** for Filament's balance column: N+1 by construction, documented in `PlanBalance` with the upgrade path being a cache inside the host's resolver, the only place that knows whether a total is cacheable.
+
+**Fifty-two packages now exist across thirteen modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -857,7 +935,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds and Gift Cards are all past it** — all forty-eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards and Multi-Tender Payments are all past it** — all fifty-two packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
