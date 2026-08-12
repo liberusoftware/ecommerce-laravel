@@ -752,6 +752,85 @@ Two absences argued rather than assumed. **No instrument resource**, because `Pa
 
 ---
 
+## Wave 7 — Refunds and Gift Cards, built with each other absent — ✅ **shipped**
+
+Eight packages at `0.1.0`, green on Tests, Install and Compatibility. 1,189 tests. [#901](https://github.com/liberusoftware/ecommerce-laravel/issues/901) and [#860](https://github.com/liberusoftware/ecommerce-laravel/issues/860) record what shipped.
+
+Two modules, no import edge between them, built **concurrently and with each other absent** — the same technique as Cart-without-catalogue and Checkout-without-cart. A boundary asserted is a claim; a boundary compiled against nothing is a fact.
+
+**The line the wave is organised around: Refunds decides what is owed. Payment Operations moves the money. Gift Cards holds a balance. None of the three imports another.** Everything crossing is an identifier or an already-resolved value — an order id, a payment reference, an amount in minor units, a currency code.
+
+**Refunds and Returns are not the same thing**, which wave 5 made easy to get wrong by shipping a `Refund` model of its own. That one is a *record*; this module owns the *decision lifecycle*. A refund exists with no return (goodwill, a price adjustment, a cancelled order) and a return exists with no refund (an exchange, a warranty replacement), so `adoption.md` §4 says explicitly not to put a foreign key between them.
+
+### What the host's two tables encoded
+
+`refunds` carried five faults, and four of them are a domain leaking into a column. **`decimal` money.** A **mutable `status`** with the states in a comment. **`refund_method: store_credit`**, putting another module's domain in a string — a refund to store credit is a refund whose *destination* is a gift card reference, decided here and executed there. **`transaction_id`**, pointing at a gateway that is now wave 6's job; a refund carries a payment **reference**, never a transaction. And **`restock_items`**, making a refund do inventory's work — a refund emits, a listener restocks, and whether goods come back is a returns question anyway.
+
+`gift_cards` carried four, and the first is the serious one: **the code was stored in plain text.** A gift card code is a bearer credential — whoever holds it holds the money — so a plaintext column means a leaked backup, a logged slow query or table access is cash. Then a **mutable `balance`** sitting beside a transactions table, two sources of truth where the mutable one wins by accident; `decimal` money with **`currency` defaulting to `USD`**, the same shape as the `default(1)` mistake wave 2 spent a wave unpicking; and no tenancy.
+
+### A bearer credential, stored so that losing the database is not losing the money
+
+Three columns replace the one. **`code_index`** is `hash_hmac('sha256', $normalised, $pepper)`, `char(64)`, unique — the one-query lookup key. **`code_hash`** is per-row bcrypt and **deliberately unindexed**, so the scheme is still sound if the pepper leaks or is rotated. **`last_four`** is for display. Neither hash is `$fillable`; the pepper has no default and `Code::pepper()` throws rather than hashing under `''`.
+
+The guarantee is proved rather than asserted, twice in the domain and again on every surface. `SchemaTest` names ~35 plaintext column names absent, then issues a card and **searches every cell of every table** for the code just minted. The API's `ExposureTest` mints through the API and hunts that one string through body **and headers** of all nine routes — including the response nearest the code, a refusal after the row matched — plus log lines, both tables, `toJson()` and the raw attribute bag, in four forms: as issued, normalised, url-encoded, and **the leading sixteen characters**, so the four published for a receipt cannot be widened by one without the suite going red. The Filament package shows the code once at issue and its test recomputes `Code::index(Code::normalise($shown))` against the stored `code_index`, so what it proves is that the *card's* code was shown and then never shown again. The Livewire package's answer is the sharpest: **the code is not a property at all.** `apply(string $code)` takes it as a method argument, so it crosses the wire once as a call parameter and lives for one stack frame — a `#[Locked]` property would still be dehydrated into the snapshot on every render, which is exactly the outcome to avoid on a credential. Every public property is locked with **no exceptions list**, because the argument mechanism made one unnecessary.
+
+### Enumeration is closed by making every wrong answer the same answer
+
+One exception class with a constant message across all eight `RefusalReason` cases, and `Code::verify()` performs exactly one password verification whether or not the row was found. The surfaces carry it forward: the API answers seven of the eight with **one byte-identical 422** including headers, `Throttled` alone getting 429 with `Retry-After`; the Livewire component asserts the whole dehydrated public state is **equal across all ten failure modes** over a dataset, which is uniformity as *shape* rather than as message.
+
+Three refusals follow from the same reasoning and are worth keeping. **The code's shape is never validated** — no pattern, no length, no alphabet — because a "wrong shape" error is a cheaper oracle than the one the domain closed, and it would undo the `I`/`L`/`O` normalisation. **`POST /redemptions` refuses any query string outright**, because `Request::all()` merges query into body and `?code=…` would redeem through exactly the channel the endpoint exists to keep a credential out of. And on the redemption path **there is no tenant at all**, argued rather than assumed: there is no lookup-by-code to pre-check with, and a tenancy refusal would have to be indistinguishable from every other refusal, so the operator could never be told why.
+
+The alphabet is Crockford base32, 20 characters, 2^100, drawn with uniform `random_int()` — the host's `strtoupper(Str::random(16))` collapses 52 letters onto 26.
+
+### Six decisions the gift-card domain could not leave implicit
+
+**Expiry ends redeemability, never the money**: `expires_at` is write-once and no path edits a balance, so the module can be deployed under a jurisdiction that forbids expiry without changing what it does to the ledger. **Partial redemption keeps the balance** rather than reissuing. **Refunding onto a card** is `RecordCredit` with `CreditOrigin::Refund`, addressed by reference — which is where this wave's two modules meet without importing each other. **Balance is debited at redemption with no reservation**, because a hold needs an expiry, an expiry needs a sweeper, and a stopped sweeper locks a customer's balance. **One table for both kinds** via `AccountKind`, mirroring the one fold. And **`EntryKind` has no `Enabled` case**: commutativity is load-bearing, disable-then-enable is a different fact from enable-then-disable, so disabling is terminal and recovery is a replacement card.
+
+### Refunds: the module is *told* what was captured, and every surface had to answer where that number comes from
+
+`Refundability` is a required constructor argument with no default and no nullable, carrying `capturedMinor` and `previouslyRefundedMinor`, both frozen onto the refund row. Over-refunding is **refused, never clamped**, with the binding check inside `ApproveRefund`'s transaction computing `ceiling = captured − max(callerPreviouslyRefunded, ourSettled) − ourApprovedButUnsettled` and every sibling on the same `payment_reference` selected `lockForUpdate()`. The approver may not be the requester, and an anonymous approver is refused outright — `null !== null` is false, which is the wave-4 orphan trap in its other direction.
+
+**A zero-amount approval dispatches `RefundAcknowledged`, not `RefundApproved`**, so a never-charged order can be closed and can never become a money movement. `RefundApproved` is imperative: the host listener moves money and calls back with `SettleRefund`.
+
+The API found the load-bearing question. **The ceiling is resolved server-side, never received.** Taking `captured_minor` in the body is the obvious transport answer and it is a hole of the same shape as accepting a tenant id, because every domain guard is arithmetic over that number. So the package publishes `ResolvesRefundability` — one method, no implementation — and the deployment binds it. Nothing bound is a **503**, not the caller's fault; a resolver returning null is a **422** on `payment_reference`; nonsense is a 503. A cancelled order with no tender resolves nothing, so **a half-configured deployment can close never-charged orders and cannot record anything that moves money** — which is the correct direction for a partial failure to fall.
+
+### The exception seam, closed by resolving earlier rather than by decoding
+
+`ExceedsRefundable` publishes two conditions from one class — "you asked for too much" and "somebody else got there first". Wave 4 decoded a message to tell such a pair apart and it is recorded as a defect. Here the first case is refused **in the controller against a frozen column** (a refund's `amount_minor` never changes, so it is not a race) as a 422, which means what can still reach `callAction()` is only the second, and that is the 409. The same technique closed three more overloaded classes — `RefundNotSettleable`, `CurrencyMismatch`, `RefundabilityUnknown`. **No status anywhere is chosen by reading a message**, and the upstream fix is filed in `adoption.md` §5.1 rather than left as a comment.
+
+### The same mechanism, two more answers
+
+Wave 6 recorded three answers to what an idempotency conflict means. This wave adds two, both reasoned rather than copied — which is now the fourth time the pattern has been *not* copied, and the reason it is written down as a warning rather than a recipe.
+
+- **Refunds/Livewire refuses and mints nothing**, and Checkout's "a fresh key is safe" is the trap: the domain ceiling refuses over-refunding *against the capture*, not duplicate claims *within* it. £50 captured, claim £20, conflict, fresh key, claim £30 — both pass every domain check and both land in the approval queue. It can hold that line absolutely, unlike Payment Operations, because `RequestRefund` guards *before* `DB::transaction`, so there is no committed non-outcome. One mount, one key, one claim.
+- **Gift Cards/Livewire derives the key from the step** rather than minting a UUID. Payment Operations catches a reload by reading the ledger for the order; this module cannot, because the ledger is indexed by card and there is no card until somebody types a code. A random key would debit twice on reload; derivation makes the reload a replay.
+
+And one deliberate *refusal* to distinguish, unique in the fleet so far: on the gift-card box, permanent conflict and transient in-flight are **not** told apart. Reaching either requires having presented a real code, so a 409-versus-423 split is a confirmation oracle. One catch, three exception classes, one answer.
+
+### The surfaces, again, refuse more than they offer
+
+**No amount is typed anywhere in either module's panels.** Approving a refund agrees to what was asked; a merchant wanting to give back less refuses and a second refund is raised, which is the domain's own answer to changing your mind. A test asserts the refunds panel constructs **exactly two** form inputs and names both — the approver's note and a manual settlement reference. There are **no bulk actions**: one press moving an unbounded amount of somebody's money is the operation the two-person rule exists to slow down.
+
+**Settlement is offered only for `RefundDestination::Manual`** — stricter than `RefundPolicy::settle()` allows. For a card or a gift card the mover is a host listener holding the provider's reference and its own idempotency key; a panel button recording that writes down a movement it did not perform and cannot reconcile. `Manual` is the only case where the presser *is* the mover.
+
+**A zero approval is relabelled an acknowledgement** across button, modal, confirmation and notification, and self-approval is permitted only there. A button reading "Approve" over £0.00 implies money moves.
+
+Both shopper surfaces are scoped by what they refuse. Refunds/Livewire is two components using 2 of 11 published reads and 1 of 5 actions; it declines a "my refunds" list, whose only new capability is enumeration — an ownership check on every row instead of one — and declines a cancel button, because the domain has no withdrawn kind and cancelling would record a *rejection with the shopper as decider*. A guest order **404s for everybody**, because an order number is not a credential, and ownership compares two real ids so that `null === null` never hands an orphan to a visitor. Gift Cards/Livewire ships no balance-check-by-code box, and states the cost rather than hiding it: **a card short of the total is refused, not partly spent**, because split tender needs a domain-published answer against a caller-supplied figure and that is not a transport's to invent.
+
+Wording carries a decision where a badge would undo it: `AccountStatus::Expired` renders **"Expired — the balance is still there."**
+
+### Two weakenings named rather than buried
+
+**Issuing a gift card is gated on `viewAny` plus having a team**, because the domain publishes no record-less ability but `viewAny` and the package refused to bind a second opinion. Whoever can see the resource can mint a balance; the role grant over the resource is the control. It is in `docs/domain.md` §7 and `docs/adoption.md` §4.1 so a deployment decides it deliberately.
+
+**Refund intake is gated on `viewAny`** for the mirror-image reason: `RefundPolicy::create()` is permanently false, so gating on `create` would make the route dead. Upstream note filed for a `request` ability.
+
+Two honest limits are printed rather than implied. SQLite compiles `lockForUpdate()` away, so `tests/ConcurrencyTest.php` says in its header that **no test in it is a real race** — the same admission Checkout made in wave 4. And the timing half of the enumeration defence **cannot be proved over HTTP on a shared CI runner**; the domain's `CodeTest` proves it where it is a property of one function.
+
+**Forty-eight packages now exist across twelve modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -778,7 +857,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment and Returns are all past it** — all thirty-six packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds and Gift Cards are all past it** — all forty-eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
