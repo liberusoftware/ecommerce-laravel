@@ -990,6 +990,94 @@ The enforcement is an override of `getAuthorizationResponse()` — the single fu
 
 ---
 
+## Wave 10 — Shipping, and the two kinds of price — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 494 tests, 3,200 assertions. [#915](https://github.com/liberusoftware/ecommerce-laravel/issues/915) records what shipped.
+
+| Package | Tests | Assertions | Coverage |
+| --- | --- | --- | --- |
+| `ecommerce-shipping` | 223 | 1,976 | 96.0% |
+| `ecommerce-shipping-api` | 96 | 318 | 98.1% |
+| `ecommerce-shipping-filament` | 119 | 654 | 99.4% |
+| `ecommerce-shipping-livewire` | 56 | 252 | 100.0% |
+
+### A price this module cannot reproduce, and one it must
+
+Wave 9 ended on the claim that a tax figure is a claim about the past, and proved it by reproducing every quote from its own recorded evidence with the rate tables emptied. Shipping cannot do that, and the reason is not a limitation to work around — it is the shape of the domain.
+
+A **derived** price is computed here from rules this module holds: a zone matched, a rate row applied, a weight band, a free-shipping threshold. It is reproducible, and must be. A **quoted** price is an answer a third party gave at an instant, about a future physical movement, to a question only they can answer. Ask again in a minute and the number may differ; ask when the carrier is down and there is no number at all. **Nothing this module records will ever let it recompute one.**
+
+So the three-way proof is a proof about the partition rather than a reproduction:
+
+1. every recorded price is exactly one of derived or quoted — a stored discriminator, never inferred from whether a carrier column happens to be null;
+2. every derived price reproduces from recorded rules with the carrier seam ripped out entirely — wave 9's technique, applied only where it is honest;
+3. every quoted price survives the rate tables being emptied, provenance intact — which proves it depends on nothing this module can change its mind about, and is therefore why it must be stored verbatim.
+
+### The host's twelve faults
+
+1. **A zone is unrepresentable.** `grep -rn 'shipping_zone\|ShippingZone' app/ database/` returns nothing. `shipping_methods` is seven columns with no destination among them, so every method is offered to every address on earth at one price.
+2. **The destination is accepted and thrown away.** `calculateShippingCost($method, $cart, $address)` threads the address into `calculateDistanceRate()`, whose entire body is `return 0;`. `isMethodAvailable($method, $cart, $address)` ignores it too and checks weight alone. Both signatures claim a destination matters; both prove it does not.
+3. **Rates are floats** — `decimal(8,2)` cast to `float`, a float multiply for weight, `round(…, 2)` at the end, and `shipping_quotes.amount` re-cast `(float)` at the JSON edge and again at checkout.
+4. **Three weight units and no agreement between them.** `products.weight` has no unit column at all; `product_variants.weight_unit` defaults to `'kg'`; `config('shipping.weight_unit')` defaults to `'oz'`; the EasyPost adapter multiplies by 16 only when the config says `lb`. A store in kilograms is quoted as ounces, silently, with a plausible number.
+5. **`estimated_delivery_time` is free text** — `required|string|max:255`, so "3-5 days", "next week" and "Tues" are equally valid. An estimate that cannot be compared or resolved to a date is not an estimate.
+6. **The evidence for a charged price is deleted on a schedule.** `PruneShippingQuotes` sweeps rows past `expires_at` with a one-day default, `orders.shipping_quote_id` is `nullOnDelete()`, and the migration's own docblock says a carrier quote cannot be recomputed.
+7. **Every failure mode is the same empty array.** Missing API key, non-2xx, any `Throwable`, and no carrier configured all return `[]`, and the caller silently falls back to flat methods at a different price. *Live rating is off*, *the carrier is down*, and *the carrier does not serve this address* are indistinguishable.
+8. **A config float is added to an authoritative stored quote.** `round((float) $quote->amount + $premium, 2)` — so `orders.shipping_cost` equals no quote that was ever fetched, and nothing records the difference.
+9. **Parcels have no dimensions.** The adapter accepts length, width and height and `array_filter`s them out because no caller supplies them. Every carrier prices dimensional weight; the host cannot express a box.
+10. **A missing weight is silently zero.** `products.weight` is `->default(0)` and the fold ends `?? 0`, so a product nobody weighed is quoted as a lighter box than exists and the store eats the difference.
+11. **`verifyAddress()` calls `https://api.address-verifier.com`** with a config key defined nowhere, and has no caller.
+12. **A quote's authorisation predicate is an OR of two weak identifiers, one of them a hardcoded literal.** `resolveQuote()` matches session **OR** user; the headless service passes `''` for the session; `StorefrontSchema.php:391` passes the string **`'api'`** for every headless buyer. No tenant column, no site column.
+
+Two host facts were deliberately kept: persisting a fetched rate and billing the stored amount is correct, and falling back to flat methods is a legitimate deployment. Fault 7 is that the fallback is silent and undifferentiated, not that it exists.
+
+### A seam whose absence is a configuration, not a fault
+
+Waves 7 and 8 published contracts with no default binding, where unbound meant 503. Wave 9 shipped one *with* a default binding. Wave 10 adds the third species: `FetchesCarrierRates` unbound is **live rating being switched off**, which is a common, fully supported deployment and not an error at any layer.
+
+That only works if it stays distinguishable from failure, so the contract never returns a bare list — four types behind one interface, rendered as four visibly different states at both presentation surfaces and four distinct responses at the API. The whole design turns out to hang on one detail: `?FetchesCarrierRates $carrier = null` resolves to null when nothing is bound, because the container catches the `BindingResolutionException` and falls back to the default. Drop the `= null` and it throws instead.
+
+`ResolvesParcels` keeps the older shape — unbound is a 503, because a parcel you cannot measure is not a parcel — and a null weight is refused rather than defaulted, which is fault 10 stated as a rule.
+
+### Where the addendum was wrong
+
+Four things, all found by the agents and all reported rather than approximated around.
+
+**Three carrier outcomes was the wrong count.** "Not bound" is the *absence* of an implementation, so no implementation can return it; the domain synthesises it. Four, not three.
+
+**"No available method" was two conditions wearing one name.** *No zone covers this destination* is a buyer out of area; *a zone matched but nothing is priced in it* is an operator who half-finished a setup. A fourth outcome case, and the Filament coverage widget counts unpriced active zones so the second surfaces before a buyer hits it.
+
+**The parcel seam publishes no basket facts.** `ResolvesParcels` returns weights and dimensions and nothing else — no subtotal, no item count. But free shipping is defined against a subtotal and table rates may band on subtotal or item count, so those forms have no server-side source for the number they need. Passing a client-asserted subtotal would be a price in a body wearing a different name, so the API refuses with a typed `422` instead. **The fix is upstream, in a tagged package**, and is the first wave-10 `0.2.0` item.
+
+**The table-naming rule collides with the unadoptable-table rule.** §1.5 says an invented table carries the module prefix, which for this module yields `shipping_methods` — precisely the host table the brief calls unadoptable. The module ships `shipping_service_levels` so both schemas coexist during migration. This recurs whenever the prefix reproduces a host name and wants settling fleet-wide.
+
+### Two actions that have no legal HTTP shape
+
+`RecordPriceAdjustment` takes an amount or a rate; the three authoring actions take rate amounts and thresholds. Under the rule that no route accepts a price, a weight or a rate, none of them can be exposed — so the API ships no adjustment route and no authoring routes at all, and those live only on the operator surface. Adjustments remain fully readable over HTTP on the price they adjust, with the fold in `total`.
+
+The same rule bent at one place and it is recorded rather than hidden: the Filament rate-preview page accepts an operator-entered parcel weight, because §6.1 demanded the carrier outcomes be visible on a surface that has no shopper quote flow. Quoting is a write, so the preview runs inside a transaction aborted with a private exception and records nothing — asserted.
+
+### Three green tests that assert nothing
+
+The wave's most reusable findings are all tests that pass while checking less than they appear to.
+
+- **Pest's `toThrow()` given a class-string that does not autoload degrades to a message-substring check.** `toThrow(WrongFqcn::class, 'message')` passes on the message and says nothing about the type.
+- **`getOriginal()` returns the *cast* value for an enum-cast attribute**, so an immutability guard comparing it against `Enum::Case->value` compares an object to a string and is always false. The guard enforced nothing and its tests were green.
+- **`(int) (4.99 * 100)` is 499, not 498.** The float-truncation demonstration only bites for values whose binary form falls short, so the test that documents the entire money rule fails for the opposite reason to the one it teaches if the constant is chosen carelessly.
+
+And one that is not a test at all: **`config()`, `app()`, `auth()` and `now()` are framework-*foundation* helpers, not `illuminate/support`** — the same hole as `$request->validate()`, passing CI for the same reason, and almost certainly already shipped across the fleet. That is now a fleet audit alongside the `$request->validate()` one, not a wave-10 fix.
+
+### Limits printed rather than implied
+
+- **The parcel seam cannot express a subtotal or an item count**, so free-shipping thresholds and subtotal/item-count band axes are unreachable through the API. Upstream fix, `0.2.0`.
+- **Derived-price reproducibility holds only while the rules exist.** `shipping_prices` deliberately carries no foreign key to the rule tables and snapshots the zone code, so evidence outlives the rules — but delete a rate and proof 2 no longer applies to prices that used it.
+- **Money is fixed at exponent 2** on the Filament surface: the domain's `Money` supports 0–6 and no shipping table has an exponent column.
+- **An undefined gate denies**, so a host that configures no abilities gets a dead shopper surface. Correct for something that prices a basket, but adoption is not zero-config.
+- **Tenancy still has no seam** — this is the fleet's fourth implementation of an idea with no contract, and wave 10 deliberately did not try to settle it.
+
+**Sixty packages now exist across fifteen modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1016,7 +1104,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments and Tax are all past it** — all fifty-six packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax and Shipping are all past it** — all sixty packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
