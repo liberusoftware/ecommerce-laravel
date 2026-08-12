@@ -909,6 +909,87 @@ Two contracts were added by the Livewire package because the domain genuinely ha
 
 ---
 
+## Wave 9 — Tax, and the fact that a tax figure is a claim about the past — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 453 tests, 82,390 assertions. [#919](https://github.com/liberusoftware/ecommerce-laravel/issues/919) records what shipped.
+
+| Package | Tests | Assertions | Coverage |
+| --- | --- | --- | --- |
+| `ecommerce-tax` | 143 | 80,552 | 95.4% |
+| `ecommerce-tax-api` | 130 | 865 | 100.0% |
+| `ecommerce-tax-filament` | 95 | 560 | 99.7% |
+| `ecommerce-tax-livewire` | 85 | 413 | 95.7% |
+
+### The rule this module was the exception to
+
+Every wave since wave 3 has carried the same line in its brief: *"Tax is an input — a rate in basis points or an already computed amount. No module looks a rate up, knows a jurisdiction, or compounds."* Eleven modules were built against it. This is the module it was carving out — the one package in the fleet permitted to do all three, and the reason the other eleven never had to.
+
+That ordering was worth having. Tax arrived last among the modules that feed it, which meant its shape was constrained by eleven existing consumers rather than negotiating with them, and not one of them needed changing.
+
+### The host's twelve faults
+
+The largest replaced surface of any wave: `TaxCalculator`, `TaxRate`, `TaxClass`, `EuVat`, `ViesService`, `OssReportService`, two migrations and a config block. Three faults are worth recording beyond the README's list.
+
+**`orders.tax_total` has never been written.** `2024_02_15_000001` created it; `2026_02_16_000001` added `orders.tax_amount`, which is what every code path actually writes. Two decimal tax columns on one table, one permanently zero, nothing in the schema saying which is authoritative — the same shape as wave 8's two disagreeing `payment_status` columns, and found the same way.
+
+**`tax_rates.priority` is written, cast, and sorted by — and never read.** `TaxCalculator::applyRates()` sequences simple-then-compound in collection order and ignores it entirely. A column that exists to sequence the arithmetic and does not sequence the arithmetic is worse than no column: it reads as a control that works.
+
+**`EuVat::STANDARD_RATES` is twenty-seven real-world VAT rates as a PHP `const`**, docblocked *"as of 2025"*. A Finnish rate change was a code deploy. The module ships no rates at all, and says why in its README: a rate baked into a release is a rate that goes stale between releases, and the fleet has no mechanism to hot-fix twenty-seven of them.
+
+### The fact that shaped the module
+
+**A tax figure is a claim about the past, and it must stay true.** Every other number the fleet computes can be recomputed from current state. A tax figure cannot: it was correct under the rates, registrations, exemptions and rounding rules in force at an instant, and all four change. Recomputing an old order's tax against today's data does not check the old answer — it produces a different one and tells you nothing.
+
+So rates are effective-dated and immutable, quotes are append-only evidence, and the third proof in the three-way fold is **reproducing each quote's total from its own recorded evidence with `tax_rate_versions`, `tax_registrations` and `tax_jurisdictions` emptied**. Waves 5, 7 and 8 each proved a fold three ways; this is the first time the third way proves the *evidence is sufficient* rather than that the arithmetic is consistent. A quote that survives its own rate tables being deleted is a quote that can be audited.
+
+### A seam with a default binding, for the first time
+
+Waves 7 and 8 published contracts with no implementation and no default binding, where unbound is 503. `CalculatesTax` deliberately breaks that pattern: it is bound by default to the module's own table-driven implementation, because an external tax provider is a *replacement* for working arithmetic, not a precondition for it.
+
+The interesting half is the refusal. An adapter that returns a bare total is rejected — the quote cannot be assembled from it, and accepting it would put a number into an audit ledger that its own evidence cannot rederive. The seam that has a default is also the seam that is fussiest about what it accepts, and for the same reason.
+
+`ValidatesTaxRegistration` keeps the wave-7 shape, with one refinement: unbound is 503 **on an exemption claim only**. A quote claiming no exemption succeeds with the seam unbound, because the module is not broken — it merely cannot verify a claim nobody made.
+
+### A refusal recorded rather than an approximation stored
+
+An inclusive base against a multi-rate or compound sequence raises `InclusiveSequenceUnsupported`. Backing a sequence out of a gross has no integer solution that also reproduces rate by rate, so any answer would be an approximation — and an approximation in an audit ledger fails the one claim the module makes. Refusing is the correct outcome, and the wave-9 addendum's §5 and §7 were reconciled by carrying an inclusive base and a compound sequence on separate quotes rather than by weakening either.
+
+If inclusive compounding is wanted, it needs a decision on which rate absorbs the residual. That is a `0.2.0` question.
+
+### `isReadOnly()` on a Filament resource enforces nothing
+
+Wave 8 concluded that an append-only guarantee belongs below the policy layer, because a host `Gate::before` answering yes defeats anything policy-shaped. Wave 9 tried to apply that and found the mechanism does not exist: **`isReadOnly()` is a `RelationManager` instance method, not a `Resource` method.** Declaring it on a resource is a comment.
+
+The enforcement is an override of `getAuthorizationResponse()` — the single funnel every `can*()` on a resource passes through — refusing a named ability list before the gate is consulted. The suite installs `Gate::before(fn () => true)`, asserts the gate really is answering yes, then asserts `canEdit`/`canDelete`/`canCreate` are still false. Overriding the funnel rather than fifteen individual methods also means a `can*()` added by a future Filament release routes through it.
+
+`create` stays open on rate versions and registrations, because otherwise the first version of a rate could never be entered — there is no other table it could come from.
+
+### Two lying constraints, one of which CI cannot catch
+
+`Str::ulid()` needs `symfony/uid`, which `illuminate/support` does not require — only `laravel/framework` does. `$request->validate()` is a framework-*foundation* macro, not something `illuminate/http` provides. Both pass every CI job, because the testbench drags the framework in, while being lying constraints for a real consumer.
+
+**`Compatibility` structurally cannot catch these**: the package is root in its own CI, so the constraint it is lying about is never the one under test. That is a gap in the enforcement layer, not an oversight in a package, and `$request->validate()` in particular is likely already shipped in earlier `-api` packages — named here because it is now a fleet audit rather than a wave-9 fix.
+
+### The surfaces each hit a brief contradiction
+
+**`#[Locked]` on every public property versus a typed VAT number.** The presentation standard demands the first universally; the capability demands the second; no `wire:model` satisfies both. Resolved by making the number an argument to `claimExemption()` — held client-side, validated on arrival, never stored — which is the reconciliation, not a workaround.
+
+**Idempotency needed a third fleet answer.** Checkout mints fresh (nothing was committed); Payment Operations refuses (a second authorization moves money). Tax is neither: a second quote authorizes nothing, but one flat key strands a shopper who mistypes a digit. The key is `sha256(nonce | reference | number)` with the nonce minted at mount, so the same number is byte-identical on retry and a corrected number is recoverable.
+
+**"Manages classes and exemptions" had no referent.** A tax class is a string column, not an entity; an exemption is a rate version's treatment or a claim denormalised onto a quote. Neither could have a resource, and the surface says so rather than inventing one.
+
+### Five limits printed rather than implied
+
+- The domain package declares `php: ^8.4` while the testbench requires `^8.5` and CI runs 8.5 — its own floor is a version nothing verifies. Both presentation agents flagged it independently. `0.2.0`.
+- The `-api` boundary rule greps `use` statements only, so a fully-qualified inline model reference passes it. Belongs upstream in `package-testbench`.
+- The domain's queries return Eloquent models, so `-api` can avoid *naming* them but not handling them. A real boundary needs published read DTOs.
+- `Jurisdiction` is not append-only, and `tax_registrations` and `tax_rate_versions` both cascade-delete from it. The surface refuses the delete; a domain-side guard would be better.
+- Tenancy has no seam anywhere in the fleet — the domain takes an int from the caller, `-api` reads an attribute off the actor, `-filament` uses `Filament::getTenant()`. Three packages, three answers, no contract.
+
+**Fifty-six packages now exist across fourteen modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -935,7 +1016,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards and Multi-Tender Payments are all past it** — all fifty-two packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments and Tax are all past it** — all fifty-six packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
