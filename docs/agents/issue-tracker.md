@@ -33,6 +33,48 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## Project board 10
+
+The architecture epics are tracked on [project 10](https://github.com/orgs/liberusoftware/projects/10)
+— *"Architecture roadmap: Ecommerce — domain, API, Filament, Livewire"*. An epic moves to
+**In Progress** when its wave is claimed and to **Done** when the wave is recorded and the issue
+closed. See the wave workflow in [`CLAUDE.md`](../../CLAUDE.md#the-wave-workflow).
+
+Needs the `project` token scope, which a default `gh auth login` does not grant. `gh project`
+fails with `missing required scopes [read:project]` until you run — interactively, since it is a
+device flow — `gh auth refresh -s project --hostname github.com`.
+
+The ids are stable; the numbers in the board URL are not the ids the API wants:
+
+| | |
+|---|---|
+| Project | `PVT_kwDOCXeRJc4BfHfc` |
+| `Status` field | `PVTSSF_lADOCXeRJc4BfHfczhZcsso` |
+| `Todo` | `f75ad846` |
+| `In Progress` | `47fc9ee4` |
+| `Done` | `98236657` |
+
+An epic's item id is per-issue, so look it up:
+
+```bash
+gh project item-list 10 --owner liberusoftware --format json --limit 200 \
+  --jq '.items[] | select(.content.number == <issue>) | {id, status}'
+```
+
+Then move it, and assign in the same step — the board's `Assignees` field mirrors the issue, so
+assign on the issue rather than the item:
+
+```bash
+gh issue edit <issue> --repo liberusoftware/ecommerce-laravel --add-assignee @me
+gh project item-edit --project-id PVT_kwDOCXeRJc4BfHfc --id <item-id> \
+  --field-id PVTSSF_lADOCXeRJc4BfHfczhZcsso --single-select-option-id 47fc9ee4
+```
+
+`item-edit` prints nothing on success — re-run `item-list` to confirm the status actually moved.
+
+An epic not yet on the board is added with
+`gh project item-add 10 --owner liberusoftware --url <issue-url>`.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
