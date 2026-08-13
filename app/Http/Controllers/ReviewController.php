@@ -83,12 +83,39 @@ class ReviewController extends Controller
         return response()->json(['message' => 'Review approved successfully']);
     }
 
+    /**
+     * The public listing. Unauthenticated, so every field here is a publication
+     * decision rather than a serialisation default.
+     *
+     * It used to be `->with('customer')` and `response()->json($reviews)`.
+     * `Customer` declares no `$hidden` and carries `email`, `phone_number`,
+     * `address`, `city`, `state` and `postal_code`, so that returned the full
+     * postal address of every shopper who ever left a review, to anyone who
+     * asked, keyed by an incrementing product id. Nothing consumed the customer
+     * object — the eager load served no caller at all.
+     *
+     * Projected explicitly, and the whitelist is the control: a column added to
+     * either table later cannot start appearing here by itself.
+     */
     public function show($productId)
     {
         $reviews = ProductReview::where('product_id', $productId)
             ->approved()
-            ->with('customer')
-            ->get();
+            ->with('customer:id,first_name')
+            ->get()
+            ->map(fn (ProductReview $review) => [
+                'id' => $review->id,
+                'product_id' => $review->product_id,
+                'comments' => $review->comments,
+                'is_verified_purchase' => (bool) $review->is_verified_purchase,
+                'helpful_votes' => $review->helpful_votes,
+                'unhelpful_votes' => $review->unhelpful_votes,
+                // A first name is what a review page shows. A surname, an email
+                // and an address are not, and neither is the customer id — it
+                // joins a person's reviews together across products.
+                'author' => $review->customer?->first_name,
+                'created_at' => optional($review->created_at)->toIso8601String(),
+            ]);
 
         return response()->json($reviews);
     }
