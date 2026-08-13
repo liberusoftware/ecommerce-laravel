@@ -1167,6 +1167,119 @@ One correction ran the other way, from a presentation agent back at the domain: 
 
 ---
 
+## Wave 12 — Promotions, and the three things called "a discount" — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 452 tests, 11,073 assertions. [#895](https://github.com/liberusoftware/ecommerce-laravel/issues/895) records what shipped.
+
+§1's tier diagram was exhausted after wave 5, so the pick is made on what the rule falls back to: dependency and most-existing-code. Catalog already owns categories and collections, and Pricing owns price lists, so the largest *unclaimed* host cluster was Coupon and Discount — two models, two Filament resources, a service, both checkout paths, a tenancy migration and eight test files.
+
+### The whole promotion engine was wired to a form with no fields
+
+`Discount` declares targeting, prerequisites, buy-X-get-Y, free shipping, customer eligibility, allocation method and usage limits. **No service, controller, checkout path or job reads it.** A merchant can configure all of it and no order is ever affected.
+
+It is dead at the other end too: `DiscountResource::form()` returns `->components([//])` — an empty schema, over a table whose `title` is `NOT NULL`. So the Create page renders nothing and saving would fail anyway.
+
+And three of its four relations name schema that does not exist. `orders()` is a `hasMany(Order::class)`, so Eloquent derives `orders.discount_id`; no migration in the repository adds that column. `products()` and `collections()` name `discount_products` and `discount_collections`; neither table is created anywhere. `canBeUsedBy()` calls `orders()->count()` and would raise. **`DiscountModelTest` exercises none of the four** — it tests the constants, the casts and `calculateDiscount()`, and stops.
+
+That is the wave-3 `CartItem::products()` defect exactly: a relation whose foreign key names a column nobody created, green because no test touched it. Twice now, in code written years apart, which makes it a property of the *shape* — a `hasMany` needs no schema to construct, and a test that only asserts nothing threw cannot tell the difference.
+
+### Six mechanisms reduce what a shopper pays; one reaches a total
+
+| mechanism | reaches an order total? |
+|---|---|
+| `Coupon` + `CouponService` | **yes** |
+| `Discount` | no |
+| `CustomerGroup::calculateDiscount()` / `qualifiesForFreeShipping()` | no caller |
+| `LoyaltyTier::$discount_percentage` | no caller |
+| `WholesalePriceTier::$discount_percentage` | yes, but as a *price*, and it belongs to Pricing |
+| `ProductBundle::getBundlePrice()` | no caller at all |
+
+Three of the six are merchant-editable in the admin panel today. `Discount::TYPE_FREE_SHIPPING` returns `0` under the comment `// Handled separately in shipping calculation`; nothing handles it separately.
+
+### Three different things are called "a discount"
+
+**An offer** is the merchant's standing rule. **An entitlement** is the evaluation of the offers against one basket at one moment — derived, perishable, never stored. **A redemption** is the historical fact that an offer was spent on an order — append-only, and the thing a usage limit counts.
+
+The host collapses all three. The coupon row *is* the rule and the code; the applied amount is a number in the session; and a use is a `SELECT COUNT(*)` over `orders` joined on `coupon_code`. That last one is why a cancelled order can never give a use back, why a failed payment still spends the coupon, and why `Coupon` cannot express "once per customer" at all even though `Discount` tries to.
+
+A fourth thing was separated from the offer that the host has no name for: **a code is a way of reaching an offer, not the offer itself.** One offer may be reachable by many codes or by none — an automatic discount is an offer with no code. `coupons.code` is the primary key of the concept in everything but name, which is exactly why neither case fits.
+
+### A limit is enforced by a conditional update, not by count-then-insert
+
+The host counts orders, then decides, then inserts — with a `lockForUpdate()` on the `coupons` row protecting a count of a *different* table, which works only because both writers happen to route through it.
+
+The module claims a use with `UPDATE … SET redemptions_used = redemptions_used + 1 WHERE id = ? AND (max_redemptions IS NULL OR redemptions_used < max_redemptions)`, and **zero affected rows means exhausted**. Race-free without a lock. Per-customer and per-order limits are unique indexes. This is wave 11's finding generalised: that wave established a model hook does not fire for `query()->update()`, and the same reasoning says a check-then-act in PHP was never a constraint either.
+
+The counter is a cache, so the module ships a query that recomputes it from the redemption and release tables and a test that the two agree — and the Filament panel surfaces that check on the page rather than burying it in the suite. A cached counter nobody can check is a number nobody should trust.
+
+### The blast radius of an unbound seam is the scope of the thing it controls
+
+Wave 11 stated the rule: an unbound optional seam is safe when its absence removes a **claim**, unsafe when it removes a **control**. Both of this module's seams remove a control — each narrows who qualifies, so treating an unresolvable rule as satisfied gives money away. By wave 11's rule that reads as "503 the request", and **that is wrong here**.
+
+`ScreensContent` controlled every submission, so its absence failed the request. `ResolvesCustomerEligibility` controls *the offers that name a segment* — so its absence must fail those offers and only those. Refusing the checkout of a shopper who was not using a segmented offer, on a deployment that simply has no segments, is a refusal with nothing behind it.
+
+So an offer naming a group, segment or collection is **skipped** with `eligibility_unresolvable`, every other offer evaluates normally, and the skip is **visible to the merchant as distinct from non-qualification** — because a merchant whose VIP offer has silently applied to nobody for a week must be able to find out why without reading logs.
+
+The two seams turned out to be the same rule for different reasons, which the addendum had not anticipated: customer eligibility unbound means *we cannot tell whether this shopper qualifies*, a question about the person; product grouping unbound means *we cannot tell which lines this offer targets*, whose honest answer is "no qualifying lines". Two code paths, deliberately one merchant-visible outcome.
+
+### The allocation is the contract, and it must sum exactly
+
+An entitlement publishes a **per-line minor amount** plus a separate shipping reduction, never a single number. Tax reads it — wave 3 established the engine spreads a discount pro-rata and that untaxable lines count in the denominator, a correction made *for* a caller that only had one number — and Refunds reads it, because refunding one line of a discounted order needs to know how much of the discount that line carried.
+
+Distributing a reduction across lines leaves a remainder in minor units, so **the remainder rule is published, not implementation detail**: largest-remainder, ties by ascending line index, proved by a property test over many baskets. A caller that re-derives it differently produces a line total that disagrees with the order total by a penny, forever.
+
+### A per-customer limit and a release cannot both be a monotonic sequence
+
+The addendum asked for two things that pull against each other: enforce per-customer limits by unique index, and let a release give a use back. A monotonic sequence in a unique index does the first and blocks the shopper forever on the second.
+
+Resolved by making `customer_sequence` a **constraint slot rather than a fact**: releasing nulls it, NULLs collide freely in a unique index, so the slot returns while the redemption, its lines and its release all survive. It is the one column on an append-only table that is mutated in place, and it is documented as a slot so nobody later reads it as "which use this was".
+
+### The API package refused to ship an endpoint rather than ship it unscoped
+
+Four of the domain's published entry points take a bare id with no tenant argument — `ListOfferHistory::revisions()` and `::statusDecisions()`, `RecomputeOfferStatus`, `RecomputeRedemptionsUsed` — and the domain publishes no tenant-scoped offer-by-id read at all.
+
+The `-api` package closed the release case by carrying the order reference in the route and verifying membership through the tenant-scoped `ListRedemptionsForOrder` first, tested both ways round. It could not close the history reads without importing a model, which its own boundary forbids, so **it deferred those endpoints rather than shipping them unscoped**. An unshipped endpoint is recoverable; a leaky one is not. The domain fix is the first item of Promotions `0.2.0`.
+
+The Filament panel reaches the same queries through a tenant-scoped resource, so the panel is not exposed — which is the distinction worth keeping: the hole is in what the domain *publishes*, not in what is currently reachable.
+
+### A Livewire return value is a surface
+
+Nothing public on the Livewire component returns an `Entitlement`. Livewire ships an action's return value back to the browser, so a public method handing one back would let a crafted request read `skipped` and `refusedCodes` — the merchant-only half — **without ever rendering the view**, past every rendering test. Memoised on a private property, with a source-level guard test over `src/` and the view.
+
+### Where the addendum was wrong
+
+- **§2.8 overstated the fault.** `getActiveCoupons()` handles a null `max_uses` correctly; its disagreement with `isValid()` is only about the date bounds. One predicate, two implementations, agreeing on one of its two null cases and not the other — a better argument for the predicate existing once than the version originally written.
+- **§2.7 was stale on one clause.** `Coupon::orders()` filters `orders.store_id` as well as joining on the code; the cross-merchant half was fixed in wave 1.5. Every consequence listed still holds.
+- **§6 was framed around one seam** and needed splitting into two, above.
+- **§5.4 and §5.5 contradicted each other**, resolved above.
+- **The exception table implied failures the HTTP surface can barely reach.** `QuoteBasket` throws nothing — refusals and skips come back inside the `Entitlement`, and both usage limits are enforced at quote time — so a refused code is a `200` with a refusal object, not a `422`.
+
+### Three fleet-wide corrections found by building
+
+- **Trap 22's own constant was wrong, and how is the lesson.** It said only `livewire/livewire` 4.4.0 permits `illuminate/support: ^13.0`. It is **4.2.0**, checked against each tag's `composer.json`. The cause: Packagist's minified `p2` feed omits `require` keys unchanged from the entry after them, and the omitted keys inherit from the *newer* release — so read naively it shows every 4.2–4.3 release carrying 4.4.0's constraint. **The tool you reach for to check a constraint handed back a constraint that was never published.** The rule was right and its example was a fresh instance of it; wave 11's `^4.4` pin is narrower than it needed to be.
+- **`is_callable([$model, 'tokenCan'])` is always `true`.** Eloquent implements `__call`, so duck-typing Sanctum's ability check passes and then dies inside the call — in middleware, where no `callAction()` mapping can turn it into an answer. `method_exists()` is the check.
+- **`assertCountTableRecords()` cannot see a custom-data table.** `getAllTableRecordsCount()` falls through to the Eloquent query rather than the `Table::records()` source, so it passes or fails for reasons unconnected to what is on screen.
+
+### One fault was fixed in the host rather than waiting for the extraction
+
+`/cart/apply-coupon` is unauthenticated, and the route already named the threat — *"distinguishable valid/invalid responses make this brute-forceable to enumerate discount codes; cap attempts per IP"*. The mitigation chosen was a per-IP throttle, and the three responses stayed distinguishable: one for a code that does not exist, one for a code that exists, and one that **printed the coupon's configured minimum spend** to a caller who does not hold it.
+
+A throttle limits how fast an oracle can be asked; it does not stop it being one, and the codes merchants actually issue fall well inside ten guesses a minute. Wave 7 settled this for gift cards — enumeration is closed by making every wrong answer the same answer — and the rule had not travelled ten routes. One refusal now, in [#1046](https://github.com/liberusoftware/ecommerce-laravel/pull/1046), with the trade stated rather than buried: a shopper holding a real code loses the "spend a bit more" prompt, because the server cannot tell them from a guesser.
+
+### Limits printed rather than implied
+
+- **No scheduler**, so `starts_at`/`ends_at` gate evaluation but write no status decision: an offer past its end date still reads `Active` while every quote refuses it as `ended`. `OfferStatusReason::Exhausted` is declared and never written for the same reason.
+- **Per-customer slot allocation fails closed under a genuine race** — two concurrent claims can compute the same slot, the index rejects one, and it reports `CustomerLimitReached` where a further slot was free. A spurious refusal under contention, never an over-grant.
+- **Erasure is published and surfaced nowhere.** `RedactCustomerFromRedemptions` takes a customer reference as input, which is the one value the panel refuses to make searchable or filterable, and it wants its own authority and audit trail. It belongs on a privacy surface, not among the discount tools.
+- **Revert-to-revision is refused on purpose.** Reverting *is* authoring the old terms again — new revision, new actor, new time. A button would imply the old revision came alive.
+- **Bundles and Attribution were split rather than absorbed**, since the epic's scope names both. A **kit** is a sellable thing with its own identity — the host's `ProductBundle`, which carries a `product_id` — and belongs to [#827](https://github.com/liberusoftware/ecommerce-laravel/issues/827). A **bundle promotion** creates nothing sellable and belongs here. Promotions owns the fact that an offer was redeemed on an order; it does not own "what caused this sale", which is [#821](https://github.com/liberusoftware/ecommerce-laravel/issues/821). Limits are rules a merchant wrote down and are owned here; risk scores are judgements and belong to [#857](https://github.com/liberusoftware/ecommerce-laravel/issues/857).
+- **No bulk code issuing, no pagination on the order redemption list, no 423 anywhere** — nothing in this module takes a transient in-flight claim, so every conflict is permanent and a `Retry-After` would be a lie. Second module in a row where that is true.
+- **Tenancy still has no seam.** Sixth implementation, still no contract.
+
+**Sixty-eight packages now exist across seventeen modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1193,7 +1306,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping and Reviews and Ratings are all past it** — all sixty-four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings and Promotions are all past it** — all sixty-eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
