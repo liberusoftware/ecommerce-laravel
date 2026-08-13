@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\User;
@@ -102,6 +103,43 @@ class ReviewControllerTest extends TestCase
         $ids = array_column($response->json(), 'id');
         $this->assertContains($approved->id, $ids);
         $this->assertNotContains($pending->id, $ids, 'An unmoderated review reached the public listing.');
+    }
+
+    public function test_show_publishes_no_reviewer_pii(): void
+    {
+        $product = Product::factory()->create();
+        $customer = Customer::factory()->create([
+            'first_name' => 'Sarah',
+            'last_name' => 'Tregarthen',
+            'email' => 'sarah@example.test',
+            'phone_number' => '+44 7700 900123',
+            'address' => '14 Bellwether Row',
+            'city' => 'Falmouth',
+            'postal_code' => 'TR11 3QA',
+        ]);
+        ProductReview::factory()->approved()->create([
+            'product_id' => $product->id,
+            'customer_id' => $customer->id,
+        ]);
+
+        $body = $this->getJson("/product/{$product->id}/reviews")->assertStatus(200)->content();
+
+        // The route is unauthenticated and the product id is incrementing, so
+        // anything reachable here is reachable for every reviewer in the shop.
+        foreach ([
+            'Tregarthen',
+            'sarah@example.test',
+            '7700 900123',
+            'Bellwether Row',
+            'Falmouth',
+            'TR11 3QA',
+        ] as $leak) {
+            $this->assertStringNotContainsString($leak, $body, "Public review listing published: {$leak}");
+        }
+
+        // The customer id joins one person's reviews together across products.
+        $this->assertStringNotContainsString('customer_id', $body);
+        $this->assertStringContainsString('Sarah', $body, 'A review page shows who wrote it.');
     }
 
     public function test_vote_helpful_increments_helpful_votes(): void
