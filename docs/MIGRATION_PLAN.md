@@ -1078,6 +1078,95 @@ And one that is not a test at all: **`config()`, `app()`, `auth()` and `now()` a
 
 ---
 
+## Wave 11 — Reviews and Ratings, and the three things called "a review" — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 549 tests, 2,750 assertions. [#907](https://github.com/liberusoftware/ecommerce-laravel/issues/907) records what shipped.
+
+| Package | Tests | Assertions | Coverage |
+| --- | --- | --- | --- |
+| `ecommerce-reviews-and-ratings` | 233 | 1,110 | 97.1% |
+| `ecommerce-reviews-and-ratings-api` | 139 | 597 | 99.0% |
+| `ecommerce-reviews-and-ratings-filament` | 80 | 459 | 100.0% |
+| `ecommerce-reviews-and-ratings-livewire` | 97 | 584 | 100.0% |
+
+**§1.1.2 named this module by name**, and its condition was already met: *"a duplicate-stack merge lands before its owning module is extracted — Reviews/Ratings especially"*, which is [ADR 0008](./adr/0008-reviews-and-ratings-merge.md), landed in wave 2. It is also the module with the most host code left. Both halves of the sequencing rule point here.
+
+### One fault was fixed in the host rather than waiting for the extraction
+
+The survey's first finding was that `GET /product/{product}/reviews` — unauthenticated, outside the `auth` group — eager-loaded the customer and handed the models to `response()->json()`. `Customer` declares no `$hidden` and carries `email`, `phone_number`, `address`, `city`, `state` and `postal_code`. Anyone could walk incrementing product ids and harvest the postal address of every shopper who had ever left a review.
+
+**Nothing consumed the customer object.** No Blade view, no Livewire component, no JS referenced the route at all — the storefront review page had been deleted in wave 2 as a template that never rendered. The eager load served no caller; it was there because serialising a model graph is the default and nobody chose otherwise.
+
+Fixed in [#1044](https://github.com/liberusoftware/ecommerce-laravel/pull/1044) rather than deferred to the extraction, because the module lands over months and that was live. The rule it leaves behind: **a public route's payload is a publication decision, not a serialisation default.** An explicit projection also means a column added to either table later cannot start appearing by itself — which is the difference between a fix and a control.
+
+### Three things are called "a review", and the host stored all three in one mutable row
+
+This is the wave's shaping idea and every decision falls out of it.
+
+**An expression** is one person, one product, one moment. It is a historical fact, so it is append-only: an edited review is a *new* expression superseding the old, never a changed row. **A moderation decision** is the merchant's answer to *should this be shown* — not a property of the expression but its own record, with an actor, a reason from a closed enum, and a timestamp. **An aggregate** is derived from the first filtered by the second, and is meaningless unless it states the population it summarises.
+
+The host collapses all three into `product_reviews.approved`, a boolean that `approve()` and `reject()` flip in place. So a review approved, retracted and re-approved is indistinguishable from one approved once, nobody can say who did any of it, and — the part that matters — **`Product::getAverageRating()` averages every rating regardless of moderation.** Ratings never got the moderation column that ADR 0008 exists to preserve. Post an abusive review with a one-star score and the review is held for a moderator while the star lands in the public average immediately. The control was real and the number it was protecting was not behind it.
+
+Every published aggregate in the module now carries `sum`, `count`, `scale` and the population that produced it, and there are two named queries rather than one — `DisplayedRatingAggregate` and a staff-only `RecordedRatingTotal`. A rounded float is never stored or published: `4.3` computed from `4.2999` and `4.3` computed from `4.3` are different facts, and a rounded value cannot be re-aggregated across pages without drifting.
+
+### The merge was decided on a capability that does not exist
+
+`CONFORMANCE.md` §5.3 chose `ProductReview` over `Review` partly because *"`is_verified_purchase` is a real capability the other lacks"*. The column exists, the model casts it, `isVerifiedPurchase()` reads it, the GDPR export exports it — and **nothing in the host has ever written it.** It is `false` on every row that has ever existed.
+
+The capability is real and belongs here, but it is a seam, and the interesting part is that the badge is **tri-state**: `verified`, `unverified`, `unknown`. The absence of a badge is a claim shown to a shopper — "not a verified purchase" tells a reader something — so saying it when you simply did not check is a lie of omission, which is precisely what the host ships today. `unknown` means the module could not ask: the seam is unbound, the verifier threw, or the content was syndicated from a platform whose order book this module cannot see. A surface renders a badge for `verified`, renders **nothing at all** for `unknown`, and only renders a negative for `unverified`, tested as three separate states at each surface because that distinction is exactly what a view model flattens.
+
+### An unbound seam is safe when its absence removes a claim, and unsafe when it removes a control
+
+Wave 10 established that an unbound resolver can be a valid deployment rather than a fault. Wave 11 has one of each, and the pair states the rule.
+
+`ConfirmsPurchase` unbound is a **configuration**: a merchant with no order data wired up gets `unknown` everywhere, which is honest. `ScreensContent` unbound is a **503**: a module accepting free text with no screening and no moderator notification is publishing unscreened speech on a merchant's page, and the safe direction to fail in is "not accepting reviews right now". Screening never auto-rejects — it produces a priority and a queue position. **A machine does not moderate speech here; it queues it for a person.**
+
+### The append-only rule is enforced by an index, not by a guard
+
+`reviews_expressions.live_key` is a hash of the natural key of a *live* row — tenant, product, author — nulled on supersede and on redaction, with a unique index over it. So "one live expression per author per product" is a database refusal rather than a check-then-act read, which is the host's own fault (`->exists()` then `create()`, no unique index behind it) fixed at the only layer where it can be.
+
+It also survives `query()->update()`, where model events do not fire and **every append-only guard in this fleet silently does not run**. That is worth generalising: the four waves before this one enforced append-only in model hooks, and a mass update goes straight past all of them. The index is the only backstop that does not depend on the write going through Eloquent.
+
+### There is no 423 in this module
+
+Every wave since 5 has shipped the 409/423 pair, and the pair has been right every time — a permanent conflict and a transient in-flight claim are opposite instructions to a caller. Here nothing takes a transient claim: every guarded write appends a historical fact. So every conflict is permanent, and a `Retry-After` on any of them would be a lie.
+
+Two consequences reached the surfaces without being asked for. The API mints **no replacement key** on a conflicting body under a used idempotency key — the Payment Operations shape rather than Checkout's, reasoned out rather than copied. And the Livewire package generalised it into a resubmittable/spent classification where exactly two failures are resubmittable and neither is a conflict — bad input, and screening unavailable, the case where nothing was written — with a test asserting that no shopper-facing message ever says "try again" or "shortly". A courtesy retry prompt on a permanent refusal is a lie the UI tells on the domain's behalf.
+
+### An idempotency key can be strictly weaker than the constraint already there
+
+The presentation brief said to mint a key when the step is entered and hold it on a locked property. The Livewire agent reported that none of the four shopper actions accepts one, and that this is correct rather than an omission: each already has a unique natural key whose every component is server-supplied. **A key the client holds is a key the client can change**, so layering one over a server-side natural key weakens the guarantee and adds ceremony. The test now in the brief is whether a second, different request could legitimately produce a second row — if it cannot, the database says so.
+
+### A version constraint is a claim nobody checked either
+
+`livewire/livewire: ^4.0` reads as correct and is false: only 4.4.0 permits `illuminate/support: ^13.0`, and every earlier v4 caps at `^12`. CI passes because the testbench resolves high.
+
+That is the same defect class as `$request->validate()` and the `config()`/`app()`/`auth()`/`now()` finding from wave 10 — a constraint nothing exercises — and it is the third instance. What catches it is `--prefer-lowest`, which is why `Compatibility` runs both legs and why widening a constraint means proving the low end resolves.
+
+### Where the addendum was wrong
+
+Three of eighteen host claims, each reported rather than approximated around.
+
+- **The PII fault was stale by about an hour** — the domain agent read the host after #1044 merged and found the whitelist rather than the leak. Both descriptions were true at different times. The reason for a separately-written public projection survives intact and the addendum now says why: the host's fix is a projection one editor has to keep remembering, which is the shape the fault already had.
+- **The two disagreeing averages disagree by more than stated.** `calculateAverageRating()` does not average `overall_rating`; it averages all four detail columns separately and composites the non-null ones.
+- **The duplicate-insert race is narrower than stated.** The rating written alongside a review goes through `firstOrCreate()`; only the review insert and the rating controller's own insert carry it.
+
+One correction ran the other way, from a presentation agent back at the domain: `ModerationQueue`'s `Pending` is `whereDoesntHave('decisions')`, and a screener escalation *appends a decision* attributed to `system:screening`. So a machine-escalated expression appears under `Escalated` and never under `Pending` — not a defect, but it contradicts a naive reading of "nothing is displayed by arriving, therefore everything starts in the pending queue", and it is pinned by a test rather than left to be rediscovered.
+
+### Limits printed rather than implied
+
+- **No Q&A**, though the epic names it. A question is not one person's experience of a product, so folding it in would have made `product_reference` and `author_reference` mean two things each. It is a different grain and deserves its own decision.
+- **No re-verification.** `verification` is decided at write and inherited by revisions, so binding `ConfirmsPurchase` after a backfill does not re-badge existing rows.
+- **Helpfulness counters cannot be backfilled from the host**, which records no voters at all — an unavoidable loss, written into `docs/adoption.md` rather than papered over.
+- **The moderation queue is filtered by state rather than sorted pending-first.** Ordering "no decision first" across states means ordering on a nullable subquery, and Postgres sorts NULLs last in `ASC` while MySQL and SQLite sort them first. The domain publishes the ordering it can defend — screening weight, then age.
+- **No bulk moderation, deliberately.** Every decision names an actor and a reason; deciding fifty things under one reason is how a reason stops meaning anything.
+- **No syndication outbound, no media, no cached aggregates.** Import only, text only, every figure computed from rows.
+- **Tenancy still has no seam.** Fifth implementation, still no contract.
+
+**Sixty-four packages now exist across sixteen modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1104,7 +1193,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax and Shipping are all past it** — all sixty packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping and Reviews and Ratings are all past it** — all sixty-four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
