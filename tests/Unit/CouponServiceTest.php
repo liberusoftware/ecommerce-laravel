@@ -20,12 +20,25 @@ class CouponServiceTest extends TestCase
         $this->service = new CouponService;
     }
 
+    /**
+     * The refusal a code that does not exist gets.
+     *
+     * Asserted against rather than a literal on purpose: what these tests are
+     * pinning is that every refusal is *the same* refusal, and comparing them
+     * to the unknown-code case says that directly. A literal would pass just
+     * as well if three of the four drifted apart together.
+     */
+    private function theOneRefusal(): string
+    {
+        return $this->service->validateAndApplyCoupon('NO-SUCH-CODE-'.uniqid(), 1000.0)['error'];
+    }
+
     public function test_invalid_coupon_code_returns_error(): void
     {
         $result = $this->service->validateAndApplyCoupon('NONEXISTENT', 100.0);
 
         $this->assertFalse($result['valid']);
-        $this->assertStringContainsString('Invalid', $result['error']);
+        $this->assertSame($this->theOneRefusal(), $result['error']);
         $this->assertEquals(0, $result['discount']);
     }
 
@@ -44,7 +57,7 @@ class CouponServiceTest extends TestCase
         $result = $this->service->validateAndApplyCoupon('EXPIRED10', 100.0);
 
         $this->assertFalse($result['valid']);
-        $this->assertStringContainsString('expired', $result['error']);
+        $this->assertSame($this->theOneRefusal(), $result['error']);
     }
 
     public function test_percentage_coupon_calculates_correct_discount(): void
@@ -98,7 +111,7 @@ class CouponServiceTest extends TestCase
         $result = $this->service->validateAndApplyCoupon('MINBUY', 30.0);
 
         $this->assertFalse($result['valid']);
-        $this->assertStringContainsString('Minimum', $result['error']);
+        $this->assertSame($this->theOneRefusal(), $result['error']);
     }
 
     public function test_coupon_above_minimum_purchase_succeeds(): void
@@ -176,7 +189,7 @@ class CouponServiceTest extends TestCase
         $result = $this->service->validateAndApplyCoupon('USEDUP', 100.0);
 
         $this->assertFalse($result['valid']);
-        $this->assertStringContainsString('usage limit', $result['error']);
+        $this->assertSame($this->theOneRefusal(), $result['error']);
         $this->assertEquals(0, $result['discount']);
     }
 
