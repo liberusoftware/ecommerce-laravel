@@ -74,12 +74,16 @@ class Customer extends Model
         return $this->hasMany(AnalyticsEvent::class);
     }
 
+    /**
+     * The groups this customer is currently in.
+     *
+     * The live-membership predicate lives on `CustomerGroup` — see the docblock
+     * on `constrainToLiveMemberships()` for what the ungrouped `or` here used
+     * to return, which was other people's groups.
+     */
     public function getActiveGroupsAttribute()
     {
-        return $this->groups()
-            ->wherePivot('expires_at', '>', now())
-            ->orWherePivotNull('expires_at')
-            ->get();
+        return CustomerGroup::constrainToLiveMemberships($this->groups())->get();
     }
 
     public function getTotalSpentAttribute(): float
