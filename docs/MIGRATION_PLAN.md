@@ -1646,6 +1646,95 @@ Five, all found by building.
 
 ---
 
+## Wave 16 — Loyalty, and a programme nobody can earn a point from — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 506 tests, 6,766 assertions. [#866](https://github.com/liberusoftware/ecommerce-laravel/issues/866) records what shipped.
+
+| Package | Tests | Assertions | Coverage |
+| --- | ---: | ---: | ---: |
+| `ecommerce-loyalty` | 196 | 3,521 | 97.6% |
+| `…-api` | 127 | 1,163 | 100.0% |
+| `…-filament` | 81 | 833 | 96.7% |
+| `…-livewire` | 102 | 1,249 | 100.0% |
+
+Namespace `Liberu\Ecommerce\Loyalty\`. **Eight tables**, all `loyalty_`-prefixed, every `tenant_id` NOT NULL. None of the host's six adopted.
+
+### A programme in which nobody can earn a point
+
+The host has six loyalty models, six tables, a notification and five test files. Outside those tests there is **not one call site**. No controller, no service, no observer, no listener, no route, no command. `addPoints()`, `redeemPoints()`, `expirePoints()`, `LoyaltyReward::redeem()`, `calculatePointsEarned()` and `qualifiesForTier()` have no caller anywhere in the application.
+
+`customers.loyalty_tier_id` — the column wave 13 deliberately left behind as "Loyalty's column on our table" — is written by nobody and read by nobody. `Customer` does not name it in `$fillable` and declares no relation to it. `LoyaltyPointsEarnedNotification` is never sent, and links to `/loyalty/rewards`, which is not a route.
+
+Everything else in the survey follows from nobody ever having run it: no tenancy on any of the six tables; a mutable `balance` beside the ledger that moves it; three write paths with no transaction; a check-then-act redemption; `min_points_redemption` enforced nowhere; a `qualifiesForTier()` that returns `true` for a person with no points and no spend, because both thresholds default to zero and the comparison is an `||`.
+
+### Points expire, so the balance is a replay and not a fold
+
+This is the wave's contribution to the design record, and it is a **correction to an earlier wave rather than an addition**.
+
+Gift cards established that a balance is a fold over an append-only ledger with no `balance` column, and proved the fold *order-independent*: every contribution is a sum or a flag, both commutative and associative, so folding the same entries in any order gives a bit-identical answer.
+
+**Expiry breaks that.** Points sit in lots, and which lot a redemption consumed decides which points are still there to expire next month. Two ledgers holding identical entries in different orders give different balances at a future date. So the balance is still derived — there is still no column — but it is a **replay over an ordered ledger**, not a sum over a set, and the consumption order has to be *stored* because it cannot be recovered from the entries afterwards.
+
+The brief said that much and got the proof wrong. With a deterministic ordering rule over lot *attributes*, allocation over a fixed lot set genuinely **is** order-independent: permuting rows the way gift cards' `FoldTest` does gives identical answers, and a test built that way reads as a refutation of the whole idea. The order-dependence lives in the **interleaving** — a redemption written before a lot exists cannot consume it. `ReplayTest` therefore replays *operations* rather than permuting *rows*, moving only a redemption's position between two lots with different expiry dates: the 1 March balance is **0** one way and **100** the other, and the same pair with the expiry dates removed gives the same answer both ways. The second half is what locates the boundary instead of merely asserting it.
+
+Generalised: **a derived figure is only order-independent if nothing in the domain expires.**
+
+### An expiry that cannot say which lot it consumed does not run
+
+The blast-radius rule, fifth extension. Wave 12: an unbound seam refuses the one offer it controls. Wave 13: it renders "Not available", never `0`. Wave 14: a recalculation with an unavailable input writes nothing. Wave 15: a request whose participants did not all answer is reported as partial, naming them. **Wave 16: a ledger that cannot be replayed gets no balance rendered for it — not a clamp, not a guess, and not a number taken off a total.**
+
+The host's `expirePoints()` is the counter-example, and it is honest about it: it clamps each expiring lot to the running balance under a comment naming the missing per-lot tracking. The clamp is right about the danger and wrong as an answer, because a clamped expiry cannot say *which* points went.
+
+Three distinct detections turned out to be needed, not one: a debit with no consumptions, a debit drawing on a lot not yet earned, and a lot drawn past its size. The middle one catches the interleaving fault mechanically. All three are tested, and all three surfaces render the entries and the fact rather than a bare flag — and suppress every derived figure to an em dash rather than passing zero through.
+
+### The remedy for a three-wave-old rule was itself a defect
+
+For three waves the standing instruction to surface agents has been *prove the relations, not only the queries* — because tenancy kept leaking through the one path nobody wrote a `where` on. This wave found that the obvious remedy is wrong in the other direction.
+
+`->where('tenant_id', (string) $this->tenant_id)` on a relation is correct through a loaded parent. But `withCount()` and `whereHas()` build the relation from a **fresh instance** whose `tenant_id` is `null`, so the predicate becomes `where('tenant_id', '')` and **every count silently reports zero** — the mirror image of the leak, and just as wrong. Written without the cast it is worse: `where('col', null)` compiles to `is null`, listing exactly the orphan rows the scope exists to hide.
+
+No domain suite can catch it, because every call site inside a domain package goes through a loaded parent. It needs `withCount()` or `whereHas()`, and those are what a *surface* reaches for.
+
+`module-ecommerce-customer-accounts` ships the unguarded form in four relations, including `OrderClaim::attempts()`, which joins on `order_reference` with no foreign key — so that predicate is the only thing standing between two merchants' claims on the same order number. Not currently exploitable, and that was checked rather than assumed. Tracked as [#1057](https://github.com/liberusoftware/ecommerce-laravel/issues/1057), with the guarded form this wave ships and proves in both directions.
+
+### A natural key is only as good as its scope
+
+The best-founded decision in the brief produced the wave's sharpest defect, [module-ecommerce-loyalty#1](https://github.com/liberusoftware/module-ecommerce-loyalty/issues/1).
+
+Idempotency here is a **natural** key — the cause exists before we do, so there is nothing to mint and nothing for a client to hold or change. Reviews reached the same answer for the same reason, and it is better than an idempotency token on every axis. But the key shipped as `(tenant, programme, cause_ref, kind)` with `membership_id` left out, and a cause is unique **per subject**, not per programme. Two people can be awarded under one referral campaign, one promotion, or one goodwill batch.
+
+So awarding to subject B under a cause subject A already used writes nothing and **returns A's entry** — A's reference and A's point count, from a call that looks like it succeeded. Nothing is misplaced; the damage is entirely in the return value.
+
+It was not caught because every award test used one membership. That is the same blind spot the fleet's relation proofs were written to close — *a second subject holding a deliberately identical reference* — showing up on a uniqueness constraint instead of a relation. The `-api` package refuses the case with `409` rather than publishing the wrong entry.
+
+### Contested placements, and the tenth capability the epic listed
+
+The epic named ten capabilities and four belong to other epics. Split rather than absorbed, and each rival notified:
+
+- **Referrals** ([#900](https://github.com/liberusoftware/ecommerce-laravel/issues/900)) — the *relationship* is theirs, the *reward* is ours. We never learn who referred whom.
+- **Fraud controls** ([#857](https://github.com/liberusoftware/ecommerce-laravel/issues/857), [#858](https://github.com/liberusoftware/ecommerce-laravel/issues/858)) — velocity limits on our own ledger are ours; scoring a person is not, and no risk verdict is stored here.
+- **Liabilities export** ([#903](https://github.com/liberusoftware/ecommerce-laravel/issues/903)) — the figure is ours and nobody else can compute it, since it is a fold over our ledger. The report is theirs. We publish a query, not a spreadsheet.
+- **Tiers you pay for** ([#870](https://github.com/liberusoftware/ecommerce-laravel/issues/870)) — a tier you *reach* is ours, a tier you *buy* is theirs. Different objects sharing a word.
+
+And the one that shaped the boundary: **`LoyaltyTier::$discount_percentage` is not extracted.** A tier discount is an *offer*, and Promotions has owned offers since wave 12. Loyalty publishes the standing; somebody else decides what it is worth. `IsSubjectInTier` has exactly the shape Promotions' shipped `ResolvesCustomerEligibility` asks for — `isCustomerIn(string $customerRef, string $groupRef): bool` — so a tier reference *is* a group reference.
+
+**Neither module depends on the other, and the host binds one to the other.** This is the first time in the fleet that two shipped modules meet through a contract one of them had already published, rather than through a new one invented for the occasion. The binding is a host concern precisely because R5 forbids the dependency.
+
+### Smaller things worth keeping
+
+- **`points_multiplier` is deliberately not shipped.** Legitimately ours — a rule about our own ledger, unlike the discount — but nothing in this wave exercises it, and **an unexercised earn rule is a lying constraint**. Recorded as a column and a branch.
+- **The Filament floor question is settled, and the brief had the cause wrong.** Every tag from `v5.4.0` to `v5.6.5` declares `illuminate/contracts: ^11.28|^12.0|^13.0`, so `^5.4` is the true floor — but `--prefer-lowest` resolves to 5.6.5 regardless. The "5.6.5 under prefer-lowest" the presentation brief attributed to wave 15's narrower `^5.6` is a property of the fleet's whole dependency set. Declaring `^5.4` is free; no later wave needs to pin higher.
+- **`RewardUnavailable` is one exception class over six named constructors**, five meaning *stop asking* and one (`needsADeliverer`) meaning *nothing is bound yet*. Opposite instructions in one type, separable only by decoding a message — the defect wave 4 recorded. Both surfaces resolved the sixth case earlier instead: a value-carrying reward is not offered at all while no deliverer is bound.
+- **A read path routed through a write action.** `SubjectStatement` takes a `Membership` and nothing published resolves one from `(programme, subject)`; the only non-writing route is `EnrolSubject::find()`, a static query helper on a write action. Used rather than improvised around, and queued as a published query.
+- **`SubjectStatement` hard-codes `lotExpiresOn: null`** on every allocation though the field exists and the allocator fills it elsewhere. Harmless in a panel; on a shopper's statement, "your points expiring soon" is the most useful thing there is. Both surfaces render the lot's expiry exactly once, on the earning line, and never infer one under a spend.
+- **No idempotency key on the API, and the third distinct reason for that answer.** Reviews said no because natural keys covered it; Payment Operations said yes because a fresh key authorises a second payment; Customer Accounts said no because serving a retry would mean persisting a one-time secret. Here: every write has a natural key, so a client-held key is strictly weaker than the one already there.
+- **The API's authorization splits by whose subject, not by read-versus-write.** Wave 15 refused a body-supplied subject everywhere and was right to; Loyalty cannot follow that all the way, because points are earned by something outside the module and an API that could not award them would reproduce the fault that shaped the wave. The merchant is still never accepted anywhere, and the split is enforced mechanically rather than by review.
+- **Every public property on all four Livewire components is `#[Locked]`** — the writable set is empty. The only shopper input is a reward reference passed as an argument and validated against the catalogue on arrival.
+
+**Eighty-four packages now exist across twenty-one modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1672,7 +1761,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics and Customer Accounts are all past it** — all eighty packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts and Loyalty are all past it** — all eighty-four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
