@@ -1276,7 +1276,126 @@ A throttle limits how fast an oracle can be asked; it does not stop it being one
 - **No bulk code issuing, no pagination on the order redemption list, no 423 anywhere** — nothing in this module takes a transient in-flight claim, so every conflict is permanent and a `Retry-After` would be a lie. Second module in a row where that is true.
 - **Tenancy still has no seam.** Sixth implementation, still no contract.
 
-**Sixty-eight packages now exist across seventeen modules, and none is on Packagist.**
+---
+
+## Wave 13 — Commerce Customers, and the three things called "a customer" — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 387 tests, 4,382 assertions. [#840](https://github.com/liberusoftware/ecommerce-laravel/issues/840) records what shipped.
+
+§1's tier diagram was exhausted after wave 5, so the pick is made on what the rule falls back to: dependency and most-existing-code. Customers is forced on both. It is the largest unclaimed host cluster — 57 files, 467 model LOC across four models, two GDPR services, a segmentation service and a Filament resource — and it is the module wave 11 and wave 12 each named as the neighbour that would hurt. Reviews shipped an author reference and Promotions shipped `ResolvesCustomerEligibility`, and **neither had anything to point at**. Customer Accounts ([#846](https://github.com/liberusoftware/ecommerce-laravel/issues/846)) is the self-service surface over this file plus other modules' records, so it depends on this one and waits.
+
+### Three different things are called "a customer"
+
+The host has one table named `customers` and asks it to be three things at once.
+
+| | What it is | Whose it is |
+| --- | --- | --- |
+| A **person** | the human, one per deployment, may have no login at all | identity's — we hold an opaque reference |
+| A **file** | one merchant's record *about* that person | **ours**, one per (tenant, person) |
+| An **audience** | a segment, a metric, a score — derived and perishable | mostly [#821](https://github.com/liberusoftware/ecommerce-laravel/issues/821)'s |
+
+And a fourth the host has no word for: a **group** is a *declared* membership an operator attaches, with a `joined_at` and an `expires_at`; a **segment** is a *derived* one nobody attaches, with a `last_calculated_at`. The host gave them the same word and different columns.
+
+### Two correct controls that cannot both be true of one table
+
+`customers.user_id` is **globally unique** — a person has one file. `customers` is **store-scoped** — a merchant's data is a merchant's. Each is right on its own.
+
+Together, on a second storefront, the scope hides the person's existing row, so `User::getOrCreateCustomer()`'s `firstOrCreate` attempts an insert and the unique index raises. **A shopper who has bought from merchant A cannot get a customer record at merchant B**, and `ReviewController` is the first thing that calls it. This is what collapsing the person into the file costs, and it is not a bug in either control.
+
+The extraction's answer is the aggregate identity `(tenant, person_ref)`, with `person_ref` nullable so guest files collide freely — NULLs are distinct in a unique index, which is wave 12's `customer_sequence` property reused rather than rediscovered.
+
+### An accessor that reads as a filter, three times
+
+Fixed in the host ahead of the extraction — [#1048](https://github.com/liberusoftware/ecommerce-laravel/pull/1048).
+
+`Customer::getActiveGroupsAttribute()`, `CustomerGroup::getActiveCustomersCount()` and `scopeWithActiveMembers()` each wrote the live-membership predicate as `->where('expires_at', '>', now())->orWhereNull('expires_at')` with no grouping. `AND` binds tighter than `OR`, so what reached the database was
+
+```sql
+WHERE customer_id = 12 AND expires_at > now() OR expires_at IS NULL
+```
+
+— which SQL reads as `(customer_id = 12 AND expires_at > now()) OR (expires_at IS NULL)`. The right-hand side is constrained by nothing, so **a customer's "active groups" included strangers' groups** and a group's active-member count counted every other group's members. A membership with no expiry is the ordinary case, so this was never an edge.
+
+Four tests pin it, and **two of the four pass against the old predicate**. That split is the finding: a test that sets up one customer and asks "is my group here" passes either way. `CustomerGroupModelTest` covered the discount arithmetic and the active scope and none of the three expiry paths.
+
+### One column name, four meanings, and one of them is an authorization check
+
+`ProductReview.customer_id` and `ProductRating.customer_id` mean `customers.id`. `ReturnRequest.customer_id` means `users.id` — the controller writes `$request->user()->id` and then authorizes with `abort_unless((int) $returnRequest->customer_id === (int) $request->user()->id, 404)`. And `orders.customer_id` is a foreign key to `customers` that nothing populates, which `OrderHistoryController`'s own comment records. `AnalyticsService`'s top-customers report joins on it, so the report is empty and nothing says so.
+
+An access check comparing a column whose meaning depends on which table it sits on is one rename away from being a vulnerability.
+
+### A phone number is not arithmetic
+
+`$table->integer('phone_number')`. Leading zeros gone, `+44` gone, spaces and parentheses gone, and most international numbers overflow. The Filament form declared `->numeric()->required()->maxLength(255)` over it — `maxLength` is inert on a numeric input and `required` contradicts the nullable column. The extraction stores a string as given, with the dialling context beside it, and normalises nothing. The panel uses a plain text input: a `tel` rule rejected `+44 (0)161 496 0000`, which is the same mistake one layer up.
+
+### A lifetime value is not a number
+
+`Customer::getTotalSpentAttribute()` sums `orders.total_amount` with no currency filter and no store filter, and `isVip()` compares the result to a literal `1000`. An order in EUR and an order in GBP were added together.
+
+`LifetimeValue` is a **currency-to-money map**, and there is no code path in any of the four packages that folds it into one figure. If a caller wants one number they convert, and conversion is not ours.
+
+### Nothing derived is stored, and the host shows why
+
+`CustomerMetric::recalculate()` computes its own conclusions from the row it is about to overwrite: `calculateSegment()` and `calculateRetentionScore()` both read `$this->lifetime_value` and `$this->days_since_last_purchase` **inside the argument array of the `update()` that replaces them**. A customer crossing 1000 becomes `vip` on the second recalculation, never the first.
+
+So `total_spent`, `order_count`, `lifetime_value`, `retention_score` and `customer_count` are absent from the schema entirely. The purchase-history seam supplies the first three on demand.
+
+### The blast-radius rule, applied to a decoration
+
+Wave 12's rule — *the blast radius of an unbound seam is the scope of the thing it controls* — took a second form here. `ResolvesPurchaseHistory` unbound fails the purchase-history **read only**, and it renders `Not available` rather than `0`, because **zero is a lie a merchant will act on**. A *bound* resolver reporting no purchases renders `0`, and that zero is honest. `ResolvesPersonIdentity` unbound is a decoration, and a decoration's absence decorates less — nothing refuses. Neither may be called from a write path: a profile edit that fails because Orders is down is a control with no reason behind it.
+
+### The three-way custody proof, and the seam that has no tenant
+
+Promotions published `ResolvesCustomerEligibility`; we publish `ListGroupsForPerson(tenant, person_ref)`; the host binds them. No package depends on the other and the domain suite passes with Promotions absent.
+
+The addendum called that binding "a four-line adapter" and **it cannot be four lines.** The published contract is `isCustomerIn(string $customerRef, string $groupRef): bool` — with **no tenant argument** — so the host adapter has to obtain the tenant from request context itself. One that forgets answers across every merchant on the deployment, which is this module's own worst host fault rebuilt on purpose. And the contract's `$groupRef` is documented as "an opaque group **or segment** reference": segments belong to [#821](https://github.com/liberusoftware/ecommerce-laravel/issues/821), unbuilt, so an offer configured against a segment is answered `false`. Safe — an eligibility control failing closed refuses the offer rather than giving money away — but silent, and **no module owns that half after this wave**.
+
+### Where the addendum was wrong
+
+Nine places, all found by building and none worked around.
+
+- **§7's adapter, above** — the sharpest, and the one I verified myself against the Promotions repository rather than accept.
+- **§5.7 contradicted itself.** "Consent carries `granted_at`/`withdrawn_at` **and** is append-only" cannot both hold if withdrawal edits the row that granted. Resolved as one row per decision with exactly one column set; the current state of a channel is its latest row.
+- **§5.10 did not say what erasure does to an address**, and the obvious reading contradicts §4's requirement that an order still say where it shipped. Redaction keeps the postal lines and nulls the recipient and company: a street with no name on it is a place rather than a person. **The module offers no address deletion at all**, and a host asking for one is asking for something it refuses.
+- **§5.3 did not say what happens to the losing `person_ref` after a merge.** Keeping it leaves two live references, or violates the unique index outright. It is released to null and both refs are recorded on the merge row — so the old reference resolves to **nothing**, and the merges table is the redirect.
+- **§5.5 left "two live memberships of one group" open, and it cannot be an index.** The NULL-collision property makes every never-expiring membership distinct — the same fact §5.2 relies on. It is an action-level guard.
+- **§5.9 could be read as permitting a `lifecycle_state` column** beside the ledger. The base brief settles it: state is a fold, and opening a file writes `null → Prospect` so the fold is total. That is also why the panel ships no lifecycle filter.
+- **§2.15 told the agents to carry the host's fail-closed condition whitelist forward, and it had no target.** The only host code with it was `CustomerSegment`, which §1.2 gives to #821. The instruction moves with the module.
+- **§8's `-filament` scope list omitted redaction** while the dispatch required building it. Built, guarded, and loudly labelled.
+- **§5.4's "nullable default flag per usage"** is one `is_default` boolean beside `usage`, so per-usage defaulting is an action property rather than a schema one — the same shape as the membership guard.
+
+### Two gaps in the domain package that the surfaces found
+
+Both are `0.2.0`, and both are recorded because a surface refused to paper over them.
+
+**There is no way to obtain a handle on an existing group.** `JoinCustomerGroup` and `LeaveCustomerGroup` both require a `CustomerGroup`; the only producer is `CreateCustomerGroup`; `ListGroupsForPerson` returns names. Combined with the `-api` model ban, *joining an existing group by name is not expressible through the published surface*. The API bridged it by reading the model type off the action's own parameter via reflection, labelled "delete this the moment the domain publishes a group query". **And there is no group update action at all**, so a typo in a group name is unfixable — the panel forces `canEdit()` false by name rather than reach past the boundary with a raw write.
+
+**`CreateCustomerGroup` is a plain `create()`**, so a duplicate name escapes as `Illuminate\Database\UniqueConstraintViolationException` — a raw framework exception leaving a boundary that publishes thirteen typed ones.
+
+### The domain's address actions are tenant-scoped, not person-scoped
+
+`SetDefaultAddress`, `SupersedeAddress` and `ReviseAddress` each assert the address's file belongs to the tenant, and **never that it belongs to the caller**. That is correct for a merchant surface, where an operator acts on any file in their tenant. On a shopper surface it means a browser can name another shopper's address id at the same merchant and the domain accepts it. `-livewire` re-resolves every id through that file's own address list before calling anything, with six tests — three methods against another shopper, three against another merchant.
+
+A locked `person_ref` is not an authorization story. It says which file the component is about; it says nothing about the ids the component is handed.
+
+### A test suite at 98% coverage shipped a trap the brief already had
+
+The domain package went out at `0.1.0` with 140 tests, 2,496 assertions and 97%+ coverage carrying **trap 1** — `CustomerAddress` has no `protected $attributes = ['is_default' => false]`, and its own docblock types the property `bool|null`. A green suite cannot see a column that is `null` where it should be `false`, because nothing inside the package ever assigns it to a typed parameter. The surface package does, and it pays: the `TypeError` is **swallowed by Livewire**, so the action wrote nothing, threw nothing, set no error and left the component's own failure state null. It reads as a domain problem.
+
+That generalises trap 19, which was written as a Filament concern and is not one: `app.debug` belongs on in **every** test case that renders a Livewire component.
+
+### Limits printed rather than implied
+
+- **No unfiltered file index.** Nothing in the domain enumerates a tenant's files, so `GET /files` requires a `tag` or a `person_ref`. A merchant API with no index is a surprise, and it is the domain's gap.
+- **`person_ref` is required to open a file over the API.** A guest file is nullable-ref by design and collides freely, so a retried create would silently open a second one. Guest files arise from orders, and Orders is not this API.
+- **Idempotency: no key anywhere, asked per endpoint rather than decided once.** Twelve of thirteen API writes are protected by a natural key or a state guard. The one that is not — `POST /addresses`, where two identical addresses are a legitimate second row — still gets none: a key needs a store, an expiry policy, conflict semantics and a client contract, and what it prevents is one redundant row that authorises nothing, moves no money, and is corrected by superseding it. Third module in a row with no 423 and nothing transient.
+- **The merge redirect has no owner.** Walking `commerce_customers_merges` is what a surface would need to land on the survivor, and no query publishes it. Neither surface built the table walk; presentation writing its own SQL over a domain table is the boundary this programme exists to hold.
+- **Erasure and export are cross-tenant with no actor concept**, so the whole authorization burden lands on the transport. Hence `customers:erase` as a scope of its own — a token that can edit a phone number must not be able to redact a person — and a runbook that says to issue it to a privacy desk and never to a storefront. `RedactPerson` returns file ids across every tenant; the API returns a count.
+- **Files are addressed by reference, never by `person_ref`.** A URL ends up in browser history and every access log between here and the server. `TenantMismatch` returns byte-identical to `CustomerFileNotFound`, pinned by a by-value test — a 403 would confirm the row exists.
+- **Segments, metrics and wholesale approval left behind**, per §1.1.3: segments and rollups to [#821](https://github.com/liberusoftware/ecommerce-laravel/issues/821), wholesale status to [#824](https://github.com/liberusoftware/ecommerce-laravel/issues/824) except the tax registration, which is a fact about the file. Privacy *orchestration* is [#846](https://github.com/liberusoftware/ecommerce-laravel/issues/846)'s; we publish erasure and export of our own rows and nothing else.
+- **Tenancy still has no seam.** Seventh implementation, still no contract — though this is the first module where every table, pivots included, carries `tenant_id` in its own right.
+
+**Seventy-two packages now exist across eighteen modules, and none is on Packagist.**
 
 ---
 
@@ -1306,7 +1425,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings and Promotions are all past it** — all sixty-eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions and Commerce Customers are all past it** — all seventy-two packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
