@@ -1399,6 +1399,120 @@ That generalises trap 19, which was written as a Filament concern and is not one
 
 ---
 
+## Wave 14 — Attribution and Analytics, and a system in which nothing was measured — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 506 tests, 9,054 assertions. [#821](https://github.com/liberusoftware/ecommerce-laravel/issues/821) records what shipped.
+
+| Package | Tests | Assertions | Coverage |
+| --- | ---: | ---: | ---: |
+| `ecommerce-attribution-and-analytics` | 182 | 6,155 | 98.7% |
+| `…-api` | 162 | 1,913 | 99.1% |
+| `…-filament` | 108 | 721 | 97.8% |
+| `…-livewire` | 54 | 265 | 100.0% |
+
+Namespace `Liberu\Ecommerce\AttributionAnalytics\`. **Thirteen tables**, all `attribution_analytics_`-prefixed, every one carrying `tenant_id` in its own right, **zero foreign keys and zero float or decimal columns anywhere in the schema**.
+
+### Nothing was measured
+
+The host's analytics module has five tables and no writer for any of them. `AnalyticsEvent`'s five static tracking methods — `trackPageView`, `trackProductView`, `trackAddToCart`, `trackPurchase`, `trackSearch` — have **no callers**: the class is referenced by itself and by a `hasMany` on `Customer` and on `Product`, so `analytics_events` can only ever be empty. `ProductPerformance::record*` is referenced by the model and one unit test. `conversion_funnels` and `conversion_events` have **no model at all** — schema with no code on either side. `ABTestingService` and `CustomerSegmentationService` are referenced only by their own tests. The one tracking call that runs in production is `ProductInteraction::track()`, from the recommendation engine, and it belongs to [#898](https://github.com/liberusoftware/ecommerce-laravel/issues/898).
+
+That is unusually free — no data to preserve, no behaviour to keep bug-compatible — and it has one consequence the build had to internalise. **The host cannot tell you what an event is for.** Every column in `analytics_events` is a guess nobody ever tested against a reader, so the column list was not ported; the schema was derived from what a funnel, a rollup, a segment and a forwarded conversion actually need to read, and anything with no reader was refused.
+
+### Three different things get called "analytics", and one of them is not ours
+
+This is the boundary, and getting it wrong is how 271 lines of Orders' and Inventory's business rules ended up filed under an analytics name.
+
+1. **A record of something that happened.** Ours.
+2. **A restatement of somebody else's current state** — "revenue last 30 days", "low stock", "top customers". **Not ours.** `AnalyticsService::getSalesTrends()` encodes what revenue means: net of refunds, `payment_status = 'paid'`. That is Orders' definition. Absorbing it forks the definition, and then two modules disagree about revenue and both are authoritative.
+3. **A derived judgement** — a segment, a retention score. Ours, but never stored as truth.
+
+So `AnalyticsService` was **not extracted**. It stays in the host and splits among Orders, Catalog and Inventory when those are extracted. A module that takes everything filed under its own name inherits every definition somebody else owns.
+
+### An index over a value the callee mints is a uniqueness constraint on nothing
+
+The host's `analytics_events` has no unique key of any kind, so a retried tracking call double-counts silently. The extraction added `unique(tenant_id, event_ref)` — and it fixes nothing, because `RecordEvent` does `'event_ref' => Reference::mint()` and neither its signature nor `EventDraft` gives a caller any way to supply one. A retried recording call still writes a second row.
+
+The `-api` package found this by testing it rather than reading it, and then made the harder call: it declined to accept an idempotency key it could not enforce. **A key the surface accepts and cannot honour is worse than no key**, and an idempotency table inside an adapter is an adapter owning a table. Recording is documented as at-least-once on the operation itself, and the real fix is named — a caller-supplied `eventRef` in the domain's `0.2.0`.
+
+### A rate is where a float gets back into a package that bans them
+
+Every wave since 8 has forbidden float money, and the boundary suite greps for the word. A conversion rate is the one place the ban is awkward: it is genuinely a ratio, and the obvious implementation is a float. `FunnelMeasurement::completionBasisPoints(): ?int` resolves it, matching the tax-rate convention.
+
+It is **nullable**, and that is the wave-13 rule arriving somewhere new: a funnel nobody entered has no completion rate, and rendering `0%` there is a number a merchant will act on. Both surfaces render "not measured", and the Filament package asserts that `0.00%` never appears.
+
+### A whitelist whose entries are SQL fragments is an escape hatch that looks like a control
+
+The host sanitised operators before they reached `whereRaw`, and the addendum said to keep that. The build found the whitelist unnecessary — no operator reaches SQL at all here, because comparison happens in PHP against an answer a seam gave us — and replaced it with a backed enum whose values are `eq`, `ne`, `lt`, `lte`, `gt`, `gte` rather than `<=`. The property the host was protecting survives; its mechanism does not. The API publishes those tokens and rejects `<=` with a 422.
+
+### Immutability and erasure are in direct tension, and the resolution is one narrow door
+
+Events are append-only, and erasure has to rewrite them. Both are load-bearing, and a module cannot have both by wishing. The `updating` hook refuses any column outside `{person_ref, search_term}`; `RedactPerson` is the single place performing a bulk update, writing exactly the columns the hook would have permitted; a boundary test forbids raw SQL outright so no second bulk-write path can appear. Recorded in `docs/domain.md` rather than left as an apparent contradiction between two rules.
+
+### The custody proof was written about queries, and relations are where it leaks
+
+Every domain query states its tenant in a `where`, which is why a `TenancyPolicy` written for this module reached `0.1.0` at 0% coverage and was deleted: "fetch by reference, then assert tenancy" has no code path.
+
+But `TrackingSession::events()` is `hasMany(AnalyticsEvent::class, 'session_ref', 'session_ref')` while the migration keys `unique(['tenant_id', 'session_ref'])` — unique **per tenant**, not globally. Two merchants can hold the same session reference and the relation joins both. `SegmentDefinition::runs()` is the same shape. Nothing in the domain's 182 tests exercises either, because the domain never reaches through a relation.
+
+**A surface is where that gets paid for**, and the Filament package is what found it: both relation managers scope the query, and each has a two-merchant test with a deliberately shared reference that fails without it. The wave-13 lesson repeated — the test that catches a tenancy leak is the one that sets up a *second* merchant and asserts absence.
+
+### Consent is prior to the write, and it is not wave 13's consent
+
+Commerce Customers owns *may we contact you*, per channel. This module owns *may we observe you* and, separately, *may we forward what we observed*. Different subject, different lawful basis, different retention — and two permissions, not one, because a shopper permitting measurement while refusing forwarding is the common case. The host stored IP address, user agent and referrer indefinitely with no consent record and no prune command, while consent was in this epic's own stated scope.
+
+Two decisions the module made that the host had no way to express. **No IP address is stored at all** — not raw, not hashed, not truncated — because nothing in the scope needs one, and removing the data removes the retention problem rather than managing it. And a consent answer is `?bool` starting `null`: "never asked" and "said no" are opposite facts, and a `bool` cannot hold the difference.
+
+### A day is a timezone, and the host's was nobody's
+
+`DATE(order_date)` buckets in the database server's timezone; `ProductPerformance::record*` buckets on the app's. A merchant in Auckland and one in Los Angeles read the same "daily revenue" as two different days and neither report says which. Every rollup row here carries the IANA timezone it was bucketed in, the half-open range `[from, to)` it covers, the definition version that produced it, and when it was computed. `getSalesTrends()` is also MySQL-only — `DATE_FORMAT`, `YEARWEEK` — and the test database is SQLite, so it cannot run under test, which is a large part of why none of the rest was noticed.
+
+### Where the addendum was wrong
+
+Six, all found by building, none worked around.
+
+- **§6 said "two contracts, both consumed" and described one.** The second was Promotions' contract answered by a query we publish, not something we consume. The real second seam is `DeliversForwardedConversion` — forced by §5.11, since delivery that must be separate and retryable and not performed by us needs something to perform it. Without it the outbox can never drain and "what we forwarded" is unwritable.
+- **§4 never said how a rate is expressed**, and the obvious implementation breaks the float ban. Basis points.
+- **§2.21's operator whitelist was unnecessary**, per above.
+- **§5.1 and §5.10 contradicted each other**, per above.
+- **§5.2's stored session span is a stored derivation**, which §5.5 forbids for everything but rollups. Shipped as decided, but self-healing: `RecordEvent` recomputes both bounds from the events inside the insert's transaction, so the events stay the authority and the columns cannot drift.
+- **§7.1's own claim that `unique(tenant_id, event_ref)` fixed the host's double-counting was half true**, per above — corrected in the brief so wave 15 does not inherit it.
+
+And one thing the addendum implied wrongly about the code: §5.11 reads as though creating a forwarding intent were a separate operator step. `RecordEvent` calls `IntendForwarding` internally; only delivery is separate.
+
+### Two gaps the surfaces found in the domain
+
+Both handled the same way wave 13's group-name gap was — by closing the ability rather than reaching past the boundary with a raw write.
+
+- **`RegisterEventName` has no update path**, so a retention window cannot be changed once declared.
+- **`RegisterDestination` always sets `is_active` true** and nothing unsets it, so a destination cannot be deactivated.
+
+### Four more host faults, found while building the replacement
+
+`analytics_events` has no unique key of any kind. `conversion_events.occurred_at` uses `useCurrent()`, so the host's only event-time column defaults to insert time — exactly the conflation between *when it happened* and *when we stored it* that this module's schema separates. `ProductPerformance`'s date-cast comment is load-bearing: a Carbon cast yields `'Y-m-d 00:00:00'`, which `updateOrCreate`'s lookup never matches, and it documents a fix for a race the `updateOrCreate(...)->increment(...)` pair still leaves open. And `customer_metrics.customer_segment` is an **`enum` column**, so adding a segment is a schema migration — a fifth reason the host's four segmentation mechanisms could never converge.
+
+### Fixed in the host ahead of the extraction — [#1050](https://github.com/liberusoftware/ecommerce-laravel/pull/1050)
+
+`CustomerSegment::calculateMembers()` built its candidate set from a bare `User::query()` — every user on the deployment — and `sync()`ed the result, so one merchant's segment filled with another merchant's shoppers. Not a corner case: `IsTenantModel` writes `team_id` on create and installs no read scope, so `segments:calculate`'s `CustomerSegment::active()->get()` returns every merchant's segments and recalculates each against every merchant's users. One run of one command crossed every tenant boundary on the deployment.
+
+Two things that fix taught. **The naive tenant predicate does not hold**: under `match_type = 'any'` the conditions are OR-ed and AND binds tighter, so `WHERE (customer is this merchant's) OR (condition)` leaves the right-hand side qualified by nothing and selects everybody again. Same shape as [#1048](https://github.com/liberusoftware/ecommerce-laravel/pull/1048), two waves running, and again a test written only against `match_type = 'all'` passes either way.
+
+And **failing closed was the wrong call**. An unstamped segment matching nobody reads as the safer option and is not: it converts a leak into a silently empty segment, and a merchant acts on an empty segment as confidently as on a wrong one. Null matches null. A control that fails closed has to fail *visibly*, and there was nowhere in that query to say so.
+
+### Limits printed rather than implied
+
+- **Recording is at-least-once**, per above, until the domain accepts a caller-supplied reference.
+- **No scheduler and no delivery worker.** How often a merchant wants an aggregate is a merchant's decision; the panel shows when a rollup was taken and over what range, and never implies one refreshes itself.
+- **`ComputeCampaignRollup` loads matching session references into PHP** — `pluck` then `whereIn` — because joins are forbidden. Correct at merchant scale, wrong at a million sessions, and the upgrade waits until somebody has the row counts.
+- **No cursor pagination** on the three listings: the domain publishes `limit`, capped at 500, and adding a cursor in the transport would mean querying tables the API must not touch.
+- **No batch recording endpoint.** `RecordEvent` and `RecordEventJob` are both per-event, so batching only in the transport would make partial failure ambiguous — worse than the round trips.
+- **No widgets in the panel**, deliberately: every tile considered would either restate a rollup without its stamp or imply a live number.
+- **A/B testing was not taken.** Per §1.1.3 it goes to [#885](https://github.com/liberusoftware/ecommerce-laravel/issues/885) — assigning a variant is a delivery decision, and this module measures experiments rather than running them, the variant being a dimension on an event. Three defects go with it: `selectRandomVariant()` assumes weights sum to 100 and sends the remainder to a fallback variant, `traffic_allocation` is declared and never read so a test set to 10% traffic runs at 100%, and `getConversionRates()` mutates one query builder across four reads so its numbers are right only for the current line order.
+- **The segment half of `ResolvesCustomerEligibility` now has an owner.** Wave 13 answered the group half and recorded the segment half as owner-less; `IsPersonInSegment` answers it. The contract still carries **no tenant**, so the host adapter resolves one from request context, and widening it is a Promotions `0.2.0`.
+
+**Seventy-six packages now exist across nineteen modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1425,7 +1539,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions and Commerce Customers are all past it** — all seventy-two packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers and Attribution and Analytics are all past it** — all seventy-six packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
