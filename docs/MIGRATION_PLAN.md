@@ -1513,6 +1513,139 @@ And **failing closed was the wrong call**. An unstamped segment matching nobody 
 
 ---
 
+## Wave 15 — Customer Accounts, and nineteen modules with four erasure verbs and no request — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 478 tests, 5,400 assertions. [#846](https://github.com/liberusoftware/ecommerce-laravel/issues/846) records what shipped.
+
+| Package | Tests | Assertions | Coverage |
+| --- | ---: | ---: | ---: |
+| `ecommerce-customer-accounts` | 148 | 2,076 | 97.6% |
+| `…-api` | 109 | 1,228 | 99.5% |
+| `…-filament` | 86 | 716 | 97.5% |
+| `…-livewire` | 135 | 1,380 | 100.0% |
+
+Namespace `Liberu\Ecommerce\CustomerAccounts\`. **Seven tables**, all `customer_accounts_`-prefixed, every `tenant_id` NOT NULL, zero foreign keys. No host table adopted.
+
+### Nineteen modules, four erasure verbs, no request
+
+This is the wave's whole justification, and it was read off the shipped repositories rather than inferred.
+
+| Module | Erasure | Signature | Scope | Export |
+| --- | --- | --- | --- | --- |
+| Commerce Customers | `RedactPerson` | `(personRef, reason, actorRef, ?occurredAt): array` | **cross-tenant** | `ExportPersonFile(personRef): array` |
+| Attribution and Analytics | `RedactPerson` | `(tenantId, personRef, ?actorRef, ?reason): RedactionRecord` | tenant | `ExportPersonRecord` |
+| Reviews and Ratings | `EraseAuthor` | `(tenantId, authorReference): ErasureReport` | tenant | `AuthorExport` — a **query**, not an action |
+| Promotions | `RedactCustomerFromRedemptions` | `(tenantId, customerRef): int` | tenant | **none** |
+| Orders, Returns, Payment Operations, Shipping, Tax, Gift Cards | **none** | — | — | **none** |
+
+Four verbs. Four return types. Three names for the same subject. **Two different scopes** — Customers erases a person everywhere because a person is a person; Attribution erases within one merchant. "Erase me" already meant two things. And six modules that hold personal data published neither half.
+
+Every one of those modules was right on its own terms. Nobody was coordinating, because **coordination is a capability and it had no owner**. That is the thing this wave adds, and its first job was not to erase anything — it was to make the request a thing that exists.
+
+### Three things get called "your account"
+
+The **login** (identity's), the **file** (Commerce Customers', settled in wave 13 as `(tenant, person_ref)`), and the **claim** — the evidence that a person is entitled to see or act on a record another module holds. The host has the first two and no word for the third.
+
+This module owns claims, which makes it the smallest-data module in the fleet and the one with the most neighbours. The discipline that follows is one sentence: **we never read another module's tables to satisfy a claim; we hold the claim and ask the owner.** The host's `GdprErasureService::erase()` is the counter-example — one method body writing ten tables across six modules that now publish their own erasure.
+
+### A request that cannot reach every participant does not complete
+
+The blast-radius rule, fourth extension. Wave 12: an unbound seam refuses the one offer it controls. Wave 13: it renders "Not available", never `0`. Wave 14: a recalculation with an unavailable input writes nothing. **Wave 15: a request whose participants did not all answer is reported as partial, with the participants named, and never as done.**
+
+"Your data has been erased" is a claim about all of it. The host returns `{"success": true}` from a function that could not have known.
+
+Two decisions carry that rule, and neither was in the brief:
+
+- **A participant that publishes only one half is a full participant that answers "unavailable"** — not one excluded from the case. That is the majority case, and excluding them is the tempting reading that makes every export look complete. So an access request with Promotions registered is *honestly partial*.
+- **This module is not a participant of its own registry.** A coordinator that appears in its own registry reports its own erasure as one more green tick, and stops erasing itself the moment somebody edits the entry out.
+
+### The tenancy exception belonged in the reach, not in the column
+
+The wave brief said a deliberately cross-tenant case could carry a null `tenant_id`. That is wrong twice: `where('tenant_id', null)` compiles to `is null`, so one careless query lists every deployment-wide case as an orphan, and it throws away the fact of *where* the case was raised.
+
+`tenant_id` is NOT NULL on all seven tables and means the merchant the case was raised at. **`scope` alone decides reach.** The `-filament` package asserts, by scanning stripped sources, that no null-tenant predicate exists anywhere in it.
+
+### Relations are where the tenancy work leaks, three waves running
+
+Wave 14 found `TrackingSession::events()` joining on a reference that is unique only per tenant. This wave found two more, and both were found by **surfaces**, because a domain whose every query states its tenant never exercises its own relations:
+
+- **`RevokeShare` has no tenant predicate at all.** `SavedListShare::query()->where('reference', $shareReference)->first()` — a share reference from one merchant revokes at another. Both the `-api` and `-livewire` packages guarded it independently, one by re-checking `owner_ref`/`tenant_id` after the fact and one by scoping through an owner-scoped lookup. The domain action is still cross-tenant.
+- **`SavedList::items()` and `shares()` restate the tenant as `->where('tenant_id', (string) $this->tenant_id)`.** Eloquent builds `withCount()` and `whereHas()` from a *fresh* instance where that key is null, so `(string) null` is `''` and the predicate matches nothing. Counts come back zero for every row. It fails closed, which is the right direction, but it fails.
+
+**The custody proofs keep getting written about queries.** That is the correction to carry into wave 16: prove the relations too, with a second merchant holding a deliberately identical reference.
+
+### A scope mismatch concluded as a success
+
+`CommissionParticipant` writes `outcome => Completed` alongside `scope_mismatch => true`, and `RequestProgress::isSatisfied()` is `participants > 0 && completed === participants` — it never consults `mismatched`. So a case where everyone answered, one of them at the wrong scope, reported satisfied.
+
+That is exactly the silent success the brief's §5.5 forbids, sitting inside the module written to forbid it. `-livewire` found it by trying to render completion honestly and closed it at the surface; the domain should conclude such a case `Partial` at `0.2.0`.
+
+### Silence is per-kind, and the domain's word for it is not
+
+`ParticipantStatus::isSilent()` is `! $bound || $handles === []`. Promotions — the case the whole participant design exists for — publishes an erasure and no export, so `isSilent()` is **false** even though it is silent for every access request ever opened. The panel shipped a separate column rather than invent a fact the domain does not publish. `isSilentFor(RequestKind)` is a `0.2.0`.
+
+### A token returned "exactly once" cannot be returned to the browser
+
+The brief said a surface returns the guest-claim token exactly once. For the shopper-facing flavour that is self-defeating: returning it to whoever filled the form in defeats the proof-of-possession entirely, because that person is precisely who the mailbox check exists to test.
+
+`-livewire` publishes a `DeliversClaimProof` contract instead, so the token goes to the host and never becomes component state — asserted against the `wire:snapshot`, not the rendered body. Unbound delivery closes claiming **before** the action runs, so it costs no rate-limit attempt and mints no orphan token.
+
+### Two refusals that had to stay indistinguishable
+
+`ClaimRefused` covers wrong reference, wrong address and wrong proof as one condition, because the module was never told which — separating them *is* the disclosure. The `-api` package pinned it with a byte-for-byte comparison across all three.
+
+It nearly shipped distinct codes for its five 404s and caught it in review: that would have put the oracle straight back, since "not your case" would have become distinguishable from "no such reference". All five share one code and one message.
+
+### The actor is the subject
+
+Neither the merchant nor the person is accepted in a path, query string or body. The merchant for the fleet's standing reason; **the subject because a `subject_ref` in a body lets any credential open an erasure for a stranger**, and this module holds no login and no directory with which to check that it should have been allowed to.
+
+That is also what makes the missing listing endpoint coherent rather than a hole: the API surface is the person's own, and a desk that reads across subjects is the panel's job.
+
+### Three grounds for having no idempotency key, and the second is new
+
+Reviews and Ratings said no because natural keys covered every write. Payment Operations said yes because a fresh key would authorize a second payment. This wave adds a third: **`POST /order-claims` and `POST /saved-lists/{list}/shares` mint a one-time secret, and replaying under a key would require persisting that secret to serve the retry** — which is exactly what the token rule forbids. A key there is a mechanism whose implementation violates the property it was added to protect.
+
+The one write with no natural key is opening a privacy request, where a dropped response leaves a duplicate case that is visible, withdrawable and cheap.
+
+### Fixed in the host ahead of the extraction — [#1052](https://github.com/liberusoftware/ecommerce-laravel/pull/1052)
+
+The export and the erasure disagreed about what "everything" is, in **both** directions, while both docblocks claimed symmetry. `customer_segment_members` was exported and never erased. The wishlist was erased and never exported. And `customer_metrics` — lifetime value, average order value, order and item counts, first and last purchase dates, a predicted next order value and date, a segment label and a retention score — was in **neither**: a complete behavioural profile, invisible to both halves of the person's rights at once, and the row a person is most likely to have meant when they asked to be erased.
+
+It survived two test files because each service was tested alone, and alone each one looks complete. `GdprSymmetryTest` sets up one person with a row in every store of personal data and checks both services against that same set — and its last case asserts the **invariant** rather than an instance, so a table added to only one service fails.
+
+Erasure now also clears `wishlist_share_token`, which the scrub had missed.
+
+### Where the addendum was wrong
+
+Five, all found by building.
+
+- **§5.12 put the tenancy exception in the column instead of the reach**, per above.
+- **§6.1 never decided what a half-publishing participant is**, and the tempting reading reintroduces the defect §5.2 exists to stop.
+- **The addendum never said whether this module is a participant of its own registry.** It is not.
+- **§5.13 contradicted §5.8** — "no token is read or written here" cannot be true of a module whose claim completes with a token. Read as being about Identity's material; the claim secret is ours, stored as a fingerprint, compared with `hash_equals`, cleared on use and on expiry, and absent from the event.
+- **§5.5's "recorded mismatch, not a silent success" is not what the code does**, per above.
+
+### A twelfth host fault, and one that only matters now
+
+`OrderHistoryController`'s own comment states that `orders.customer_id` is "a FK to the unrelated customers table, **never populated**" — while both `GdprErasureService::scrubOrders()` and `GdprExportService::orders()` do `orWhere('customer_id', $customer->id)`. Two files in the host disagree about whether that column is ever populated, and **the erasure is the one betting it is**.
+
+`WishlistController::share()` also re-mints the per-user token on every call, silently killing every previously shared link with no record of it — the concrete reason a share had to become its own aggregate with its own revocable token.
+
+### Limits printed rather than implied
+
+- **No queue layer and no console commands.** Which queue and what backoff are the host's decisions, and a command that auto-concludes at a deadline is a policy choice an operator should make. The runbook says the host schedules it; no surface implies a sweeper.
+- **No listing endpoint in the API**, per the absence of a listing query — documented in the OpenAPI description rather than improvised.
+- **No cooling-off period and no notification to the address being erased.** Both need a clock and a mail the module does not have. Withdrawal is available until conclusion, which is a different promise, and every surface is tested for not implying the stronger one.
+- **A shopper can create a share they cannot revoke** until `SavedListView` carries its share references — host fault 2.2 reproduced one layer up, in the module built to fix it.
+- **`PrivacyRequestView::toArray()` publishes `tenant_id`** — right for the panel, wrong for the API, which strips it. A surface using `toArray()` naively would leak it.
+- **Gift registries recorded as unowned.** 272 lines across four models with no controller, no route and no resource, reachable only from the two GDPR services — a feature that can be exported and erased but never created. No epic in the plan names it, and it was not absorbed to make this module look bigger.
+- **Saved lists yes, saved carts no.** A list holds product references and survives a price change; a cart holds priced lines and does not. Saved carts are Cart's.
+
+**Eighty packages now exist across twenty modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1539,7 +1672,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers and Attribution and Analytics are all past it** — all seventy-six packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics and Customer Accounts are all past it** — all eighty packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
