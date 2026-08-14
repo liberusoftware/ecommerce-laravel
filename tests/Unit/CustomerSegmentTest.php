@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use App\Models\Customer;
 use App\Models\CustomerMetric;
 use App\Models\CustomerSegment;
 use App\Models\Order;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,9 +24,23 @@ class CustomerSegmentTest extends TestCase
         ]);
     }
 
-    private function userWithLtv(float $ltv): User
+    /**
+     * A shopper, with the Customer file that is the only thing tying a user to a
+     * merchant. The helpers below all create one now, because segment membership
+     * is drawn from customer files rather than from `users` — a user who is
+     * nobody's customer has no relationship with any merchant to be segmented on.
+     */
+    private function shopper(): User
     {
         $user = User::factory()->create();
+        $user->getOrCreateCustomer();
+
+        return $user;
+    }
+
+    private function userWithLtv(float $ltv): User
+    {
+        $user = $this->shopper();
         CustomerMetric::create([
             'user_id' => $user->id,
             'lifetime_value' => $ltv,
@@ -38,11 +52,8 @@ class CustomerSegmentTest extends TestCase
 
     private function userWithOrderCount(int $count): User
     {
-        $user = User::factory()->create();
-        $customer = Customer::create([
-            'first_name' => 'A', 'last_name' => 'B', 'email' => uniqid().'@x.com',
-            'phone_number' => 5551234, 'address' => 'a', 'city' => 'c', 'state' => 's', 'postal_code' => 'z',
-        ]);
+        $user = $this->shopper();
+        $customer = $user->customer;
 
         for ($i = 0; $i < $count; $i++) {
             Order::create([
@@ -166,7 +177,7 @@ class CustomerSegmentTest extends TestCase
 
     private function userWithOrdersOn(array $datetimes): User
     {
-        $user = User::factory()->create();
+        $user = $this->shopper();
         foreach ($datetimes as $dt) {
             $order = Order::create([
                 'user_id' => $user->id,
@@ -215,6 +226,84 @@ class CustomerSegmentTest extends TestCase
 
         $this->assertContains($recent->id, $ids);
         $this->assertNotContains($old->id, $ids);
+    }
+
+    /**
+     * The two tests below pin the tenant boundary on segment recalculation.
+     *
+     * The second one is the one that matters, and it is the reason the tenant
+     * predicate cannot simply be added alongside the conditions. Under
+     * `match_type = 'any'` the conditions are OR-ed, and AND binds tighter than
+     * OR — so a top-level `WHERE (customer is this merchant's) OR (condition)`
+     * leaves the right-hand side qualified by nothing and selects every user on
+     * the deployment. The constraint has to sit outside a group the conditions
+     * are inside. A test written only against `match_type = 'all'` passes either
+     * way, which is how this shape keeps surviving test files.
+     */
+    public function test_recalculation_ignores_another_merchants_shoppers(): void
+    {
+        $ours = Team::factory()->create();
+        $theirs = Team::factory()->create();
+
+        $ourShopper = $this->shopperOf($ours, ltv: 2000);
+        $theirShopper = $this->shopperOf($theirs, ltv: 2000);
+
+        $segment = $this->makeSegment(
+            [['field' => 'lifetime_value', 'operator' => '>=', 'value' => 1000]],
+            'all'
+        );
+        $segment->forceFill(['team_id' => $ours->id])->save();
+
+        $segment->calculateMembers();
+
+        $ids = $segment->members()->pluck('users.id')->all();
+        $this->assertContains($ourShopper->id, $ids);
+        $this->assertNotContains(
+            $theirShopper->id,
+            $ids,
+            'a segment must never draw members from another merchant'
+        );
+        $this->assertEquals(1, $segment->fresh()->customer_count);
+    }
+
+    public function test_match_type_any_does_not_widen_past_the_merchant(): void
+    {
+        $ours = Team::factory()->create();
+        $theirs = Team::factory()->create();
+
+        $ourShopper = $this->shopperOf($ours, ltv: 2000);
+        $theirShopper = $this->shopperOf($theirs, ltv: 2000);
+
+        $segment = $this->makeSegment([
+            ['field' => 'lifetime_value', 'operator' => '>=', 'value' => 1000],
+            ['field' => 'lifetime_value', 'operator' => '<=', 'value' => 10],
+        ], 'any');
+        $segment->forceFill(['team_id' => $ours->id])->save();
+
+        $segment->calculateMembers();
+
+        $ids = $segment->members()->pluck('users.id')->all();
+        $this->assertContains($ourShopper->id, $ids);
+        $this->assertNotContains(
+            $theirShopper->id,
+            $ids,
+            'an OR-ed condition must not escape the tenant predicate'
+        );
+    }
+
+    private function shopperOf(Team $team, float $ltv): User
+    {
+        $user = User::factory()->create();
+        $customer = $user->getOrCreateCustomer();
+        $customer->forceFill(['team_id' => $team->id])->save();
+
+        CustomerMetric::create([
+            'user_id' => $user->id,
+            'lifetime_value' => $ltv,
+            'total_orders' => 0,
+        ]);
+
+        return $user;
     }
 
     public function test_unknown_condition_field_matches_no_one(): void
