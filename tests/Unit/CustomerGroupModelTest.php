@@ -27,6 +27,7 @@ class CustomerGroupModelTest extends TestCase
     private function makeCustomer(): Customer
     {
         $user = User::factory()->create();
+
         return Customer::create([
             'user_id' => $user->id,
             'first_name' => 'Group',
@@ -116,5 +117,68 @@ class CustomerGroupModelTest extends TestCase
 
         $this->assertContains($active->id, $results);
         $this->assertNotContains($inactive->id, $results);
+    }
+
+    /**
+     * The four tests below pin the ungrouped `or`.
+     *
+     * Two of them fail against the old predicate and two do not, and the split
+     * is the lesson: the ones that catch it are the ones that put a second
+     * customer's never-expiring membership in the database and then assert it
+     * is *absent*. A test that sets up one customer and asks only "is my group
+     * here" passes either way, which is why this survived a test file.
+     */
+    public function test_active_groups_does_not_include_another_customers_groups(): void
+    {
+        $mine = $this->makeGroup(['name' => 'Mine']);
+        $theirs = $this->makeGroup(['name' => 'Theirs']);
+
+        $me = $this->makeCustomer();
+        $them = $this->makeCustomer();
+
+        // Both memberships never expire, which is the ordinary case.
+        $mine->addCustomer($me);
+        $theirs->addCustomer($them);
+
+        $names = $me->active_groups->pluck('name');
+
+        $this->assertContains('Mine', $names);
+        $this->assertNotContains('Theirs', $names);
+    }
+
+    public function test_active_groups_excludes_an_expired_membership(): void
+    {
+        $group = $this->makeGroup(['name' => 'Lapsed']);
+        $customer = $this->makeCustomer();
+
+        $group->addCustomer($customer, now()->subDay());
+
+        $this->assertNotContains('Lapsed', $customer->active_groups->pluck('name'));
+    }
+
+    public function test_active_member_count_counts_only_this_groups_members(): void
+    {
+        $group = $this->makeGroup(['name' => 'Counted']);
+        $other = $this->makeGroup(['name' => 'Not counted']);
+
+        $group->addCustomer($this->makeCustomer());
+        $other->addCustomer($this->makeCustomer());
+        $other->addCustomer($this->makeCustomer());
+
+        $this->assertSame(1, $group->getActiveCustomersCount());
+    }
+
+    public function test_with_active_members_ignores_a_group_whose_memberships_have_all_lapsed(): void
+    {
+        $live = $this->makeGroup(['name' => 'Live']);
+        $lapsed = $this->makeGroup(['name' => 'Lapsed']);
+
+        $live->addCustomer($this->makeCustomer());
+        $lapsed->addCustomer($this->makeCustomer(), now()->subDay());
+
+        $names = CustomerGroup::withActiveMembers()->pluck('name');
+
+        $this->assertContains('Live', $names);
+        $this->assertNotContains('Lapsed', $names);
     }
 }
