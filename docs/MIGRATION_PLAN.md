@@ -1735,6 +1735,133 @@ And the one that shaped the boundary: **`LoyaltyTier::$discount_percentage` is n
 
 ---
 
+## Wave 17 — Dropshipping, and a supplier chosen by the shopper — ✅ **shipped**
+
+Four packages at `0.1.0`, green on Tests, Install and Compatibility. 462 tests, 7,658 assertions. [#853](https://github.com/liberusoftware/ecommerce-laravel/issues/853) records what shipped.
+
+| Package | Tests | Assertions | Coverage | PHPStan |
+| --- | ---: | ---: | ---: | ---: |
+| `ecommerce-dropshipping` | 174 | 3,551 | 98.7% | 5 |
+| `…-api` | 137 | 1,297 | 100.0% | 8 |
+| `…-filament` | 85 | 2,046 | 99.5% | 8 |
+| `…-livewire` | 66 | 764 | 96.0% | 10 |
+
+Namespace `Liberu\Ecommerce\Dropshipping\`. **Seven tables**, all `dropship_`-prefixed, every `tenant_id` NOT NULL. The host had none to adopt.
+
+Picked by §1's rule with the tier diagram exhausted — most-code-first among the remaining epics, at 14 files and 2,264 lines. Categories and Navigation measures larger and is not the pick its size suggests: `Category` shipped inside `module-ecommerce-catalog` in wave 3, and what remains of that epic is CMS-owned navigation.
+
+### The shopper chose the supplier
+
+The host's dropship routing was a request parameter, in both checkout paths:
+
+```php
+// CheckoutController.php:303
+'is_dropshipped' => $request->has('dropship'),
+// CheckoutController.php:359-360
+$supplierId = $request->input('supplier_id', 'dropxl');
+```
+
+A hidden form field decided that an order was drop-shipped, and a second named the supplier who would be paid to ship it. `HeadlessCheckoutService` did the same from the GraphQL input.
+
+It could not have been otherwise, and that is the finding rather than the field. **There is no supplier entity anywhere in the host** — no `suppliers` table, no model, no relation from any product. `config/dropshipping.php` holds three literal keys (`supplier1`, `supplier2`, `dropxl`) with an endpoint set and an API key each, global to the install. Nothing in the system records which products a supplier supplies, at what cost, or in how long, so there was no data a routing decision could have been made from. Asked to route, the code asked the only party present.
+
+The epic's first named capability is *supplier/source routing*. The module's first table is the one the host did not have: a supply offer, tenant-scoped, linking an opaque product reference to a supplier with a cost in minor units, a lead time and an availability stance. Routing then stops being a question and becomes a fold over rows.
+
+Twelve of the eighteen host faults follow from the same absence. Cost is never recorded anywhere, so margin on a drop-shipped line is unknowable after the fact. `supplier_tracking_number` was added to `orders` and **written by nobody** — shipment sync, the epic's fifth capability, does not exist. Acknowledgement is an HTTP 2xx at the moment of transmission, with no later confirmation and no way to learn that a supplier accepted and then rejected. No lead time is recorded, so no promise is made and none can be measured.
+
+### An idempotency key the other party mints is not a key
+
+The host's queue job says exactly the right thing and cannot do it:
+
+```php
+// DispatchDropshippingOrder.php:50-52
+// At-least-once queue: if this order was already placed with the supplier,
+// a retry must not place it again (double fulfilment / double cost).
+if ($order->supplier_order_reference) { return; }
+```
+
+`supplier_order_reference` arrives in the supplier's response. A timeout **after** the supplier accepted the order leaves the column null, the queue retries, and real goods ship twice at the merchant's cost. The guard is right about the danger, and the value it tests cannot exist at the moment the danger does.
+
+Generalised, and it is the wave's contribution to the fleet's idempotency rule: **a key minted by the party you are protecting yourself against is not a key.** The remedy is to write the row first and carry its reference outbound, so the thing that identifies the attempt exists before the attempt does. A purchase is persisted before transmission, the request carries that reference, the provider's own reference is recorded on acknowledgement — and a timeout leaves the purchase `transmitting`, where the offered action is **reconcile**, never retry. All three surfaces enforce the absence of a retry mechanically rather than by convention: there is no transmit route in the API at all, and `-filament` asserts `assertActionDoesNotExist` on both `draft` and `transmitting` plus a source grep for `TransmitPurchase`.
+
+### Two keys, answering different questions
+
+The addendum said the purchase key was `(tenant_id, supplier_id, purchase_reference)` and called it natural. It is not natural — **we mint `purchase_reference`**, so it is exactly the kind of key the paragraph above rejects.
+
+The natural key is `(tenant_id, supplier_id, order_ref)`: the order exists before this module does, which is the property wave 16 identified and this wave nearly lost by writing the rule down slightly wrong. The minted reference is separately unique and is the **transmission** key — the thing an outbound request carries so a retry is recognisable at the other end.
+
+Both are needed and they are not substitutes. The first answers *have we already decided to buy this*; the second answers *is this the same attempt*. Wave 16 established that a natural key must be scoped to the subject rather than the parent; this wave adds that a module can need two keys, and that calling both of them "the idempotency key" is how one of them ends up minted.
+
+### The person-keyed query is the one that leaks the most
+
+The `-livewire` package went looking for the shopper's own facts and found there is exactly one query keyed on something a shopper owns: `ExportDestinationRecord`, the GDPR export. It publishes `expectedCost`, `actualCost`, `supplierReference`, `providerReference` and the per-line supplier SKU.
+
+`FindPurchase` and `PurchaseStanding` both need a purchase reference no shopper-facing host can obtain. So a shopper surface must index off the **erasure and export** query and then remember what to drop — and every surface has to remember separately.
+
+This is a new shape and it generalises. A subject-access query is built to be *maximal* — the whole record, by design, because a partial answer to "what do you hold about me" is a wrong answer, which is the rule waves 14 and 15 established. A shopper-facing read is built to be *minimal*. Pointing the second at the first is the natural move when only one query is keyed on a person, and it inverts the guarantee. **A module that publishes an export query and no person-keyed read has published exactly one door, and it is the wrong one.** Tracked as [module-ecommerce-dropshipping#6](https://github.com/liberusoftware/module-ecommerce-dropshipping/issues/6).
+
+### The blast-radius rule, sixth extension: the PII rule closed the door it was protecting
+
+Wave 12: an unbound seam refuses the one offer it controls. Wave 13: renders "Not available", never `0`. Wave 14: writes nothing. Wave 15: reports partial and names the participants. Wave 16: renders no balance for a ledger that cannot be replayed. **Wave 17: a rule about what a module may hold can make its own principal action unreachable, and the surfaces are where that shows up.**
+
+`TransmitPurchase` requires a `Data\Destination` — name, address lines, postcode, country, email, phone. The module stores none of that; a purchase carries an opaque `destination_ref`. So the action asks its *caller* for the address, and every surface is forbidden to have one. The `-api` package therefore shipped **no transmission endpoint**, which is the most obviously expected endpoint in the package, and documented an in-process call for the host instead.
+
+The rule was right and the mechanism was one seam short. A `Contracts\ResolvesDestination` — host-bound, `destination_ref` → `Destination`, unbound by default like the other two — makes the no-PII boundary structural instead of a thing each caller is trusted to honour. [#5](https://github.com/liberusoftware/module-ecommerce-dropshipping/issues/5).
+
+### Three shapes for four outcomes
+
+`ReconcilePurchase` has four honest answers: no reporter bound, this provider cannot be asked, asked and nothing had happened, and resolved. `ReconcileOutcome` carries three.
+
+The missing one matters because it is the one that needs a person: *asked, and the supplier says nothing has happened* is a purchase still genuinely outstanding, and it comes back `resolved: true`, indistinguishable from *asked, and the answer confirmed what we knew*.
+
+Two surfaces found it independently and recovered it two different ways, which is the tell that it belongs in the type. `-api` leans on a purchase nothing has happened to still being `transmitting`, so `PurchaseState::needsReconciling()` separates them — and that recovery fails for a purchase in any other state. `-filament` snapshots the prior state and diffs, which is why `Render::reconcile()` takes a `PurchaseState $before` argument it should not need. The domain's own `docs/domain.md` §7 already names four things in prose. [#4](https://github.com/liberusoftware/module-ecommerce-dropshipping/issues/4).
+
+### Not shipping something is a decision, and this wave made it eleven times
+
+Dropshipping is a merchant capability with a thin shopper edge, and the `-livewire` brief asked for the judgement rather than a component count. It shipped **one** component and declined four, which is the smallest shopper surface in the fleet and the right one:
+
+- **"Sold by"** — the most-requested dropshipping feature, and a publication of the merchant's supply chain to anybody who can place an order. `PurchaseView::$supplierReference` is read on every request and never reaches a view.
+- **Anything derived from cost** — a "you saved" figure is the merchant's cost of goods. Asserted by rendering a purchase that carries every cost field and grepping the HTML for all of them.
+- **A despatch estimate on a product page** — one query away via `SupplyOffersFor`, and it leaks that the merchant holds no stock. It is also the surface that invites a "choose a faster supplier" control beside it, which is the host's fault rebuilt with better manners.
+- **A shopper subject-access page** — for the reason in the section above.
+
+`-filament` declined a sourcing preview (its inputs are order lines the host owns, and a form that took them would be a second place an order is described), erasure and export (a person spans more modules than this one; a per-module erase button is how somebody gets erased from four of six), and any dashboard widget. `-api` declined a transmission endpoint, a plan-accepting endpoint (a caller-supplied plan is a caller-supplied supplier), and any idempotency key. Three members with no reachable caller were deleted rather than shipped untested, and one unreachable `DateTimeInterface` branch with them.
+
+### GitHub Actions was never the only test runner
+
+Every wave since wave 0 has been built under a rule this repository states twice: *"Neither PHP nor Composer exists on this machine"* and *"GitHub Actions is the only test runner"*.
+
+The second half is false, and has been for all sixteen prior waves. **Docker is installed here and its containers resolve DNS perfectly well.** `docker run --rm composer:2` and `php:8.5-cli` reach Packagist, and run install, Pint, PHPStan, Pest and `pecl install pcov` for coverage. Every gate in this wave was green locally before it was pushed; CI only confirmed it.
+
+The first half is true and is the whole of the cause: PHP's libcurl is built against c-ares, which ignores the `options use-vc` that makes `curl`, `git` and `gh` work here. That is a property of the **host PHP binary**, not of the machine, and a container brings its own. The inference from *the host PHP cannot resolve* to *nothing here can run a suite* was never checked, and it survived sixteen waves because the fallback worked: a push to a runner is a slower loop but not a broken one, so nothing ever failed in a way that made anybody re-read the premise.
+
+The same shape as wave 0's Composer note, which recorded *"composer hangs here"* and was wrong about the cause and therefore about the remedy. Both were blockers stated as symptoms, and a blocker recorded by its symptom stays a blocker for as long as nobody reads the error. This one was recorded by its *consequence*, which is worse, because a consequence sounds like a conclusion.
+
+### The ratchets were not ratcheting
+
+`package-tests.yml` takes `phpstan-level` and `coverage-threshold` as inputs precisely so each package sets its own from a measured baseline. `ecommerce-loyalty` set `1` and `80`, and being the most recent package, it became the template.
+
+Measured this wave: the domain package is clean at **5**, `-api` and `-filament` at **8**, `-livewire` at **10** — the maximum. What holds loyalty at 1 is three one-line fixes: two `@return Builder<Model>` narrowings on `getEloquentQuery()` and one `Collection` covariance. Nothing about a Filament or Livewire package caps it anywhere near 1.
+
+A ratchet copied is a ratchet stopped. The value is only a ratchet if the *next* package measures itself rather than inheriting; otherwise the fleet's floor is set forever by whichever package happened to be written first. Both briefs now say so, and the four packages here carry their own measured figures.
+
+### Smaller things worth keeping
+
+- **A missing type is where a validated value goes to fail late.** `RegisterSupplier` validates neither the currency code nor the timezone: `currency: 'gbp'` is stored as-is and throws `InvalidArgumentException` at **routing** time, inside `SourcingPlanFor::purchases()`, to an operator doing something else entirely. `Money` and `PublishSupplyOffer` both validate carefully; the record that feeds them does not. The panel currently upper-cases on arrival and offers a `DateTimeZone::listIdentifiers()` select, which puts the guarantee in the one place the next surface will not inherit it. [#2](https://github.com/liberusoftware/module-ecommerce-dropshipping/issues/2).
+- **An action that returns half its answer.** `RoutePurchases::__invoke()` returns `list<Purchase>` and discards the `UnsourcedLine`s beside them, so a caller using the published action rather than the two-step `SourcingPlanFor` + `fromPlan()` silently ships part of an order. [#1](https://github.com/liberusoftware/module-ecommerce-dropshipping/issues/1).
+- **Two identifier namespaces searched as one.** `FindSupplier` matches its single argument against `reference` **or** `code` with no ordering, and nothing constrains the two columns against each other, so one supplier's `code` equal to another's `reference` returns an arbitrary row — within a tenant, where the scope cannot help. [#3](https://github.com/liberusoftware/module-ecommerce-dropshipping/issues/3).
+- **A supplier's error code can carry the supplier's name.** `ProblemReport::$code` is validated as a short token, which forbids prose but not `acme_address_invalid`. Safe on a merchant panel, unrenderable to a shopper, and nothing in the domain said which. `-livewire` drops the code entirely and renders one neutral sentence.
+- **`costVariance()` returns `null` for two opposite situations** — the supplier has not stated a cost (resolves itself), and the supplier invoiced in a currency the offer was never priced in (somebody must go and fix it). Refusing to invent a rate was right; saying only "no answer" loses which kind.
+- **A denylist of secrets became an allowlist of fields.** Host fault 16 was `Api/DropshippingController.php:31-38` copying `name` and `description` out of a supplier array by hand to avoid leaking the API key, so a new config field on a supplier leaks by default. `Present::supplier()` inverts it: a new column is absent by default.
+- **Deleting a status changes a statutory report.** `Order::STATUS_SUPPLIER_QUEUED` and `STATUS_SUPPLIER_FAILED` are both listed in `OssReportService::REPORTABLE_STATUSES` and in `EcSalesListService`, so dropping the two states without mapping them removes orders from an EU VAT return and an EC sales list. It is in the module's `docs/adoption.md` because nothing about the state machine says it.
+- **Nine of the addendum's eighteen `file:line` citations were wrong**, by 2 to 19 lines, every one still naming the right file and the right defect. Worth stating because the addendum is written from a survey and read as though it were the code: an agent that trusts a line number instead of re-reading the file will eventually find a plausible wrong thing there.
+- **The supplier catalogue import is not extracted.** `DropxlService` upserts into `Product` and `ProductCategory` — Catalog's tables — keyed on a slug derived from the product *name*, so two supplier products named alike collapse into one row, categories are created untenanted, and price arrives as whatever the provider sent. It belongs to Catalog Import and Export ([#831](https://github.com/liberusoftware/ecommerce-laravel/issues/831)) and PIM ([#893](https://github.com/liberusoftware/ecommerce-laravel/issues/893)); its faults are handed on in `docs/adoption.md` rather than carried.
+- **`purchase_reference` is not `'order-'.$order->id`.** The host's only correlation with a supplier was a global auto-increment id, identical across two merchants on separate installs.
+
+**Eighty-eight packages now exist across twenty-two modules, and none is on Packagist.**
+
+---
+
 ## 2. The promotion procedure
 
 Full detail in [`MODULE_DEVELOPMENT.md` §6](./MODULE_DEVELOPMENT.md#6-promotion-and-release). What matters to the *plan* is three properties:
@@ -1761,7 +1888,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts and Loyalty are all past it** — all eighty-four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty and Dropshipping are all past it** — all eighty-eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
