@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Interfaces\Orderable;
+use App\Jobs\RemoveProductFromFacebookCatalog;
+use App\Jobs\SyncProductToFacebookCatalog;
 use App\Notifications\ProductBackInStockNotification;
 use App\Services\TaxCalculator;
 use App\Traits\IsStoreScoped;
@@ -49,6 +51,7 @@ class Product extends Model implements Orderable
         'suggested_price',
         'minimum_price',
         'is_featured',
+        'list_on_facebook',
 
         // Fillable so the API write paths can stamp the creating admin's team.
         // No validator accepts it from request input, so it cannot be set by a
@@ -58,6 +61,7 @@ class Product extends Model implements Orderable
 
     protected $casts = [
         'is_downloadable' => 'boolean',
+        'list_on_facebook' => 'boolean',
         'price' => 'decimal:2',
         'weight' => 'decimal:2',
         'suggested_price' => 'decimal:2',
@@ -231,6 +235,35 @@ class Product extends Model implements Orderable
                 $product->notifyBackInStockSubscribers();
             }
         });
+
+        static::saved(function ($product) {
+            if ($product->list_on_facebook) {
+                SyncProductToFacebookCatalog::dispatch($product->id);
+            } elseif ($product->wasChanged('list_on_facebook')) {
+                $product->dispatchFacebookUnlist();
+            }
+        });
+
+        // `deleting`, not `deleted`: the retailer ids have to be read before a
+        // force delete cascades the listing rows away.
+        static::deleting(function ($product) {
+            $product->dispatchFacebookUnlist();
+        });
+    }
+
+    public function facebookListings(): HasMany
+    {
+        return $this->hasMany(ProductFacebookListing::class);
+    }
+
+    /** Queue removal of whatever this Product currently occupies in the Catalog. */
+    public function dispatchFacebookUnlist(): void
+    {
+        $retailerIds = $this->facebookListings()->pluck('retailer_id')->all();
+
+        if ($retailerIds !== [] && $this->team_id !== null) {
+            RemoveProductFromFacebookCatalog::dispatch($retailerIds, (int) $this->team_id);
+        }
     }
 
     /**
@@ -396,7 +429,7 @@ class Product extends Model implements Orderable
      */
     public function adjustInventory(int $delta, string $reason): bool
     {
-        return (bool) DB::transaction(function () use ($delta, $reason) {
+        $adjusted = (bool) DB::transaction(function () use ($delta, $reason) {
             if ($delta < 0) {
                 $affected = static::whereKey($this->getKey())
                     ->where('inventory_count', '>=', abs($delta))
@@ -421,5 +454,14 @@ class Product extends Model implements Orderable
 
             return true;
         });
+
+        // increment()/decrement() bypass `saved`, so the Catalog push that a
+        // plain save() would have queued has to be queued here. Selling out is
+        // an availability flip, never an unlist.
+        if ($adjusted && $this->list_on_facebook) {
+            SyncProductToFacebookCatalog::dispatch($this->id);
+        }
+
+        return $adjusted;
     }
 }
