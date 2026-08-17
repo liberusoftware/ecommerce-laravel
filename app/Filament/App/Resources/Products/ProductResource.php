@@ -5,10 +5,12 @@ namespace App\Filament\App\Resources\Products;
 use App\Filament\App\Resources\Products\Pages\CreateProduct;
 use App\Filament\App\Resources\Products\Pages\EditProduct;
 use App\Filament\App\Resources\Products\Pages\ListProducts;
+use App\Models\FacebookConnection;
 use App\Models\Product;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
@@ -84,6 +86,11 @@ class ProductResource extends Resource
                     ->directory('products')
                     ->visibility('public')
                     ->label('Featured Image'),
+
+                Toggle::make('list_on_facebook')
+                    ->label('List on Facebook')
+                    ->helperText('Pushes this product into your Meta Catalog. Needs a Facebook Catalog connection.')
+                    ->visible(fn () => FacebookConnection::forTeam(Filament::getTenant()?->id) !== null),
 
                 Repeater::make('images')
                     ->relationship('images')

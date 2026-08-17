@@ -1388,6 +1388,50 @@ class PermissionsTableSeeder extends Seeder
                 'created_at' => '2024-09-04 14:20:26',
                 'updated_at' => '2024-09-04 14:20:26',
             ],
+            // FacebookConnection has no soft deletes, so no restore/force-delete
+            // pair, and it is never reordered or replicated.
+            195 => [
+                'id' => 196,
+                'name' => 'view_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            196 => [
+                'id' => 197,
+                'name' => 'view_any_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            197 => [
+                'id' => 198,
+                'name' => 'create_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            198 => [
+                'id' => 199,
+                'name' => 'update_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            199 => [
+                'id' => 200,
+                'name' => 'delete_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            200 => [
+                'id' => 201,
+                'name' => 'delete_any_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
         ]);
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
