@@ -57,6 +57,13 @@ class StoreBackfillTest extends TestCase
         // rest of this wave followed.
         'ab_tests', 'cart_recovery_campaigns', 'customer_groups', 'customer_segments',
         'inventory_locations', 'recommendation_rules', 'seo_settings', 'taxonomy_categories',
+
+        // A Meta Business belongs to the merchant, not to one of their
+        // shopfronts, and #808 asked for a connection per team. Nothing on a
+        // storefront reads it — the catalogue push is a queued job — so a store
+        // scope here would control a path nobody walks. It gets a store grain
+        // if a merchant ever needs two Catalogs.
+        'facebook_connections',
     ];
 
     public function test_every_team_scoped_table_has_a_store_id(): void
