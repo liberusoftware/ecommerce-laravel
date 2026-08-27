@@ -2236,7 +2236,204 @@ that accounts for a hole in a series, and deleting it makes the hole unexplained
   tenancy, but defaulting the filing cabinet onto the platform-admin panel is where host fault 14
   lives.
 
-**One hundred packages now exist across twenty-five modules, and none is on Packagist.**
+**One hundred packages then existed across twenty-five modules, and none was on Packagist.**
+
+---
+
+## Wave 21 — Recommendations, and a feature nobody ever switched on — ✅ **shipped**
+
+`ecommerce-recommendations` `0.1.0` and its three presentation packages
+(`-api`, `-filament`, `-livewire`), all `0.1.0`, all green on Tests, Install and Compatibility.
+401 tests, 3,778 assertions, 100.0% coverage and PHPStan level 10 across all four, every figure
+read from the CI job logs rather than a build report.
+
+Picked by §1's rule with the tier diagram long exhausted: most-code-first among clusters no shipped
+module already owns. Two candidates measured larger and both were mirages — Categories and
+Navigation, because `module-ecommerce-catalog` had already taken `Category`, `ProductCollection`,
+`Tag`, `ProductOption` and `ProductVariant`; Saved Lists, because Customer Accounts had already
+taken `SavedList`, `SavedListItem` and `SavedListShare`. Checking a headline count against the
+shipped modules' own `src/Models` before believing it is now the third time that step has changed
+the answer.
+
+### The feature was never switched on
+
+The host has a recommender in the sense that it has the files. It has never had one in the sense
+that a shopper could see a recommendation, because every path into and out of it is disconnected,
+and each disconnection is separately verifiable.
+
+`app/Http/Controllers/Frontend/ProductController.php:120-142` is the product page. The
+`BrowsingHistory::create()` at `:122-128` is commented out. The call to the recommender at
+`:130-134` is commented out. Line `:141` returns the view with the product and nothing else — while
+`:19-22` still resolves `UserHistoryRecommender` out of the container on every product-page request
+to ask it nothing at all.
+
+`ProductInteraction::track()` (`app/Models/ProductInteraction.php:44-61`) has no caller outside the
+engine's own `trackView`, `trackAddToCart` and `trackPurchase`
+(`app/Services/ProductRecommendationEngine.php:207`, `:221`, `:234`), and those three have no caller
+anywhere in `app/`, `routes/` or `resources/views/`. So `product_interactions` is written by nothing
+and `browsing_histories` is written by nothing.
+
+`app/Console/Kernel.php:13-21` schedules two commands, `shipping:prune-quotes` and
+`facebook:reconcile-catalog`. `recommendations:generate` is not one of them and is not in
+`routes/console.php` either, so the one generator never runs.
+
+And there is no surface: no Filament resource, no policy, no API controller, no GraphQL field, no
+Blade partial anywhere mentions a recommendation.
+
+The consequence is the design constraint the module was built around. `getUserRecommendations()`
+falls back to trending when a shopper has no interactions
+(`ProductRecommendationEngine.php:56-58`); trending joins `product_interactions` (`:113-119`), which
+is always empty; so the fallback returns an empty collection, and **the caller cannot distinguish a
+new shopper from a system that has never recorded anything from a generator that has never run.**
+Three operational states, one indistinguishable output, in a feature whose entire job is to be
+quietly absent when it has nothing to say.
+
+So the module's rule is that silence must be legible. Every serve path carries why it is what it
+is — which strategy answered, how many candidates each contributed, which exclusions fired and how
+often, and when the answer is empty, which precondition failed. The `-api` package turns that into
+a wire distinction between *nothing bound*, *nothing generated*, *everything excluded* and *this
+shopper is new*; the `-filament` package turns it into a Readiness page that says "has never run"
+and "has never succeeded, the last attempt ended Failed" in different sentences; the `-livewire`
+slot renders nothing at all to the shopper while exposing all of it to the developer embedding it.
+
+### Three tables of one feature, three different answers about tenancy
+
+`RecommendationRule` uses `IsTenantModel` (`app/Models/RecommendationRule.php:12`).
+`ProductRecommendation` uses neither tenancy trait (`app/Models/ProductRecommendation.php:9-11`).
+`ProductInteraction` uses neither (`app/Models/ProductInteraction.php:9-11`). The rule table got its
+`team_id` from the sweep migration
+(`database/migrations/2026_08_09_000001_add_team_id_to_the_remaining_tenant_models.php:40`) rather
+than its own, which is how the other two came to be missed.
+
+The wave also corrected a belief this document had inherited. `IsTenantModel` is **not a read
+scope**: `app/Traits/IsTenantModel.php:38-54` is a `creating` hook that stamps `team_id`, plus a
+`team()` relation, and nothing else. So
+`RecommendationRule::firstOrCreate(['type' => 'collaborative'], …)` at
+`ProductRecommendationEngine.php:163-170` reads across every tenant from a panel, an HTTP request
+and the console alike — not only in console, which is the shape wave 20's `vat:oss-report` fault
+had. The wave-21 brief asserted the console-inertness version, reasoning by analogy from
+`IsStoreScoped`, and was corrected by the build. It is recorded here because the failure was an
+inference from a sibling trait stated with more confidence than the reading supported, and that is a
+cheaper mistake to remember than to repeat.
+
+Both co-purchase queries make it worse by leaving Eloquent entirely:
+`ProductRecommendationEngine.php:128-137` and `:173-183` are raw `order_items` self-joins with no
+store predicate, so one merchant's shoppers drive another merchant's suggestions.
+
+### A score normalised against a number somebody guessed
+
+`ProductRecommendationEngine.php:186-188`:
+
+```php
+$maxFrequency = 100; // Assume max frequency
+$score = min(1, $pair->frequency / $maxFrequency);
+```
+
+A pair bought together a hundred times and a pair bought together five thousand times both score
+`1.0`. The generator also never retracts — `:185-201` upserts every qualifying pair and removes
+nothing, so a pair that falls below the `having('frequency', '>=', 3)` threshold at `:182` keeps its
+last score forever — and it counts order *lines* rather than orders, so one order carrying a product
+twice inflates the pair quadratically.
+
+The module answers all three: a score is stored with the `evidence_count` and `subject_count` that
+produced it and normalised per strategy at serve time; a generation run is a first-class record and
+an affinity the newest successful run does not reassert is superseded with an audit row; and a
+signal carries a `group_ref` so two lines of one order are one co-occurrence.
+
+### Twenty-six faults, and a green suite that depends on the test database being lax
+
+The survey found twenty-six, every citation read from its own file. The sharpest is not in the
+application code at all.
+
+`tests/Unit/ProductRecommendationEngineTest.php:55` writes `'score' => 85.5` and `:60` asserts it
+back; `:129` and `:135` write `50.0` and `90.0` and `:141` asserts `90.0`. The column is
+`decimal(5,4)` — ceiling 9.9999
+(`database/migrations/2024_02_16_000002_create_product_recommendations_table.php:28`). The suite runs
+on sqlite `:memory:`, which does not enforce decimal precision, and the assertions compare the
+in-memory model rather than a re-read row. On MySQL those three inserts raise *"Out of range
+value"*. **A green suite, a schema violation, and no test anywhere that would notice.**
+
+Two coverage gaps beside it: `tests/Unit/UserHistoryRecommenderTest.php` is 38 lines and never calls
+`getRecommendations()`, leaving the 96-line service's only public method untested; and
+`ProductRecommendationEngineTest` exercises `getPersonalizedRecommendations` alone, so
+`getAlsoBoughtRecommendations`, `getSimilarProducts`, `getTrendingProducts`,
+`generateCollaborativeRecommendations` and all three `track*` methods have no test at all.
+
+Three other faults worth carrying forward. `product_recommendations`' unique key is
+`(product_id, recommended_product_id)` with no rule (`…:32`), which forbids the four-rule design the
+`type` column at `:15` advertises — the second rule to claim a pair silently overwrites the first.
+Both product foreign keys hard-cascade (`:25`, `:26`) while `Product` soft-deletes
+(`app/Models/Product.php:27`), so a deleted product's recommendations survive pointing at an
+invisible product, get filtered out at `ProductRecommendationEngine.php:73-77`, and shorten the
+result below the requested limit with nothing saying why. And
+`UserHistoryRecommender.php:47` sorts the merged candidate set by `rating`, an attribute only
+`getHighlyRatedProducts()` attaches (`:91`) — so the purchase and browsing branches, two of the
+three declared signals, sort as null and can never win.
+
+### Twenty findings in what shipped, of which none is fixed
+
+Filed on the module repositories, in the wave's own discipline of recording rather than repairing.
+Four are worth naming here.
+
+**The affinity unique key does not fit MySQL.** `2026_08_27_000003_create_recommendations_affinities_table.php:39`
+is `unique(['tenant_id', 'strategy', 'from_ref', 'to_ref'])` over four `varchar(255)` columns —
+4,080 bytes under `utf8mb4`, against InnoDB's 3,072-byte index key limit. The host is `utf8mb4`
+(`config/database.php:55`) and `Schema::defaultStringLength()` is never called anywhere in the tree,
+so `php artisan migrate` fails on the database the stack actually deploys against. It is invisible
+because the package suite runs on sqlite — **the same failure mode as the host test fault above,
+reproduced in the module that had just finished documenting it.**
+
+**A curated claim cannot be retracted.** `WithdrawAffinity` takes an Eloquent model
+(`src/Actions/WithdrawAffinity.php:17`) and no published query finds one from a reference, so no
+presentation package can offer withdrawal. Generation runs only supersede computed claims, and a
+manual claim has no run.
+
+**Nothing can list what the module currently claims.** `Queries/ListAffinities.php:14` returns
+Eloquent models, which the boundary rule forbids a presentation package from naming; and its
+`$anchorRef` defaults to `''`, which is a real stored value rather than a wildcard, so even inside
+the domain the default returns popularity claims only.
+
+**The placement cannot say "withheld below the k-anonymity floor".** Only the run report carries
+that; the placement answers `no_affinities_for_anchor` whether generation found nothing or withheld
+everything. It is the one distinction §2's own argument demands that the module does not yet make.
+
+### Smaller things worth keeping
+
+- **The boundary against Attribution and Analytics had to be argued rather than asserted.** Three of
+  this epic's scope items — recently viewed, popularity, context — are behavioural signals, which is
+  what wave 14 shipped. The split the ADR states: **analytics owns the observation, recommendations
+  owns the inference.** An analytics event is a consent-governed record kept for measurement; a
+  recommendation signal is a derived, purpose-limited input to a ranking. They are not the same row
+  even when they describe the same click, and collapsing them makes the recommender's retention
+  policy hostage to the analytics consent model. Boundary notices went to #885, #871 and #872 as
+  comments, never reopens, per §1.1's third constraint.
+- **Erasure is deliberately asymmetric, and the asymmetry is the ADR's riskiest claim.** Erasing a
+  person deletes their signals and their placements and leaves the affinities their behaviour
+  contributed to standing, because an affinity is a statement about a pair of products rather than
+  about a person. What makes that defensible is the k-anonymity floor on generation, configurable
+  and defaulting to five distinct subjects — and the build's own objection, recorded rather than
+  resolved, is that on a small store a floor of five suppresses nearly every collaborative and
+  popularity claim, so the module ships silent in exactly the shops that need it most.
+- **`IsStoreScoped` could not come along.** Both host traits read ambient context through
+  `App\Services\StoreContext`, which the boundary suite forbids a module to import. The module
+  carries the substance instead: `tenant_id` NOT NULL with no default on all six tables, leading
+  every index and every unique key, an explicit tenant on every action and query, and a guarded
+  relation trait — with `docs/adoption.md` recording that a host passes its `store_id` as
+  `tenant_id`.
+- **Determinism is enforced, not hoped for.** Same store, same shopper, same catalogue state, same
+  window gives the same slot; where a strategy wants variety it takes a seed stored on the
+  placement. The `-livewire` package pins it with a boundary case: `src/` may not name
+  `inRandomOrder`, `shuffle`, `rand(`, `usort` or `sort(`. The host's `getSimilarProducts()`
+  (`ProductRecommendationEngine.php:145-155`) is the thing that rule exists to prevent — a ±30% price
+  band and `inRandomOrder()`, so the same shopper reloading the same page gets a different answer
+  with no seed and no explanation.
+- **A shopper-facing package cannot draw a product card**, and that is the boundary working rather
+  than failing. `Data\CatalogueItem` carries a reference, stock, suppression and taxonomy refs —
+  no title, no image, no URL — because decision 3 forbids joining the catalogue. The slot emits
+  `data-product-ref` and the host supplies the template. It should have been stated as a consequence
+  up front instead of discovered by the last agent to build.
+
+**One hundred and four packages now exist across twenty-six modules, and none is on Packagist.**
 
 ---
 
@@ -2266,7 +2463,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace and Invoices and Documents are all past it** — all one hundred packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents and Recommendations are all past it** — all one hundred and four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
