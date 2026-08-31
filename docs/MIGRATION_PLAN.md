@@ -2625,7 +2625,141 @@ Management is the Facebook stack that Social Commerce's `Shop`, `ShopCredential`
 already own. Checking a headline count against the shipped modules' own `src/Models` has now
 changed the answer four waves running.
 
-**One hundred and eight packages now exist across twenty-seven modules, and none is on Packagist.**
+At that point one hundred and eight packages existed across twenty-seven modules, none on Packagist.
+
+## Wave 23 — Abandoned Checkout, and a pipeline with no ends attached — ✅ **shipped**
+
+`ecommerce-abandoned-checkout` `0.1.0` and its three presentation packages (`-api`, `-filament`,
+`-livewire`), all `0.1.0`, all green on Tests, Install and Compatibility. 508 tests, 5,476
+assertions, every package at **100.0% coverage and PHPStan level 10**.
+[#819](https://github.com/liberusoftware/ecommerce-laravel/issues/819)
+
+| Package | Tests | Assertions | Coverage | PHPStan | Pint |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `ecommerce-abandoned-checkout` | 142 (+2 skipped) | 1,210 | 100.0% | 10 | 83 files |
+| `ecommerce-abandoned-checkout-api` | 136 (+1) | 1,229 | 100.0% | 10 | 29 files |
+| `ecommerce-abandoned-checkout-filament` | 110 (+2) | 1,574 | 100.0% | 10 | 32 files |
+| `ecommerce-abandoned-checkout-livewire` | 120 (+3) | 1,463 | 100.0% | 10 | 21 files |
+
+Every number read from the GitHub API and the raw job logs, and each of the four logs checked for
+the absence of a real `##[notice]` line. **Level 10 is the ceiling, not a ratchet with headroom** —
+two agents established it empirically: PHPStan 2.2.11 answers *"Level config file …
+config.level11.neon was not found"*.
+
+### Every end of the pipeline was unattached
+
+Wave 21's subject was a feature nobody switched on. This one goes further: there is no switch, and
+there are four separate places where there could have been one.
+
+1. **Nothing creates an abandonment.** The only reference from outside the feature's own three
+   models is the relation at `app/Models/Customer.php:62-65`. No job, no command, no service, no
+   controller, no listener, no scheduler entry. The two files that construct a row are both tests.
+2. **Nothing sends anything.** `email_subject`, `email_body` and `sms_body` are read by nothing;
+   `CartRecoveryAttempt::markClicked()` and `markConverted()` are called by nothing.
+3. **The link a recovery message must carry cannot be built.**
+   `app/Models/AbandonedCart.php:90-93` is the only way to produce one, and it calls
+   `route('cart.recover', …)`. **No route of that name exists** in any of the five files in
+   `routes/`. Reading `$cart->recovery_url` raises `RouteNotFoundException`.
+4. **The page that link would reach does not exist either.**
+
+Three tables, three models, eight accessors and two scopes, and no path from a shopper's basket to
+a row, from a row to a message, from a message to a link, or from a link to a page.
+
+**That made the host a specification by omission rather than something to port.** The module turns
+each of those four joints into an explicit seam: an abandonment is recorded by an explicit call, not
+inferred by a sweeper the module owns; the send goes through `Contracts\RecoveryChannel`; the URL
+through `Contracts\RecoveryLink`, because **a package cannot know a host's routes** and fault 3 is a
+package-shaped mistake made inside an application. All are unbound by default, and an unbound seam
+is a **refusal with a reason** recorded on the attempt — never a silent no-op, never an exception
+past the caller.
+
+### A guest abandonment belonged to nobody
+
+`abandoned_carts` has no `team_id` and no `store_id`, `AbandonedCart` carries no tenancy trait, and
+`customer_id` is nullable. `2026_08_09_000001_add_team_id_to_the_remaining_tenant_models.php:23-25`
+records the reasoning that left it that way — models whose owner is their parent's inherit it — but
+this row's only parent is a nullable `Customer`.
+
+Abandonment is precisely what happens before somebody makes an account, so the majority case is the
+one with no path to a tenant at all. `cart_recovery_attempts` is in the same position one level
+further out. `cart_recovery_campaigns` is the only one of the three with a tenant column, and even
+there it is nullable with no default and filled from `StoreContext::teamForWrites()`, which returns
+null off a storefront and off a panel — so a campaign can still belong to nobody; it merely has
+somewhere to say so.
+
+### Twenty-one faults, six of which this document had wrong
+
+The addendum named twenty-one, read from the files. The four agents checked every citation
+individually: **eighteen exact, two partly, none wrong**. Six of the *claims built on them* were
+wrong and were corrected in place:
+
+- it said `AbandonedCartModelTest.php` had ten tests and that `canSendRecoveryEmail()` was untested.
+  Twelve tests, and it is asserted four times. The substantive half survived and got sharper — the
+  three genuinely untested methods, `scopeCanSendEmail()`, `meetsConditions()` and
+  `getRecoveryUrlAttribute()`, are exactly the three carrying the defects;
+- it sourced the edit-migrations-in-place rule to `MIGRATION_PLAN.md`; it is `CLAUDE.md:181`;
+- it said `$fillable` was "the whole table". It omits three columns — which is the write-only-column
+  fault seen from the other side;
+- it called the corrective migration's docblock essay-length; it is three lines;
+- it said the only reference to `AbandonedCart` was `Customer.php:62-65`, ignoring two intra-feature
+  ones;
+- it called the one tenanted table "fine", which the nullable column makes generous.
+
+None of the six changed a decision. All six were caught because the agents were told to check rather
+than trust, and because the brief asks them to report a wrong citation rather than work around it.
+
+The faults that mattered stood. `CartRecoveryCampaign::meetsConditions()` reads `$cart->total` and
+`$cart->items` — neither exists on `AbandonedCart`, which has `total_amount` and a `line_items` JSON
+array — so a `cart_value` condition compares against `null` and an `item_count` condition raises a
+method call on null. Its `default => true` means a mistyped field name **passes**. The same
+send-eligibility rule is written twice, once in PHP and once in SQL. The three-message cap counts
+only email while the schema invites SMS. There are two token columns and one is always null, two
+records of the same conversion on two tables, and four write-only columns.
+
+### Eight defects in what shipped, of which none is fixed
+
+Filed on `module-ecommerce-abandoned-checkout` as #1–#8. **#1 is the wave's own lesson leaking.**
+`Data\Money` carries an exponent, and its docblock says in as many words that it is there *because
+wave 22 left it out and all three of that wave's surfaces had to invent a rendering*.
+`Data\Condition` — the other type carrying an amount — has a currency and no exponent. The fix was
+understood, written down, and applied to one of the two places that needed it. That is
+`module-ecommerce-reporting#1` reproduced inside the package written to avoid it.
+
+**#4 is the module contradicting its own reason for existing.** `ListAttempts::silence()` falls
+through to `NotYet` for an attempt still in `AttemptState::Pending` — a claim written and never
+settled — which is the one thing `Pending` means the module cannot know. *Not yet*, *never will* and
+*we have no way to know* are supposed to be three answers, and this collapses one into another.
+
+All three surfaces refused to repeat it, independently, and all three named the same one-branch fix.
+Two of them also converged without coordination on rendering an exponent-less amount as minor units
+beside its code. Surfaces compensating consistently for a domain defect is a good outcome and a bad
+sign: it means the boundary was stated more clearly to the surfaces than it was implemented in the
+domain.
+
+### Smaller things worth keeping
+
+**Relaying findings between surface agents mid-build paid for itself a second time.** The
+`-livewire` package finished first and found that six of ten published entry points return Eloquent
+models — which collides head-on with `apiAdapterAvoidsDomainModels`, the rule that would have failed
+the `-api` build. Relayed with an explicit instruction not to import the model to make the problem
+go away, that package shipped using the `Model` plus `getAttribute()` pattern from waves 17–19 and
+tested the second half of the hazard properly: because the value objects rebuild lazily, the query
+can throw *after* it has returned, so a caller wrapping the call in a try/catch is not protected.
+`UnanswerableTest` corrupts a stored row and asserts a `422` rather than a 500.
+
+**An agent caught itself inventing citations.** The Filament package had written
+`ecommerce-abandoned-checkout#1..#4` into its documentation against a repository with zero issues —
+every reference resolving to nothing, which is the failure class the addendum's own header warns
+about. It stripped them, described the gaps in prose, and said they remained unfiled. They are filed
+now, each verified in the domain source first.
+
+**Three brief gaps found and fixed at source.** `presentation-brief.md` §2 omitted
+`illuminate/database`, without which `ModelNotFoundException` — how every unreachable record arrives
+— cannot be caught; §5's `Support` listing omitted `Snapshot`, which wave 22 shipped and §5's own
+one-clock rule requires; and §4's "type against what the Actions and Queries return" does not
+survive a domain where six of ten return models.
+
+**One hundred and twelve packages now exist across twenty-eight modules, and none is on Packagist.**
 
 ---
 
@@ -2655,7 +2789,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents, Recommendations and Reporting are all past it** — all one hundred and eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents, Recommendations, Reporting and Abandoned Checkout are all past it** — all one hundred and twelve packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
