@@ -2759,7 +2759,165 @@ now, each verified in the domain source first.
 one-clock rule requires; and §4's "type against what the Actions and Queries return" does not
 survive a domain where six of ten return models.
 
-**One hundred and twelve packages now exist across twenty-eight modules, and none is on Packagist.**
+**One hundred and twelve packages existed across twenty-eight modules when this wave closed.**
+
+---
+
+## Wave 24 — Commerce Extensions, and a webhook that goes to every merchant — ✅ **shipped**
+
+`ecommerce-commerce-extensions` `0.1.0` and its three presentation packages (`-api`, `-filament`,
+`-livewire`), all `0.1.0`, all green on Tests, Install and Compatibility. 403 tests, 4,814
+assertions, every package at **100.0% coverage and PHPStan level 10**.
+[#841](https://github.com/liberusoftware/ecommerce-laravel/issues/841)
+
+| Package | Tests | Assertions | Coverage | PHPStan | Pint |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `ecommerce-commerce-extensions` | 105 (+2 skipped) | 499 | 100.0% | 10 | 91 files |
+| `ecommerce-commerce-extensions-api` | 104 (+1) | 1,299 | 100.0% | 10 | 32 files |
+| `ecommerce-commerce-extensions-filament` | 97 (+2) | 1,793 | 100.0% | 10 | 36 files |
+| `ecommerce-commerce-extensions-livewire` | 97 (+3) | 1,223 | 100.0% | 10 | 17 files |
+
+Every number re-read from the raw job logs rather than from an agent's summary, and each of the four
+logs checked for Pint's `PASS … N files` and PHPStan's `[OK] No errors` rather than for a green
+square. Zero real `##[notice]` lines in any of the four.
+
+### One endpoint, every merchant's orders
+
+The host has an outbound webhook subsystem — 857 lines across seventeen files — and it has no
+tenancy at any layer. Read in the order the data moves:
+
+`webhook_endpoints` and `webhook_deliveries` carry no `store_id` and no `team_id`, and
+`2026_08_09_000001_add_team_id_to_the_remaining_tenant_models.php`, which backfilled `team_id` onto
+eight other tables, skipped both. `WebhookEndpoint` uses no scoping trait.
+`Order::fireOutboundWebhooks()` (`app/Models/Order.php:193`) arms the fan-out on
+`WebhookEndpoint::where('is_active', true)->exists()` — any merchant's endpoint, for every
+merchant's order — and `DispatchOutboundWebhook` then loads every active endpoint on the deployment.
+`SendWebhookDelivery` reads the order **on a queue worker**, where `StoreContext::applyTo()` is
+deliberately inert, and puts `customer_email`, `total_amount` and `refund_total` into the body.
+
+So one merchant registering one endpoint receives every merchant's order events, the shopper's email
+address included. The management API leaks as badly: `WebhookEndpointController::index()` lists every
+merchant's endpoints to any user holding `admin`.
+
+**The suite cannot see it, and the reason is a configuration rather than a gap in the fixtures.**
+`phpunit.xml:28` sets `QUEUE_CONNECTION=sync`, so in tests the job runs inside a request that *does*
+have a resolved store — the one configuration in which the bug is invisible. The two-merchant
+fixtures already exist: `StoreScopeTest.php:35-36` stands up two storefronts through a helper built
+for exactly this shape of question, and seven test files create two or more teams. Nothing points
+any of them at the webhook path.
+
+### The capability is one-ninth implemented, and that is the shape of the extraction
+
+The epic names nine areas: extension manifests, install/update/uninstall, scopes, webhooks,
+functions, UI extensions, compatibility, health, rollback. `grep -rlin 'extension' app` returns
+nothing. The host implements webhooks and none of the other eight.
+
+So the module ships the webhook subsystem properly and the extension record that owns a
+subscription, and ships **none** of the remaining eight — no manifest format, no install verb, no
+scope grants, no rollback engine, no health model, no UI-extension registry. An unexercised rule is
+a lying constraint, and a module that ships its epic's bullet list rather than its capability's
+needs is how a boundary becomes fiction.
+
+The one that needed writing down rather than merely omitting is install. ADR 0011 in this repository
+deliberately replaced a `modules` table and its runtime `enable()`/`disable()` with configuration
+resolved once in `register()`, and `config/modules.php:11-20` records why: *"a module runs because
+somebody decided it should, never because nobody decided otherwise."* The epic's words
+"install/update/uninstall" invite exactly that mistake back. The module's ADR 0001 states the line:
+an extension here is **a record, not a provider** — a merchant's registration of a third party, with
+a tenant, a name, a status and its endpoints. `liberusoftware/module-manager` remains the only
+registrar, and this module never boots code.
+
+`app/Models/Module.php` is the residue of the system ADR 0011 removed: no `modules` migration exists,
+nothing in `app`, `tests` or `routes` references the class, and `Module::findByName()` would fatal on
+a missing table. It is a leftover to delete, not a thing to reimplement.
+
+### Thirty-nine host faults, and one this document had wrong
+
+The addendum named thirty, read from the files; the four agents added nine more. The citations held —
+three slips of one or two lines, none changing a conclusion — but **one claim built on them was
+wrong**, and it was the one the module's headline test had been designed around.
+
+The addendum said no test in the host suite creates two stores or two teams, and that the leak was
+therefore *unexpressible* in the fixtures as written. It is not: eleven test files create stores,
+`StoreScopeTest` stands up two storefronts through a purpose-built helper, and seven files create
+multiple teams. The fault is **undetected, not unexpressible** — and the correction cuts against the
+host rather than for it, because it shows how cheaply this could have been caught. The claim had
+reached the module's README, changelog and a test header before anyone checked it; all three were
+corrected before the tag.
+
+The nine the agents added are mostly the same absence seen from further out. `RetryFailedWebhooks`
+casts a nullable `order_id` with `(int)`, so a delivery row with no order re-dispatches for order 0
+on every cron run for the whole window. `webhook_deliveries` has no index on `created_at`, the only
+column that command filters on. `webhook_endpoints` has no uniqueness on `url`, so the same URL
+registered twice receives everything twice. `SendWebhookDelivery` declares no `$tries`, no
+`backoff()` and no `failed()`, and swallows every `Throwable` around the HTTP call — **no outbound
+webhook failure ever reaches `failed_jobs`**, which is the mechanical reason none of the rest was
+noticed. And `Order::transitionTo()` wraps nothing in a transaction: the status update, the audit
+row, the webhook and the invoice are four independent writes, from the method whose whole contract
+is that a transition writes its audit row.
+
+Two of the host's twenty-four webhook tests are vacuous.
+`tests/Feature/RetryFailedWebhooksTest.php:58` and `:71` seed failed deliveries for orders 7 and 9
+and never create either order, so the job returns before its HTTP call and `assertNothingSent()`
+passes whether or not the guards under test exist. Delete the already-succeeded check or the
+24-hour window and both tests still pass.
+
+### Retry as rows, not as a queue chain
+
+The addendum prescribed the framework's retry — `$tries`, `backoff()`, `failed()`. No shipped domain
+package has a `Jobs/` directory and the build brief's layout has no slot for one, so the domain agent
+implemented the substance instead of the mechanism: the attempt row is written **before** the request
+and settled after, one row per attempt, all attempts of one event sharing a stable chain reference,
+with the schedule held as `next_attempt_at` on the delivery and a `commerce-extensions:deliver-due`
+command over it. A host that prefers its own queue calls `AttemptDelivery` from a job and needs
+neither knob, because the row already knows. It is also strictly better against the host's actual
+defect: a restarted worker resumes from what the rows say rather than from attempt one, which is
+precisely what `RetryFailedWebhooks` gets wrong.
+
+The other correction the build made to its own brief was the rotation overlap. The addendum said the
+new secret signs and the old expires on a window — which achieves nothing, because a receiver still
+holding the old secret fails from the first request after rotation. An overlap only means anything if
+the request carries **one signature per live secret** and any of them verifying is a pass. That is
+what shipped. The requirement it exists for is not negotiable: in the host, the only way to replace a
+leaked signing secret is to delete the endpoint, and the delivery log cascades away with it.
+
+### The surfaces disagreed about the secret, and the disagreement was the design
+
+A secret that is returned exactly once and never readable again is a hard thing to put on a screen,
+and the three surfaces reached three different answers — which is the first time in twenty-four waves
+that a presentation decision was genuinely contested rather than merely repeated.
+
+`-livewire` ships **no write path at all**, and the reasoning is sound: a redirect destroys the value,
+a public property republishes a one-time credential in the page payload on every subsequent request,
+and a protected property does not survive the roundtrip. `-api` returns it in the response body of the
+call that mints it. `-filament` puts it in a **persistent** notification in the same response — not a
+toast, because the notification *is* the secret's existence outside the module — and pins the decision
+with a boundary test forbidding `->secret` in every file but the one that reads the DTO.
+
+Had the packages been built in isolation, the likely outcome was all three declining and the credential
+having no surface at all. It was avoided by relaying `-livewire`'s finding to the other two while they
+were still building, which is now the fourth wave running where a mid-build relay changed an outcome.
+
+### Fourteen defects filed against a package that is green
+
+[`module-ecommerce-commerce-extensions#1`–`#14`](https://github.com/liberusoftware/module-ecommerce-commerce-extensions/issues),
+each verified in the shipped source before filing and none fixed, per the wave discipline. The three
+that matter most:
+
+- **`Seams::transport()` raises instead of refusing** when the configured class cannot be built, and
+  `AttemptDelivery` does not catch it — no attempt row, no refusal row, the delivery untouched. It is
+  the one failure mode that produces no evidence, in a module whose stated rule is that a refusal is
+  always a row. It is also the same shape as `Seams::coerce()` in `ecommerce-abandoned-checkout`, so
+  the seam helper wants fixing once as a pattern rather than repeatedly as a bug.
+- **`RaiseEvent` is not transactional.** A conflicting raise commits part of its fan-out and then
+  reports total failure: the caller reads a conflict while a webhook is queued and will be sent, and
+  the exception names none of the surviving rows. No surface can close this, because none can know
+  which rows survived.
+- **Neither privacy verb is tenant-scoped.** Both span every merchant, so publishing either would let
+  one merchant read or redact another's rows — which is why the `-api` package ships no privacy path
+  at all. `ecommerce-loyalty` already carries the tenant-scoped shape that would fix it.
+
+**One hundred and sixteen packages now exist across twenty-nine modules, and none is on Packagist.**
 
 ---
 
@@ -2789,7 +2947,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents, Recommendations, Reporting and Abandoned Checkout are all past it** — all one hundred and twelve packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents, Recommendations, Reporting, Abandoned Checkout and Commerce Extensions are all past it** — all one hundred and sixteen packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
