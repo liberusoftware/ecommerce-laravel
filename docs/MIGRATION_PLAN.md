@@ -2433,7 +2433,199 @@ everything. It is the one distinction §2's own argument demands that the module
   `data-product-ref` and the host supplies the template. It should have been stated as a consequence
   up front instead of discovered by the last agent to build.
 
-**One hundred and four packages now exist across twenty-six modules, and none is on Packagist.**
+At that point one hundred and four packages existed across twenty-six modules, none on Packagist.
+
+## Wave 22 — Reporting, and three numbers that are all called revenue — ✅ **shipped**
+
+`ecommerce-reporting` `0.1.0` and its three presentation packages (`-api`, `-filament`,
+`-livewire`), all `0.1.0`, all green on Tests, Install and Compatibility. 455 tests, 4,950
+assertions, every package at **100.0% coverage and PHPStan level 10**.
+[#903](https://github.com/liberusoftware/ecommerce-laravel/issues/903)
+
+| Package | Tests | Assertions | Coverage | PHPStan | Pint |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `ecommerce-reporting` | 103 (+2 skipped) | 923 | 100.0% | 10 | 80 files |
+| `ecommerce-reporting-api` | 113 (+1) | 1,162 | 100.0% | 10 | 29 files |
+| `ecommerce-reporting-filament` | 117 (+2) | 1,740 | 100.0% | 10 | 37 files |
+| `ecommerce-reporting-livewire` | 122 (+3) | 1,125 | 100.0% | 10 | 18 files |
+
+Every number was read from the GitHub API and the raw job logs rather than from an agent's report,
+and each of the four logs was checked for the absence of a real `##[notice]` line. The shared
+workflow skips Pint when the installed testbench ships no `pint.json`, and skips PHPStan when
+`phpstan-level` is unset — and it does both with a `::notice::` and a green job. All four logs
+contain the string `skipping.` inside a `##[group]Run` block, which is the workflow echoing the
+guard script's own source text; none contains the notice that would mean a gate had actually
+skipped.
+
+### The definitions had no home
+
+Attribution and Analytics, shipped in wave 14, drew the line itself:
+
+> **A restatement of somebody else's current state.** "Revenue last 30 days", "low stock
+> products". **Not this module's** — those are questions asked of whoever owns the data, and the
+> answer is theirs to define. Absorbing them forks the definition.
+
+That is right, and it is the reason Reporting exists rather than an argument against it. Analytics
+was correct that it must not own the definition. What did not follow — and what nobody checked — is
+that somebody else therefore does. In this repository nobody did.
+
+The module that shipped owns no arithmetic at all. It owns a **metric definition** (a name, a
+version, the source that answers it, the window and grain, the unit), a **run** that attempted to
+compute a set of them, the dated immutable **result**, and the **delivery** of that result. The
+arithmetic sits behind `Contracts\MetricSource`, which has no implementation and no default binding
+in `src/`.
+
+### Three numbers called revenue, and two called lifetime value
+
+| Where | Filtered on | Summed as |
+| --- | --- | --- |
+| `AnalyticsService.php:36` | `payment_status = 'paid'` | `total_amount - COALESCE(refund_total, 0)` |
+| `AnalyticsService.php:107` | the same orders | `order_items.price * order_items.quantity` |
+| `CustomerMetric.php:58` | `status IN (paid, completed)` | `total_amount` |
+
+The first nets refunds, the second cannot see them, the third does not try — and the third filters
+on a different column entirely, one that also exists on `orders` and is not a synonym for the
+first. A merchant reading the Reports page sees a headline revenue figure, a revenue-per-product
+table and a lifetime-value segment, and no two are computed alike.
+
+Two of the three carry a careful comment explaining that refunds are netted, which is what makes
+the third hard to read: it looks like an oversight, and nothing in the tree can say whether it was
+one.
+
+Worse, and sharper: **two live queries each produce a column named `lifetime_value` and neither
+computes the same money.** `AnalyticsService.php:180` sums
+`orders.total_amount - COALESCE(orders.refund_total, 0)` over orders with `payment_status = 'paid'`;
+`CustomerMetric.php:58` sums `total_amount` gross over orders with `status IN (paid, completed)`.
+Same name, two numbers, nothing anywhere noting that they differ.
+
+There is a fifth definition with no caller at all: `ProductPerformance::recordPurchase()`
+(`app/Models/ProductPerformance.php:105`) takes `float $revenue` as a parameter, so revenue is
+whatever the caller says. Its three recorders have no caller outside their own unit test. The table
+exists, the recorders are tested, and no production path writes a row.
+
+### The most expensive query on the page has no renderer
+
+`AnalyticsService::getCustomerDemographics()` ends by joining `customers` to `orders` across the
+whole order table, grouping by customer, ordering by the computed lifetime value and taking ten
+(`:173-188`). It is returned as `top_customers`. A search for `top_customers` and `topCustomers`
+across `app/` and `resources/` returns the line that builds it and the line that returns it.
+`CustomerDemographicsWidget:22` iterates `['segments']` and nothing else. The join runs on every
+render of that widget and is discarded.
+
+### Twenty-five faults, then thirty-one
+
+The wave addendum named twenty-five, read from the files. The domain agent verified every
+`file:line` citation individually, found all twenty-five to hold, and found six more — the
+`top_customers` join above; a third scoping mix inside that same method, where `Customer::count()`
+at `:122` is store-scoped, `DB::table('customers')` at `:145` is not, and the join at `:182` scopes
+`customers` while leaving the joined `orders` unscoped; segment *membership* decided from
+`customer_metrics` by `CustomerSegment.php:140`, a table written only by a command
+`app/Console/Kernel.php:13-21` does not schedule; `CustomerMetric::recalculate()` at `:52` reading
+`$user->orders()`, a relation, so the store scope does apply and the sum spans every store from the
+CLI and one store from a panel, with no column recording which; `RecentOrdersWidget:38` rendering
+every order as `->money('USD')` whatever currency it was taken in; and `CustomerGrowthWidget:20`
+holding a third independent clock on a page that already had two.
+
+The sharpest of the original twenty-five is still fault 6. `TopProductsWidget:23` is
+`Product::query()->fromSub(…, 'products')`, and `IsStoreScoped` adds a **qualified** predicate
+(`app/Traits/IsStoreScoped.php:44`), so the outer query says `where products.store_id in (…)`
+against a derived table whose select list is `products.id`, `products.name`,
+`products.deleted_at`, `total_quantity`, `total_revenue` (`:31-35`). There is no `store_id` in it.
+
+`products.deleted_at` **is** in that select list, and that is the tell: somebody hit this same bug
+with `SoftDeletes`, added the one column that made their error message go away, and did not look
+for the second global scope on the same model. `grep -rn 'Widgets\\' tests/` is empty, so no test
+constructs a widget and CI cannot see any of it.
+
+### What the module refuses to do
+
+The decision the rest of the design hangs off: **a run that cannot obtain a definition records a
+refusal with a reason, and writes no result row.** It does not write zero.
+
+The host is the argument. Its fallback paths terminate in an empty collection or a `0`, and a
+caller cannot distinguish "nobody bought anything" from "nothing computed this" from "the source
+was never bound". Every query that returns results returns the refusals beside them, and all three
+presentation packages render the refusal rather than an empty cell — the Livewire package ships
+four distinct empty states for exactly this reason.
+
+A result cites a definition **version**, not a definition: a number computed in March under one
+definition of revenue must not silently change meaning when the definition is edited in April.
+
+### Seven defects in what shipped, of which none is fixed
+
+Filed on `module-ecommerce-reporting`. Recorded rather than repaired, which is the wave discipline —
+a module is tagged at the boundary it actually has.
+
+| | |
+| --- | --- |
+| **#1** | a money `Measure` carries no currency exponent, so no surface can render a decimal amount |
+| **#2** | no published query lists a tenant's runs, so no surface can offer a run picker or a history |
+| **#3** | `CustodyPolicy::subjectMayRead` guards a query that does not exist |
+| **#4** | `SubscribeToReport` upserts on `(tenant, name)` alone, so one subscriber's subscription — `destination_ref` included — can be silently reassigned to another person |
+| **#5** | `Data\Definition` carries no `state`, so a listing including withdrawn definitions cannot say which is which |
+| **#6** | a definition whose source answered with no buckets produces neither a result nor a refusal |
+| **#7** | `CustodyPolicy::ownsDefinition` and `ownsSubscription` are keyed on a name, not a row |
+
+**#6 is the module's own subject turned on itself.** A source that answers successfully with an
+empty reading set produces no result *and* no refusal, so "the source answered, nothing in the
+window" cannot be told from "not in this run" — the one path where the module built to stop silence
+looking like an answer still lets silence look like an answer.
+
+It surfaced only because a sibling package hit it. The Filament widget built its stats from the
+run's rows, so such a definition vanished from the screen; it now starts from every active
+definition and names both possibilities it cannot separate. A defect in the domain package became
+visible when a surface tried to render it, which is the argument for building the surfaces in the
+same wave rather than later.
+
+**#7 is the quiet one.** `unique(tenant_id, name)` makes a name unique *within* a merchant, so two
+merchants may both hold `net-revenue`; `ownsDefinition('tenant-a', 'net-revenue')` then answers
+`true` while the caller holds tenant B's record. `ownsRun` is keyed on the row and does not have the
+shape. The name-keyed checks are the right question for a caller holding only a name and the wrong
+one for a caller holding a record, and nothing in the signature says which is which.
+
+### Smaller things worth keeping
+
+**Three surfaces converged on the same money representation, two of them independently.** The
+domain package publishes a money `Measure` with no currency exponent (#1), so rendering a decimal
+requires guessing — dividing by 100 is right for GBP and wrong for JPY and KWD. `-livewire` and
+`-api` both refused to divide before anyone coordinated them; `-filament` had refused too, though
+its string differed. All three now render the integer minor amount beside its currency code, and
+each forbids `float`, `round(`, `intdiv`, `number_format` and division in its own boundary tests.
+The alternative was this wave reproducing its own subject one level down: a module built because
+the host computes revenue three ways, shipping three surfaces that render money three ways.
+
+**The addendum contradicted the durable brief, and the agent was right to follow the brief.** §4.7
+said erasure "deletes across all five tables"; `module-build-brief.md` §4 says erasure redacts the
+subject reference and keeps the arithmetic. A report result is an aggregate about a merchant, not a
+fact about a person, so deleting results to erase a subject destroys a merchant's history to
+satisfy somebody else's request. The brief now states the precedence it had only implied: where the
+addendum and the brief disagree, the brief governs and the agent says so.
+
+**Two of the addendum's cross-references to wave 21 defects were wrong** — `#4`/`#7` for the
+un-transactioned pair, which are `#3` and `#4`; `#12` for the unbounded cross-tenant export, which
+is `#15`. Both were caught by the domain agent and verified before patching. The substance was
+right in both cases and only the numbers were wrong, which is the failure mode the addendum's own
+header warns about, reproduced in the one place a mechanical `file:line` check cannot reach.
+
+**The gate that would not start.** The domain package's first Tests run sat `queued` for 46 minutes
+with no runner ever assigned, and a second attempt for ninety more. Ruled out, in order: a GitHub
+incident (Actions reported operational), repository policy (`enabled:true`, `allowed_actions:all`,
+byte-identical to a repository that shipped a fortnight earlier), an approval gate (`queued`, not
+`waiting`), a bad `runs-on` (`ubuntu-latest`, unchanged since before wave 21), contention (nothing
+queued anywhere else in the organisation), and exhausted minutes — 17,314 minutes in August, gross
+$103.88, **net billed $0.00**, because these repositories are public and a public repository has no
+Actions allowance to exhaust. Nothing on this side was wrong, and the queue cleared on its own.
+Recorded so the next person watching a job sit in a queue spends the time on those six checks
+rather than on a theory.
+
+**The epic was picked by measurement, and the measurement moved twice.** Two candidates scored
+larger than Reporting and both were mirages: Categories and Navigation is mostly Blade views
+matching "page" and "menu" plus a `ProductCategory` duplicate of catalog's `Category`, and Feed
+Management is the Facebook stack that Social Commerce's `Shop`, `ShopCredential` and `Listing`
+already own. Checking a headline count against the shipped modules' own `src/Models` has now
+changed the answer four waves running.
+
+**One hundred and eight packages now exist across twenty-seven modules, and none is on Packagist.**
 
 ---
 
@@ -2463,7 +2655,7 @@ What each wave costs to undo, stated up front so nobody has to guess mid-inciden
 | **1** — `ecommerce-commerce-core` | ~~**Yes, before its first tag.** Demotion is deleting an unreleased repository and restoring the path package~~ — **that window has closed.** Tagged `0.4.0`; the row below now applies | See §2 |
 | **1.5** — schema, resolver, **the scope** | **The scope is reversible; the schema is additive.** Turning the scope off restores the previous (leaking) behaviour instantly | Feature-flag the scope for the first deployment |
 | **2** — schema corrections | **Yes.** It stopped being a data wave: there is no production data to get wrong, so what is left is migrations and code | Revert the commit and rebuild the database |
-| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents and Recommendations are all past it** — all one hundred and four packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
+| **3+** — extractions | **Yes before the first tag, no after.** After a tag, demotion breaks every consumer and the honest move is deprecation. **Catalog, Pricing, Inventory Ledger, Cart, Checkout, Orders, Fulfillment, Returns, Payment Operations, Refunds, Gift Cards, Multi-Tender Payments, Tax, Shipping, Reviews and Ratings, Promotions, Commerce Customers, Attribution and Analytics, Customer Accounts, Loyalty, Dropshipping, Social Commerce, Customer Service Workspace, Invoices and Documents, Recommendations and Reporting are all past it** — all one hundred and eight packages are tagged. Nothing consumes them yet, which is not the same thing | See §2 |
 
 Two asymmetries drive the whole plan:
 
