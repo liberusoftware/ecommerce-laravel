@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c14a49c159fb002815488bab39068fbd",
+    "content-hash": "3f93f42cd85974066c4042132e9c4b1b",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -4974,6 +4974,201 @@
                 }
             ],
             "time": "2026-03-08T20:05:35+00:00"
+        },
+        {
+            "name": "liberusoftware/module-ecommerce-warehouse-operations",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "modules/module-ecommerce-warehouse-operations",
+                "reference": "c7fc35c4b10cc4a945625571bc9c04fd81adf5ff"
+            },
+            "require": {
+                "illuminate/contracts": "^13.0",
+                "illuminate/database": "^13.0",
+                "illuminate/support": "^13.0",
+                "illuminate/validation": "^13.0",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Liberu\\EcommerceWarehouseOperations\\Providers\\EcommerceWarehouseOperationsServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperations\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperations\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Independent Ecommerce Warehouse Operations domain module.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "liberusoftware/module-ecommerce-warehouse-operations-api",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "modules/module-ecommerce-warehouse-operations-api",
+                "reference": "911541d787e874d81b26c39ac65406139723d9ca"
+            },
+            "require": {
+                "illuminate/http": "^13.0",
+                "illuminate/routing": "^13.0",
+                "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Liberu\\EcommerceWarehouseOperationsApi\\Providers\\EcommerceWarehouseOperationsApiServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperationsApi\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperationsApi\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "HTTP API adapter for Ecommerce Warehouse Operations.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "liberusoftware/module-ecommerce-warehouse-operations-filament",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "modules/module-ecommerce-warehouse-operations-filament",
+                "reference": "0105fe5fff9f241701a31308e1b0f2b2598203c2"
+            },
+            "require": {
+                "filament/filament": "^5.0",
+                "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Liberu\\EcommerceWarehouseOperationsFilament\\Providers\\EcommerceWarehouseOperationsFilamentServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperationsFilament\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperationsFilament\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Filament 5 adapter for Ecommerce Warehouse Operations.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "liberusoftware/module-ecommerce-warehouse-operations-livewire",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "modules/module-ecommerce-warehouse-operations-livewire",
+                "reference": "21130157b1a37a923a22b84881218c95fab1f8b9"
+            },
+            "require": {
+                "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
+                "livewire/livewire": "^4.0",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Liberu\\EcommerceWarehouseOperationsLivewire\\Providers\\EcommerceWarehouseOperationsLivewireServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperationsLivewire\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarehouseOperationsLivewire\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Livewire 4 adapter for Ecommerce Warehouse Operations.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "liberusoftware/module-ecommerce-warranty-and-claims",

@@ -12,6 +12,10 @@
         { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims-api", "options": { "symlink": true } },
         { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims-filament", "options": { "symlink": true } },
         { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims-livewire", "options": { "symlink": true } }
+        ,{ "type": "path", "url": "modules/module-ecommerce-warehouse-operations", "options": { "symlink": true } }
+        ,{ "type": "path", "url": "modules/module-ecommerce-warehouse-operations-api", "options": { "symlink": true } }
+        ,{ "type": "path", "url": "modules/module-ecommerce-warehouse-operations-filament", "options": { "symlink": true } }
+        ,{ "type": "path", "url": "modules/module-ecommerce-warehouse-operations-livewire", "options": { "symlink": true } }
     ],
     "require": {
         "php": "^8.5",
@@ -27,6 +31,10 @@
         "liberusoftware/module-ecommerce-warranty-and-claims-api": "^0.1",
         "liberusoftware/module-ecommerce-warranty-and-claims-filament": "^0.1",
         "liberusoftware/module-ecommerce-warranty-and-claims-livewire": "^0.1",
+        "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
+        "liberusoftware/module-ecommerce-warehouse-operations-api": "^0.1",
+        "liberusoftware/module-ecommerce-warehouse-operations-filament": "^0.1",
+        "liberusoftware/module-ecommerce-warehouse-operations-livewire": "^0.1",
         "laravel/horizon": "^5.47",
         "laravel/jetstream": "^5.1",
         "laravel/octane": "^2.3",
