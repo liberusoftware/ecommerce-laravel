@@ -1,0 +1,12 @@
+[submodule "modules/module-ecommerce-warranty-and-claims"]
+	path = modules/module-ecommerce-warranty-and-claims
+	url = git@github.com:liberusoftware/module-ecommerce-warranty-and-claims.git
+[submodule "modules/module-ecommerce-warranty-and-claims-api"]
+	path = modules/module-ecommerce-warranty-and-claims-api
+	url = git@github.com:liberusoftware/module-ecommerce-warranty-and-claims-api.git
+[submodule "modules/module-ecommerce-warranty-and-claims-filament"]
+	path = modules/module-ecommerce-warranty-and-claims-filament
+	url = git@github.com:liberusoftware/module-ecommerce-warranty-and-claims-filament.git
+[submodule "modules/module-ecommerce-warranty-and-claims-livewire"]
+	path = modules/module-ecommerce-warranty-and-claims-livewire
+	url = git@github.com:liberusoftware/module-ecommerce-warranty-and-claims-livewire.git

@@ -33,8 +33,8 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     use HasProfilePhoto {
         HasProfilePhoto::profilePhotoUrl as getPhotoUrl;
     }
-    use HasRoles;
-    use HasTeams;
+    use HasRoles { HasRoles::teams as permissionTeams; }
+    use HasTeams { HasTeams::teams insteadof HasRoles; }
     use Notifiable;
 
     // use SetsProfilePhotoFromUrl;

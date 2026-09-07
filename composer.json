@@ -7,6 +7,12 @@
         "framework"
     ],
     "license": "MIT",
+    "repositories": [
+        { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims", "options": { "symlink": true } },
+        { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims-api", "options": { "symlink": true } },
+        { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims-filament", "options": { "symlink": true } },
+        { "type": "path", "url": "modules/module-ecommerce-warranty-and-claims-livewire", "options": { "symlink": true } }
+    ],
     "require": {
         "php": "^8.5",
         "bezhansalleh/filament-shield": "^4.0",
@@ -17,6 +23,10 @@
         "guzzlehttp/guzzle": "^7.8",
         "laravel/cashier": "^16.6",
         "laravel/framework": "^13",
+        "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
+        "liberusoftware/module-ecommerce-warranty-and-claims-api": "^0.1",
+        "liberusoftware/module-ecommerce-warranty-and-claims-filament": "^0.1",
+        "liberusoftware/module-ecommerce-warranty-and-claims-livewire": "^0.1",
         "laravel/horizon": "^5.47",
         "laravel/jetstream": "^5.1",
         "laravel/octane": "^2.3",
