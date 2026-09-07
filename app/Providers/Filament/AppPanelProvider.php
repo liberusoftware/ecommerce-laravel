@@ -7,11 +7,9 @@ use App\Filament\App\Pages\CreateTeam;
 use App\Filament\App\Pages\EditProfile;
 use App\Filament\App\Pages\EditTeam;
 use App\Http\Middleware\TeamsPermission;
-use App\Listeners\CreatePersonalTeam;
 use App\Listeners\SwitchTeam;
 use App\Models\Team;
 use Filament\Actions\Action;
-use Filament\Events\Auth\Registered;
 use Filament\Events\TenantSet;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
@@ -59,8 +57,8 @@ class AppPanelProvider extends PanelProvider
             // ->emailVerification()
             // Without this, a resource with no policy is wide open: Filament's
             // get_authorization_response() returns allow() when no policy exists.
-            // That is how ArticleResource and CollectionResource shipped with
-            // unguarded CRUD. Strict mode throws instead, so the next policy-less
+            // That is how ArticleResource (since deleted) and CollectionResource
+            // shipped with unguarded CRUD. Strict mode throws instead, so the next policy-less
             // resource fails loudly in CI rather than silently granting everyone.
             //
             // Scoped to this panel deliberately: the Admin panel still has
@@ -86,7 +84,10 @@ class AppPanelProvider extends PanelProvider
                 Dashboard::class,
                 EditProfile::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/App/Widgets/Home'), for: 'App\\Filament\\App\\Widgets\\Home')
+            // Filament/App/Widgets, not Filament/App/Widgets/Home — the Home
+            // directory has never existed, so this discovered nothing and the one
+            // widget that lived here was unreachable.
+            ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\\Filament\\App\\Widgets')
             ->widgets([
                 AccountWidget::class,
                 // Widgets\FilamentInfoWidget::class,
@@ -147,14 +148,6 @@ class AppPanelProvider extends PanelProvider
          * Disable Jetstream routes.
          */
         // Jetstream::$registersRoutes = false;
-
-        /**
-         * Listen and create personal team for new accounts.
-         */
-        // Event::listen(
-        //     Registered::class,
-        //     CreatePersonalTeam::class,
-        // );
 
         /**
          * Listen and switch team if tenant was changed.

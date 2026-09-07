@@ -17,9 +17,13 @@ class DropxlServiceTest extends TestCase
     {
         parent::setUp();
 
-        // Point the service at a predictable test URL
-        putenv('DROPXL_API_URL=https://api.dropxl.example');
-        putenv('DROPXL_API_KEY=test-key');
+        // Point the service at a predictable test URL. Set through config
+        // rather than putenv, because that is the path the service reads —
+        // under `config:cache` an env() lookup resolves to nothing.
+        config([
+            'services.dropxl.url' => 'https://api.dropxl.example',
+            'services.dropxl.key' => 'test-key',
+        ]);
 
         $this->service = new DropxlService();
     }

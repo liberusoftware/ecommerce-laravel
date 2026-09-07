@@ -86,7 +86,7 @@ class CheckoutLiveRateTest extends TestCase
 
     private function withCart(Product $product): self
     {
-        return $this->withSession(['cart' => [
+        return $this->withStoredCart([
             $product->id => [
                 'quantity' => 1,
                 'price' => (float) $product->price,
@@ -94,7 +94,7 @@ class CheckoutLiveRateTest extends TestCase
                 'name' => $product->name,
                 'weight' => 1.0,
             ],
-        ]]);
+        ]);
     }
 
     private function physicalPayload(array $extra = []): array

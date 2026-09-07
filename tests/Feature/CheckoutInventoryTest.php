@@ -83,7 +83,7 @@ class CheckoutInventoryTest extends TestCase
 
         $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => $this->cartFor($product, 1)])
+        $this->withStoredCart($this->cartFor($product, 1))
             ->post(route('checkout.process'), $this->payload());
 
         $order = Order::first();
@@ -101,7 +101,7 @@ class CheckoutInventoryTest extends TestCase
 
         $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => $this->cartFor($product, 2)])
+        $this->withStoredCart($this->cartFor($product, 2))
             ->post(route('checkout.process'), $this->payload());
 
         // Stock must already be reserved (decremented) when payment runs; otherwise a
@@ -116,7 +116,7 @@ class CheckoutInventoryTest extends TestCase
 
         $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => $this->cartFor($product, 2)])
+        $this->withStoredCart($this->cartFor($product, 2))
             ->post(route('checkout.process'), $this->payload());
 
         $order = Order::first();
@@ -135,7 +135,7 @@ class CheckoutInventoryTest extends TestCase
         $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
 
         $this->actingAs($user)
-            ->withSession(['cart' => $this->cartFor($product, 1)])
+            ->withStoredCart($this->cartFor($product, 1))
             ->post(route('checkout.process'), $this->payload());
 
         $this->assertSame($user->id, Order::first()->user_id);
@@ -148,7 +148,7 @@ class CheckoutInventoryTest extends TestCase
 
         $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => $this->cartFor($product, 1)])
+        $this->withStoredCart($this->cartFor($product, 1))
             ->post(route('checkout.process'), $this->payload());
 
         $this->assertNull(Order::first()->user_id);

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Admin\Resources\TaxClasses;
 
-use App\Filament\Admin\Resources\TaxClasses\Pages;
 use App\Models\TaxClass;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -19,9 +18,21 @@ class TaxClassResource extends Resource
 {
     protected static ?string $model = TaxClass::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-calculator';
+    /*
+     * Not tenant-scoped: `tax_classes` has no `team_id` and the model has no
+     * `team` relationship. Tax classes are jurisdiction data rather than a
+     * merchant's own — the EU VAT rates seeder fills them — and every merchant
+     * on the deployment reads the same set.
+     *
+     * Declared as a property rather than set with `scopeToTenant()`, which
+     * writes one storage slot shared by every resource that does not redeclare
+     * it — see App\Filament\Admin\Resources\RoleResource.
+     */
+    protected static bool $isScopedToTenant = false;
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calculator';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 
     protected static ?int $navigationSort = 10;
 
@@ -34,17 +45,17 @@ class TaxClassResource extends Resource
                         Forms\Components\TextInput::make('name')
                             ->required()
                             ->maxLength(255),
-                        
+
                         Forms\Components\TextInput::make('slug')
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
-                        
+
                         Forms\Components\Textarea::make('description')
                             ->rows(3)
                             ->maxLength(65535)
                             ->columnSpanFull(),
-                        
+
                         Forms\Components\Toggle::make('is_active')
                             ->default(true),
                     ])
@@ -59,18 +70,18 @@ class TaxClassResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                
+
                 Tables\Columns\TextColumn::make('slug')
                     ->searchable()
                     ->sortable(),
-                
+
                 Tables\Columns\TextColumn::make('taxRates_count')
                     ->counts('taxRates')
                     ->label('Tax Rates'),
-                
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
-                
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

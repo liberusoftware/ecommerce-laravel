@@ -154,6 +154,58 @@ class LoyaltyRewardModelTest extends TestCase
         $this->assertEquals(1500, $points->fresh()->balance);
     }
 
+    /**
+     * A failed redemption leaves nothing behind — no ledger row, no stock movement,
+     * no redemption record.
+     *
+     * The race this guards against is not reproducible in a single-threaded test:
+     * two callers reading `stock_quantity = 1` before either decrements it needs two
+     * connections. What is testable is the property the lock exists to keep — that
+     * the four writes are one act — so this pins the all-or-nothing shape, and a
+     * future edit that pulls a write back out of the transaction fails here.
+     */
+    public function test_a_failed_redemption_moves_nothing(): void
+    {
+        $user = User::factory()->create();
+        $points = LoyaltyPoints::create([
+            'user_id' => $user->id,
+            'loyalty_program_id' => $this->program->id,
+            'balance' => 100,
+        ]);
+        $reward = $this->makeReward(['points_cost' => 500, 'stock_quantity' => 1]);
+
+        $this->assertNull($reward->redeem($user->id));
+
+        $this->assertEquals(100, $points->fresh()->balance);
+        $this->assertEquals(0, $points->transactions()->count(), 'no ledger row for a redemption that did not happen');
+        $this->assertEquals(1, $reward->fresh()->stock_quantity, 'stock is not spent on a failed redemption');
+        $this->assertEquals(0, $reward->redemptions()->count());
+    }
+
+    /**
+     * The last unit is spent once. `isAvailable()` and the decrement used to sit
+     * either side of the points debit with nothing holding the row still between
+     * them; the second call now reads the first one's result.
+     */
+    public function test_the_last_unit_of_stock_is_redeemed_once(): void
+    {
+        $user = User::factory()->create();
+        $points = LoyaltyPoints::create([
+            'user_id' => $user->id,
+            'loyalty_program_id' => $this->program->id,
+            'balance' => 2000,
+            'lifetime_earned' => 2000,
+        ]);
+        $reward = $this->makeReward(['points_cost' => 500, 'stock_quantity' => 1]);
+
+        $this->assertNotNull($reward->redeem($user->id));
+        $this->assertNull($reward->redeem($user->id));
+
+        $this->assertEquals(0, $reward->fresh()->stock_quantity, 'stock never goes negative');
+        $this->assertEquals(1500, $points->fresh()->balance);
+        $this->assertEquals(1, $reward->redemptions()->count());
+    }
+
     public function test_belongs_to_program(): void
     {
         $reward = $this->makeReward();

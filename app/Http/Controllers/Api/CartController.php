@@ -18,7 +18,7 @@ class CartController extends Controller
     public function index(Request $request): JsonResponse
     {
         $items = CartItem::where('user_id', $request->user()->id)
-            ->with('products')
+            ->with('product')
             ->get();
 
         return response()->json([
@@ -47,12 +47,11 @@ class CartController extends Controller
         }
 
         $item->fill([
-            'session_id' => $item->session_id ?? 'api',
             'quantity' => $quantity,
             'price' => $product->price,
         ])->save();
 
-        return response()->json(['data' => $item->load('products')], 201);
+        return response()->json(['data' => $item->load('product')], 201);
     }
 
     public function update(Request $request, int $product): JsonResponse
@@ -73,7 +72,7 @@ class CartController extends Controller
 
         $item->update(['quantity' => $data['quantity']]);
 
-        return response()->json(['data' => $item->load('products')]);
+        return response()->json(['data' => $item->load('product')]);
     }
 
     public function destroy(Request $request, int $product): JsonResponse

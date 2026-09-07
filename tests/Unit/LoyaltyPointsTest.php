@@ -31,6 +31,7 @@ class LoyaltyPointsTest extends TestCase
     private function makePoints(array $overrides = []): LoyaltyPoints
     {
         $user = User::factory()->create();
+
         return LoyaltyPoints::create(array_merge([
             'user_id' => $user->id,
             'loyalty_program_id' => $this->program->id,
@@ -131,6 +132,31 @@ class LoyaltyPointsTest extends TestCase
         $this->assertGreaterThanOrEqual(0, $balance, 'expiry must never make the balance negative');
         $this->assertEquals(0, $balance);
         // Ledger stays consistent: earned +100, redeemed -60, expired -40 => 0.
+        $this->assertEquals(0, $points->transactions()->sum('points'));
+    }
+
+    /**
+     * The regression that mattered: every other expiry test in this file builds its
+     * own `LoyaltyPointTransaction` with `'type' => 'earned'`, which is a row shape
+     * the writer only produces if its caller happens to pass that exact string.
+     * `addPoints()` takes `$type` unvalidated, this file's own tests pass
+     * `'purchase'`, and the old `where('type', 'earned')` therefore skipped them —
+     * points that could never expire, and a liability with no ceiling.
+     *
+     * So this one earns its points through the writer instead of around it, which
+     * is the only arrangement that proves the two agree.
+     */
+    public function test_points_earned_under_any_label_still_expire(): void
+    {
+        $points = $this->makePoints();
+        $points->addPoints(100, 'purchase', 'Order #1');
+
+        $this->assertEquals(100, $points->fresh()->balance);
+
+        $this->travel(366)->days();
+        $points->fresh()->expirePoints();
+
+        $this->assertEquals(0, $points->fresh()->balance, 'a lot expires on its date, not on its label');
         $this->assertEquals(0, $points->transactions()->sum('points'));
     }
 

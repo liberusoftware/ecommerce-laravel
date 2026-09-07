@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class AbandonedCart extends Model
 {
     use HasFactory;
-    use IsTenantModel;
 
     protected $fillable = [
         'customer_id',
@@ -112,10 +110,10 @@ class AbandonedCart extends Model
     public function scopeCanSendEmail($query)
     {
         return $query->notRecovered()
-                    ->where('recovery_email_count', '<', 3)
-                    ->where(function ($q) {
-                        $q->whereNull('recovery_email_sent_at')
-                          ->orWhere('recovery_email_sent_at', '<', now()->subHour());
-                    });
+            ->where('recovery_email_count', '<', 3)
+            ->where(function ($q) {
+                $q->whereNull('recovery_email_sent_at')
+                    ->orWhere('recovery_email_sent_at', '<', now()->subHour());
+            });
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CartItem;
 use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -16,12 +17,12 @@ class CartControllerTest extends TestCase
     {
         $category = ProductCategory::create([
             'name' => 'Test Category',
-            'slug' => 'test-cat-' . uniqid(),
+            'slug' => 'test-cat-'.uniqid(),
         ]);
 
         return Product::create(array_merge([
             'name' => 'Test Product',
-            'slug' => 'test-prod-' . uniqid(),
+            'slug' => 'test-prod-'.uniqid(),
             'price' => 29.99,
             'category_id' => $category->id,
             'inventory_count' => 100,
@@ -37,7 +38,7 @@ class CartControllerTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        $this->assertEquals(2, session('cart')[$product->id]['quantity']);
+        $this->assertSame(2, (int) CartItem::where('product_id', $product->id)->value('quantity'));
     }
 
     public function test_add_increments_quantity_if_already_in_cart(): void
@@ -47,7 +48,7 @@ class CartControllerTest extends TestCase
         $this->post(route('cart.add', $product), ['quantity' => 1]);
         $this->post(route('cart.add', $product), ['quantity' => 2]);
 
-        $this->assertEquals(3, session('cart')[$product->id]['quantity']);
+        $this->assertSame(3, (int) CartItem::where('product_id', $product->id)->value('quantity'));
     }
 
     public function test_add_returns_error_when_insufficient_inventory(): void
@@ -76,7 +77,7 @@ class CartControllerTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        $this->assertEquals(3, session('cart')[$product->id]['quantity']);
+        $this->assertSame(3, (int) CartItem::where('product_id', $product->id)->value('quantity'));
     }
 
     public function test_update_returns_error_for_missing_product(): void
@@ -118,7 +119,7 @@ class CartControllerTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        $this->assertArrayNotHasKey($product->id, session('cart', []));
+        $this->assertSame(0, CartItem::where('product_id', $product->id)->count());
     }
 
     public function test_remove_returns_error_when_product_not_in_cart(): void
@@ -138,7 +139,7 @@ class CartControllerTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        $this->assertEmpty(session('cart', []));
+        $this->assertSame(0, CartItem::count());
     }
 
     public function test_clear_also_removes_coupon(): void

@@ -3,7 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Product;
-use Illuminate\Support\Facades\Session;
+use App\Services\CartService;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -13,7 +13,18 @@ class ShoppingCart extends Component
 
     public function mount(): void
     {
-        $this->items = Session::get('cart', []);
+        $this->items = $this->cart()->contents();
+    }
+
+    /**
+     * The one door onto the cart store. Resolved per call rather than held as a
+     * property: a Livewire component is serialised between requests, and a
+     * service that survives that round trip is a service holding a stale
+     * identity for whoever comes back.
+     */
+    private function cart(): CartService
+    {
+        return app(CartService::class);
     }
 
     public function render()
@@ -50,18 +61,10 @@ class ShoppingCart extends Component
 
                 return;
             }
-            $this->items[$productId]['quantity'] = $newQuantity;
-        } else {
-            $this->items[$productId] = [
-                'name' => $product->name,
-                'price' => (float) $product->price,
-                'quantity' => $quantity,
-                'is_downloadable' => $isDownloadable,
-                'weight' => (float) ($product->weight ?? 0),
-            ];
         }
 
-        Session::put('cart', $this->items);
+        $this->cart()->add($product, $quantity);
+        $this->items = $this->cart()->contents();
         $this->dispatch('cartUpdated');
         session()->flash('success', 'Product added to cart successfully!');
     }
@@ -106,8 +109,8 @@ class ShoppingCart extends Component
             }
         }
 
-        $this->items[$productId]['quantity'] = $quantity;
-        Session::put('cart', $this->items);
+        $this->cart()->setQuantity($productId, $quantity);
+        $this->items = $this->cart()->contents();
         $this->dispatch('cartUpdated');
         session()->flash('success', 'Cart updated');
     }
@@ -115,8 +118,8 @@ class ShoppingCart extends Component
     public function removeItem(int $productId): void
     {
         if (isset($this->items[$productId])) {
-            unset($this->items[$productId]);
-            Session::put('cart', $this->items);
+            $this->cart()->remove($productId);
+            $this->items = $this->cart()->contents();
             $this->dispatch('cartUpdated');
             session()->flash('success', 'Item removed from cart');
         }
@@ -124,8 +127,8 @@ class ShoppingCart extends Component
 
     public function clearCart(): void
     {
+        $this->cart()->clear();
         $this->items = [];
-        Session::forget('cart');
         $this->dispatch('cartUpdated');
         session()->flash('success', 'Cart cleared');
     }

@@ -7,8 +7,8 @@
 ![](https://img.shields.io/badge/Filament-5-informational?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgeG1sbnM6dj0iaHR0cHM6Ly92ZWN0YS5pby9uYW5vIj48cGF0aCBkPSJNMCAwaDQ4djQ4SDBWMHoiIGZpbGw9IiNmNGIyNWUiLz48cGF0aCBkPSJNMjggN2wtMSA2LTMuNDM3LjgxM0wyMCAxNWwtMSAzaDZ2NWgtN2wtMyAxOEg4Yy41MTUtNS44NTMgMS40NTQtMTEuMzMgMy0xN0g4di01bDUtMSAuMjUtMy4yNUMxNCAxMSAxNCAxMSAxNS40MzggOC41NjMgMTkuNDI5IDYuMTI4IDIzLjQ0MiA2LjY4NyAyOCA3eiIgZmlsbD0iIzI4MjQxZSIvPjxwYXRoIGQ9Ik0zMCAxOGg0YzIuMjMzIDUuMzM0IDIuMjMzIDUuMzM0IDEuMTI1IDguNUwzNCAyOWMtLjE2OCAzLjIwOS0uMTY4IDMuMjA5IDAgNmwtMiAxIDEgM2gtNXYyaC0yYy44NzUtNy42MjUuODc1LTcuNjI1IDItMTFoMnYtMmgtMnYtMmwyLTF2LTQtM3oiIGZpbGw9IiMyYTIwMTIiLz48cGF0aCBkPSJNMzUuNTYzIDYuODEzQzM4IDcgMzggNyAzOSA4Yy4xODggMi40MzguMTg4IDIuNDM4IDAgNWwtMiAyYy0yLjYyNS0uMzc1LTIuNjI1LS4zNzUtNS0xLS42MjUtMi4zNzUtLjYyNS0yLjM3NS0xLTUgMi0yIDItMiA0LjU2My0yLjE4N3oiIGZpbGw9IiM0MDM5MzEiLz48cGF0aCBkPSJNMzAgMThoNGMyLjA1NSA1LjMxOSAyLjA1NSA1LjMxOSAxLjgxMyA4LjMxM0wzNSAyOGwtMyAxdi0ybC00IDF2LTJsMi0xdi00LTN6IiBmaWxsPSIjMzEyODFlIi8+PHBhdGggZD0iTTI5IDI3aDN2MmgydjJoLTJ2MmwtNC0xdi0yaDJsLTEtM3oiIGZpbGw9IiMxNTEzMTAiLz48cGF0aCBkPSJNMzAgMThoNHYzaC0ydjJsLTMgMSAxLTZ6IiBmaWxsPSIjNjA0YjMyIi8+PC9zdmc+&&color=fdae4b&link=https://filamentphp.com)
 ![](https://img.shields.io/badge/Livewire-4-informational?style=flat&logo=Livewire&color=fb70a9)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Open Source Love](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/liberu-ecommerce/ecommerce-laravel)
-[![Latest Release](https://img.shields.io/github/v/release/liberu-ecommerce/ecommerce-laravel?include_prereleases)](https://github.com/liberu-ecommerce/ecommerce-laravel/releases)
+[![Open Source Love](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/liberusoftware/ecommerce-laravel)
+[![Latest Release](https://img.shields.io/github/v/release/liberusoftware/ecommerce-laravel?include_prereleases)](https://github.com/liberusoftware/ecommerce-laravel/releases)
 
 ---
 
@@ -22,10 +22,10 @@
 [![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/liberugroup)
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://www.github.com/liberusoftware)
 
-[![Install](https://github.com/liberu-ecommerce/ecommerce-laravel/actions/workflows/install.yml/badge.svg)](https://github.com/liberu-ecommerce/ecommerce-laravel/actions/workflows/install.yml)
-[![Tests](https://github.com/liberu-ecommerce/ecommerce-laravel/actions/workflows/tests.yml/badge.svg)](https://github.com/liberu-ecommerce/ecommerce-laravel/actions/workflows/tests.yml)
-[![Docker](https://github.com/liberu-ecommerce/ecommerce-laravel/actions/workflows/main.yml/badge.svg)](https://github.com/liberu-ecommerce/ecommerce-laravel/actions/workflows/main.yml)
-[![Codecov](https://codecov.io/gh/liberu-ecommerce/ecommerce-laravel/branch/main/graph/badge.svg)](https://codecov.io/gh/liberu-ecommerce/ecommerce-laravel)
+[![Install](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/install.yml/badge.svg)](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/install.yml)
+[![Tests](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/tests.yml/badge.svg)](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/tests.yml)
+[![Docker](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/main.yml/badge.svg)](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/main.yml)
+[![Codecov](https://codecov.io/gh/liberusoftware/ecommerce-laravel/branch/main/graph/badge.svg)](https://codecov.io/gh/liberusoftware/ecommerce-laravel)
 
 ---
 
@@ -81,112 +81,35 @@ Powered by **Filament 5**, the admin panel provides resources for managing:
 
 ---
 
-## Installation
+## Requirements and quick start
 
-### Requirements
-
-- PHP 8.5+
-- Composer
-- Node.js 20+
-- A database: MySQL, MariaDB or PostgreSQL
-- Docker (optional)
-
-### Option 1 — Automated script (recommended)
-
-The repository ships with an interactive setup script that guides you through environment configuration, dependency installation, database migration and seeding in one step.
-
-**Command line:**
+PHP 8.5+ · Composer · Node.js 20+ · MySQL, MariaDB or PostgreSQL · Docker (optional)
 
 ```bash
-git clone https://github.com/liberu-ecommerce/ecommerce-laravel.git
+git clone https://github.com/liberusoftware/ecommerce-laravel.git
 cd ecommerce-laravel
 chmod +x setup.sh
 ./setup.sh
 ```
 
-The script will prompt you to copy `.env.example` to `.env`, confirm your database credentials, run `composer install`, generate the application key, run migrations and seed the database, and optionally start the development server — all interactively.
-
-**Graphical installer:**
-
-If a graphical installer package is available for your platform, it can be downloaded from the [Releases](https://github.com/liberu-ecommerce/ecommerce-laravel/releases) page. Run it and follow the on-screen prompts to configure and install the application without using the terminal.
-
-### Option 2 — Manual step-by-step
-
-```bash
-git clone https://github.com/liberu-ecommerce/ecommerce-laravel.git
-cd ecommerce-laravel
-composer install
-cp .env.example .env
-php artisan key:generate
-```
-
-Configure `.env` — update database credentials and add your payment/dropshipping keys:
-
-```env
-DB_DATABASE=your_database
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-
-STRIPE_KEY=pk_test_xxx
-STRIPE_SECRET=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-
-DROPXL_API_KEY=Bearer xxx
-DROPXL_API_URL=https://api.dropxl.com
-```
-
-Run migrations and seed:
-
-```bash
-php artisan migrate --seed
-npm install && npm run build
-```
-
-Start the development server:
-
-```bash
-php artisan serve
-# or with Docker / Sail:
-# ./vendor/bin/sail up -d
-```
-
-### Option 3 — Docker
-
-```bash
-git clone https://github.com/liberu-ecommerce/ecommerce-laravel.git
-cd ecommerce-laravel
-cp .env.example .env          # update DB_ and app values
-docker-compose up -d
-docker-compose exec app php artisan migrate --seed
-```
+`setup.sh` is interactive: it copies `.env.example`, confirms database credentials, installs dependencies, generates the key, migrates and seeds. Manual and Docker installs, Stripe configuration and the DropXL setup are in [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
 
 ---
 
-## Stripe Setup and Testing
+## Documentation
 
-1. Add Stripe keys to `.env` (see above).
-2. Use Stripe test cards in checkout:
-   - Card number: `4242 4242 4242 4242` — any future expiry, any CVC, any ZIP.
-3. For webhooks, install the [Stripe CLI](https://stripe.com/docs/stripe-cli), set `STRIPE_WEBHOOK_SECRET` and forward events to `/stripe/webhook`.
-
----
-
-## Dropshipping (DropXL)
-
-DropXL integration is configurable via `config/dropshipping.php`. On checkout, select "Ship directly to recipient (Drop shipping)" to route the order through DropXL. Supplier order placement is queued after a successful payment; `orders` will include `supplier_id` and `supplier_reference`.
-
-For local testing, point `DROPXL_API_URL` to a mock endpoint returning:
-
-```json
-{ "success": true, "data": { "id": "dropxl-123", "reference": "DLX-123" } }
-```
-
----
-
-## Troubleshooting
-
-- **Orders stuck at `supplier_queued`** — verify the queue worker is running (`php artisan queue:work --tries=3`) and check `storage/logs/laravel.log`.
-- **Stripe charges fail** — validate `STRIPE_SECRET` in `.env`, confirm the publishable key is present in `config/services.php`, and review the logs for API errors.
+| Document | Covers |
+| --- | --- |
+| [`docs/index.md`](docs/index.md) | Index of everything in `docs/` — what each document is, and whether it is current |
+| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Manual and Docker installs, Stripe, DropXL |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Console commands, the admin panels, queues, troubleshooting |
+| [`docs/MODULE_DEVELOPMENT.md`](docs/MODULE_DEVELOPMENT.md) | Building, testing, promoting and releasing a module |
+| [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) | Where this repository stands against the Liberu standards |
+| [`docs/MIGRATION_PLAN.md`](docs/MIGRATION_PLAN.md) | The ordered plan from here to the modular target |
+| [`docs/adr/`](docs/adr/) | Architecture decision records |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | The quality gates, the five workflows, and the ADR rule |
+| [`SECURITY.md`](SECURITY.md) | Reporting a vulnerability privately, and what is in scope |
+| [`CONTEXT.md`](CONTEXT.md) | Domain glossary — merchant, team, store, channel, tenant |
 
 ---
 
@@ -204,7 +127,7 @@ Liberu Ecommerce is part of the wider **Liberu** open-source ecosystem. All proj
 | CMS | [liberu-cms/cms-laravel](https://github.com/liberu-cms/cms-laravel) | Content management features and modular page administration. |
 | Control Panel | [liberu-control-panel/control-panel-laravel](https://github.com/liberu-control-panel/control-panel-laravel) | Administration/control-panel components for managing services. |
 | CRM | [liberu-crm/crm-laravel](https://github.com/liberu-crm/crm-laravel) | Customer relationship management features and integrations. |
-| E-commerce | [liberu-ecommerce/ecommerce-laravel](https://github.com/liberu-ecommerce/ecommerce-laravel) | E-commerce storefront, product and order management (this repo). |
+| E-commerce | [liberusoftware/ecommerce-laravel](https://github.com/liberusoftware/ecommerce-laravel) | E-commerce storefront, product and order management (this repo). |
 | Genealogy | [liberu-genealogy/genealogy-laravel](https://github.com/liberu-genealogy/genealogy-laravel) | Family tree and genealogy features built on Laravel. |
 | Maintenance | [liberu-maintenance/maintenance-laravel](https://github.com/liberu-maintenance/maintenance-laravel) | Scheduling, tracking and reporting for maintenance tasks. |
 | Real Estate | [liberu-real-estate/real-estate-laravel](https://github.com/liberu-real-estate/real-estate-laravel) | Property listings and real-estate management features. |
@@ -212,21 +135,23 @@ Liberu Ecommerce is part of the wider **Liberu** open-source ecosystem. All proj
 
 ---
 
+## Security
+
+Please do not report security vulnerabilities through public GitHub issues. Follow [`SECURITY.md`](SECURITY.md) for private reporting through GitHub Security Advisories, and for what is in and out of scope.
+
+---
+
 ## Contributing
 
-Contributions are warmly welcomed! Here is how to get involved:
+Contributions are warmly welcomed. Branch from `main`, keep the change to one outcome, and run the gates before pushing:
 
-1. **Fork** the repository and create a feature branch from `main`.
-2. **Write focused, testable code** — add or update tests for any new behaviour.
-3. **Run the CI checks locally** before pushing:
-   ```bash
-   ./vendor/bin/phpunit
-   ```
-4. **Open a Pull Request** against `main` with a clear description of what you changed and why.
-5. The CI pipeline (install, tests, Docker workflows) must pass before a PR can be merged.
-6. A maintainer will review your PR, suggest changes if necessary, and merge when ready.
+```bash
+composer check   # Pint, PHPStan, then the test suite
+```
 
-If you have a larger feature in mind, please open an issue first to discuss the approach — this avoids duplicated effort and helps us keep the codebase cohesive.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has the rest: what each gate checks and why it is scoped the way it is, the five CI workflows, when a change needs an ADR, and the two documents in `docs/` with opposite editing rules. Read it before a first pull request — several of the rules here are not the obvious ones, and the reasoning is recorded rather than assumed.
+
+For a larger feature, open an issue first. This repository is mid-migration and the work is sequenced, so a change that lands out of order costs more to reconcile than it saves.
 
 ---
 
@@ -246,64 +171,3 @@ The MIT licence is one of the most permissive open-source licences available. In
 - ℹ️ **No warranty** — the software is provided "as is"; the authors accept no liability for damages arising from its use.
 
 Choosing MIT means you can adopt Liberu Ecommerce as the foundation for a commercial product without legal concerns, while still benefiting from community improvements and contributions.
-
----
-
-## Advanced Features (Latest from Shopify & Magento 2)
-
-This platform now includes enterprise-grade features inspired by the latest Shopify and Magento 2 (Adobe Commerce) releases:
-
-### Customer Intelligence
-- **Customer Segmentation** - Target customers based on behavior, LTV, and purchase history with rule-based conditions
-- **Customer Analytics & LTV** - Track lifetime value, retention scores, and predictive analytics
-- **Customer Metrics Dashboard** - Comprehensive customer behavior tracking and analysis
-
-### AI-Powered Personalization
-- **Product Recommendations** - Collaborative filtering, personalized, trending, and "also bought" suggestions
-- **Product Interaction Tracking** - Track views, cart adds, purchases for better insights
-- **Recommendation Engine** - Multiple recommendation types with scoring algorithms
-
-### Product Management
-- **Product Taxonomy** - Hierarchical categorization with custom attributes for better organization
-- **Product Performance Analytics** - Track views, conversions, and return rates per product
-- **Multi-location Inventory** - Advanced inventory management across multiple locations
-
-### Marketing & Conversion
-- **A/B Testing Framework** - Built-in testing with variant assignment and conversion tracking
-- **Abandoned Cart Recovery** - Automated campaigns with email/SMS triggers and discount codes
-- **Conversion Funnel Analytics** - Track customer journey and optimize conversion paths
-
-### Customer Experience
-- **Gift Registry** - Complete registry system for weddings, baby showers, and other events
-- **Loyalty & Rewards Program** - Points, tiers, and reward redemptions (from WooCommerce features)
-- **B2B Wholesale Pricing** - Tiered pricing, quote requests, and wholesale groups (from WooCommerce features)
-
-### Operations
-- **Product Bundles** - Create product kits with special pricing (from WooCommerce features)
-- **Refund & Return Management** - Full RMA system with inventory restocking (from WooCommerce features)
-- **Multi-currency Support** - Currency management with exchange rates (from WooCommerce features)
-- **Tax Management** - Location-based tax calculation (from WooCommerce features)
-
-📚 **Detailed Documentation**: See [SHOPIFY_MAGENTO_FEATURES.md](docs/SHOPIFY_MAGENTO_FEATURES.md) and [WOOCOMMERCE_FEATURES.md](docs/WOOCOMMERCE_FEATURES.md) for complete feature guides.
-
-### Console Commands
-
-```bash
-# Calculate customer segments
-php artisan segments:calculate
-
-# Generate product recommendations
-php artisan recommendations:generate
-
-# Update customer metrics (LTV, retention, etc.)
-php artisan metrics:update-customers
-```
-
-### Admin Panel
-
-Filament admin resources are available for managing:
-- Customer Segments (/admin/customer-segments)
-- Gift Registries
-- A/B Tests
-- Cart Recovery Campaigns
-- And all other features...

@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -21,6 +22,11 @@ class ProductControllerTest extends TestCase
         // Product write endpoints are admin-gated; these CRUD tests act as an admin.
         Role::findOrCreate('super_admin', 'web');
         $this->user = User::factory()->create()->assignRole('super_admin');
+        // Products and collections carry team_id with a database default of 1,
+        // and the API writes are now ownership-checked (#939) — so the admin
+        // acting here has to be in team 1 for the rows these tests create to be
+        // theirs to edit.
+        Team::factory()->create(['id' => 1, 'user_id' => $this->user->id]);
     }
 
     /**

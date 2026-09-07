@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
-use App\Models\Review;
+use App\Models\ProductReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -40,14 +40,14 @@ class ReviewRatingAuthTest extends TestCase
 
     public function test_guest_cannot_vote(): void
     {
-        $review = Review::factory()->create();
+        $review = ProductReview::factory()->create();
 
         $this->postJson("/reviews/{$review->id}/vote", ['vote' => 'helpful'])->assertStatus(401);
     }
 
     public function test_non_admin_cannot_approve_review(): void
     {
-        $review = Review::factory()->create(['approved' => false]);
+        $review = ProductReview::factory()->create(['approved' => false]);
 
         $this->actingAs(User::factory()->create())
             ->postJson("/reviews/approve/{$review->id}")->assertStatus(403);
@@ -57,7 +57,7 @@ class ReviewRatingAuthTest extends TestCase
 
     public function test_admin_can_approve_review(): void
     {
-        $review = Review::factory()->create(['approved' => false]);
+        $review = ProductReview::factory()->create(['approved' => false]);
 
         $this->actingAs($this->admin())
             ->postJson("/reviews/approve/{$review->id}")->assertStatus(200);

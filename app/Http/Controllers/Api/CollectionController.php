@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\OwnsTeamResources;
 use App\Http\Controllers\Controller;
 use App\Models\ProductCollection;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,8 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class CollectionController extends Controller
 {
+    use OwnsTeamResources;
+
     /**
      * Display a listing of collections.
      */
@@ -84,6 +87,10 @@ class CollectionController extends Controller
             $data['slug'] = Str::slug($data['name']);
         }
 
+        if ($teamId = $this->creationTeamId($request)) {
+            $data['team_id'] = $teamId;
+        }
+
         $collection = ProductCollection::create($data);
 
         return response()->json([
@@ -132,6 +139,8 @@ class CollectionController extends Controller
             ], 404);
         }
 
+        $this->assertActorOwns($request, $collection);
+
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'slug' => ['sometimes', 'string', 'max:255', Rule::unique('collections', 'slug')->ignore($id)],
@@ -177,6 +186,8 @@ class CollectionController extends Controller
                 'message' => 'Collection not found',
             ], 404);
         }
+
+        $this->assertActorOwns($request, $collection);
 
         $validator = Validator::make($request->all(), [
             'product_ids' => 'required|array',
@@ -229,6 +240,8 @@ class CollectionController extends Controller
             ], 404);
         }
 
+        $this->assertActorOwns($request, $collection);
+
         $validator = Validator::make($request->all(), [
             'product_ids' => 'required|array',
             'product_ids.*' => 'required|integer|exists:products,id',
@@ -268,6 +281,8 @@ class CollectionController extends Controller
                 'message' => 'Collection not found',
             ], 404);
         }
+
+        $this->assertActorOwns($request, $collection);
 
         $collection->delete();
 

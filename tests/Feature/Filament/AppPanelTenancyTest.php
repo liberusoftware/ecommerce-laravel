@@ -2,21 +2,11 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\App\Resources\Articles\Pages\ListArticles;
-use App\Filament\App\Resources\Collections\Pages\ListCollections;
-use App\Filament\App\Resources\Customers\Pages\ListCustomers;
-use App\Filament\App\Resources\Groups\Pages\ListGroups;
-use App\Filament\App\Resources\Invoices\Pages\ListInvoices;
-use App\Filament\App\Resources\Orders\Pages\ListOrders;
-use App\Filament\App\Resources\ProductRatings\Pages\ListProductRatings;
-use App\Filament\App\Resources\ProductReviews\Pages\ListProductReviews;
-use App\Filament\App\Resources\Products\Pages\ListProducts;
 use App\Models\Team;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -54,18 +44,39 @@ class AppPanelTenancyTest extends TestCase
         $this->assertTrue($user->getTenants(Filament::getPanel('app'))->contains($team));
     }
 
-    public function test_every_app_panel_list_page_mounts(): void
+    /**
+     * Over HTTP rather than through `Livewire::test`, for the reason the admin
+     * sibling gives at length: the tenant scope is a global scope registered
+     * when the panel boots, and the panel boots in middleware. Mounting a page
+     * directly skips all of it, so the page renders clean whether or not the
+     * scope it is supposed to run under would survive. This test passed for
+     * months against a panel with no tenant scoping at all.
+     */
+    public function test_every_app_panel_list_page_responds(): void
     {
-        $this->actingInTeamPanel();
+        $team = $this->actingInTeamPanel();
 
-        $pages = [
-            ListOrders::class, ListProducts::class, ListCustomers::class,
-            ListCollections::class, ListGroups::class, ListProductReviews::class,
-            ListProductRatings::class, ListInvoices::class, ListArticles::class,
-        ];
+        $resources = Filament::getPanel('app')->getResources();
 
-        foreach ($pages as $page) {
-            Livewire::test($page)->assertSuccessful();
+        $this->assertNotEmpty($resources, 'The app panel registered no resources — the enumeration is wrong.');
+
+        $failures = [];
+
+        foreach ($resources as $resource) {
+            if (! $resource::hasPage('index')) {
+                continue;
+            }
+
+            $response = $this->get($resource::getUrl(tenant: $team));
+
+            if ($response->getStatusCode() >= 300) {
+                $failures[] = class_basename($resource).' -> '.$response->getStatusCode()
+                    .($response->exception ? ' :: '.$response->exception::class.': '.$response->exception->getMessage() : '');
+            }
         }
+
+        sort($failures);
+
+        $this->assertSame([], $failures, "App panel list pages that do not respond 2xx:\n".implode("\n", $failures));
     }
 }

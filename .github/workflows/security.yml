@@ -52,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # package.json declares no engines. 20 matches the php-fpm image that
           # actually builds these assets (v20.20.2) and clears Vite 8's >= 20.19

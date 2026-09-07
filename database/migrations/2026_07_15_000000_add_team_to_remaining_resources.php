@@ -12,14 +12,14 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
-    protected $tables = ['invoices', 'articles', 'product_rating'];
+    protected $tables = ['invoices', 'product_rating'];
 
     public function up(): void
     {
         foreach ($this->tables as $table) {
             if (Schema::hasTable($table) && ! Schema::hasColumn($table, 'team_id')) {
                 Schema::table($table, function (Blueprint $table) {
-                    $table->foreignId('team_id')->nullable()->constrained()->onDelete('cascade')->default(1);
+                    $table->foreignId('team_id')->nullable()->constrained()->onDelete('cascade');
                 });
             }
         }

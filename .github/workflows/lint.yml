@@ -1,0 +1,132 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [main]
+  # This repository drops pull_request synchronize events often enough that a
+  # pushed fix can sit with no run at all. workflow_dispatch is the way back in;
+  # it compares against main, which is what a PR to main would have used anyway.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two static gates, deliberately scoped differently.
+#
+# Pint is a ratchet, not a sweep: it checks only the PHP files a pull request
+# actually touches, and deliberately leaves the rest of the tree alone.
+#
+# Running `pint` across the repository would rewrite most of ~400 files in one
+# commit: it would bury every real change under formatting noise, conflict with
+# every branch already in flight, and make `git blame` useless on a codebase
+# whose history is the main tool for working out why something is the way it is.
+# The cost of that is paid once and the benefit arrives gradually either way, so
+# the trade lands on gradual — files get formatted as they get edited.
+#
+# The consequence to know about: a red Pint job here is about the diff, never
+# about the file. Editing a long-unformatted file means adopting its formatting
+# in the same commit, which is the point.
+#
+# PHPStan is the opposite and has to be. Formatting is per-file; type analysis
+# is whole-program — a changed signature breaks callers that the diff never
+# names, and analysing only the diff would never see them. The baseline is a
+# whole-tree snapshot too, so only a whole-tree run can tell that an entry in it
+# has gone stale. See phpstan.neon for what is analysed and why.
+jobs:
+  pint:
+    name: Pint (changed files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # fetch-depth: 0 — the diff below needs the base branch's history, and the
+      # default shallow checkout does not have it.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      # --no-scripts: this job only needs vendor/bin/pint on disk. Skipping
+      # package:discover keeps it independent of whether the application boots,
+      # so a formatting failure reads as a formatting failure.
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      # ACMR — added, copied, modified, renamed. Deleted files are excluded
+      # because Pint cannot check a path that no longer exists.
+      - name: Collect changed PHP files
+        id: changed
+        run: |
+          set -euo pipefail
+          base="${{ github.base_ref }}"
+          git fetch --no-tags origin "${base:-main}"
+          # modules/ and themes/ are tracked (ADR 0010 is withdrawn) but they
+          # hold installed package copies whose authoritative source is another
+          # repository. Formatting them here would fight `composer install` and
+          # trip the release guard that requires the tree to match the package.
+          git diff --name-only --diff-filter=ACMR \
+            "FETCH_HEAD...HEAD" -- '*.php' \
+            ':(exclude)modules/**' ':(exclude)themes/**' > changed.txt
+          echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
+          cat changed.txt
+
+      # -d '\n' so a path containing a space stays one argument. The `--` guards
+      # against a filename that starts with a dash being read as an option.
+      # -v prints the diff Pint would apply. Without it a failure is a list of
+      # rule names truncated to the terminal width, which is not enough to act
+      # on — the first real failure this gate produced could not be read.
+      - name: Run Pint
+        if: steps.changed.outputs.count != '0'
+        run: xargs -a changed.txt -d '\n' ./vendor/bin/pint --test -v --
+
+  phpstan:
+    name: PHPStan (whole tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          # PHPStan holds the whole inferred type graph in memory. The default
+          # CLI limit is enough today and won't be forever; raising it here is
+          # cheaper than a job that dies with an OOM that reads like a bug.
+          ini-values: memory_limit=1G
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      # --no-scripts for the same reason as the Pint job: this needs
+      # vendor/ on disk and nothing else. PHPStan reads the code, it
+      # does not boot the application.
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHPStan
+        run: ./vendor/bin/phpstan analyse --no-progress

@@ -8,9 +8,27 @@ use App\Models\TaxRate;
 class TaxCalculator
 {
     /**
-     * Calculate tax for cart items
+     * Calculate tax for cart items.
+     *
+     * `$discount` is a cart-level discount — a coupon — and tax lands on what is
+     * left after it. That rule came from `TaxService`, which held it as a flat
+     * subtraction from one blended subtotal; correct only while every line
+     * shares a rate. Here it is **pro-rata**: each line's taxable base shrinks
+     * by the same proportion, so a cart mixing a standard-rated and a
+     * reduced-rated item is taxed on the right amount of each.
+     *
+     * Both checkouts used to compute that proportion themselves, identically,
+     * next to the call. A tax rule living at two call sites is a rule that will
+     * eventually live at one.
+     *
+     * Pass **every** cart line, including ones with no `product`: they are not
+     * taxed (nothing says at what rate), but they are part of the cart the
+     * discount was given against, so they belong in its denominator.
+     *
+     * Shipping tax is not discounted — a cart coupon reduces what was bought,
+     * not what it cost to send.
      */
-    public function calculateCartTax(array $items, array $shippingAddress, float $shippingCost = 0): array
+    public function calculateCartTax(array $items, array $shippingAddress, float $shippingCost = 0, float $discount = 0): array
     {
         $taxLines = [];
         $totalTax = 0;
@@ -23,6 +41,8 @@ class TaxCalculator
         if (! $country) {
             return ['total' => 0, 'lines' => []];
         }
+
+        $discountFactor = $this->discountFactor($items, $discount);
 
         // Calculate tax for each item
         foreach ($items as $item) {
@@ -40,7 +60,7 @@ class TaxCalculator
             }
 
             $taxClassId = $product->tax_class_id;
-            $itemSubtotal = $price * $quantity;
+            $itemSubtotal = $price * $quantity * $discountFactor;
 
             // Find matching tax rates
             $rates = TaxRate::findMatchingRates($country, $state, $city, $zipCode, $taxClassId);
@@ -60,6 +80,32 @@ class TaxCalculator
             'total' => round($totalTax, 2),
             'lines' => array_values($taxLines),
         ];
+    }
+
+    /**
+     * The proportion of each line that remains taxable after a cart discount.
+     *
+     * 1.0 when there is no discount, and 0.0 when the discount covers the cart —
+     * a coupon can zero the tax but never make it negative.
+     *
+     * @param  array<array{product?: mixed, price?: float, quantity?: int}>  $items
+     */
+    private function discountFactor(array $items, float $discount): float
+    {
+        if ($discount <= 0) {
+            return 1.0;
+        }
+
+        $subtotal = 0.0;
+        foreach ($items as $item) {
+            $subtotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+        }
+
+        if ($subtotal <= 0) {
+            return 1.0;
+        }
+
+        return max(0, $subtotal - $discount) / $subtotal;
     }
 
     /**

@@ -2,27 +2,38 @@
 
 namespace App\Filament\Admin\Resources\ChatConversations;
 
-use App\Models\ChatConversation;
 use App\Filament\Admin\Resources\ChatConversations\Pages\ListChatConversations;
 use App\Filament\Admin\Resources\ChatConversations\Pages\ViewChatConversation;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DateTimePicker;
+use App\Models\ChatConversation;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 
 class ChatConversationResource extends Resource
 {
     protected static ?string $model = ChatConversation::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+    /*
+     * Tenant-scoped, by inheriting the panel's default. This used to declare
+     * `$isScopedToTenant = false`, and the reason it gave was true — the table
+     * had no `team_id` and the model no `team` relationship, so Filament would
+     * have raised a LogicException rather than isolated anything.
+     *
+     * The reason was true and the outcome was still a leak: every staff user
+     * saw every team's conversations, customer names, emails and message bodies
+     * included. The fix is the missing key, not the opt-out — `ChatConversation`
+     * now carries `team_id` and `store_id` via IsTenantModel and IsStoreScoped.
+     */
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
-    protected static string | \UnitEnum | null $navigationGroup = "Customer Support";
+    protected static string|\UnitEnum|null $navigationGroup = 'Customer Support';
 
     protected static ?string $navigationLabel = 'Chat Conversations';
 

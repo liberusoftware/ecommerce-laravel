@@ -63,17 +63,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: liberu/ecommerce
           tags: |
@@ -90,7 +90,7 @@ jobs:
       # naming 32 assets while containing none of them. Both were invisible to a
       # build-exit-code check. The smoke step below is what those needed.
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -138,7 +138,7 @@ jobs:
 
       # Reuses the layers just built and verified; this only uploads them.
       - name: Push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile

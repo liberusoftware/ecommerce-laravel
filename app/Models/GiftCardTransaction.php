@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GiftCardTransaction extends Model
 {
     use HasFactory;
-    use IsTenantModel;
 
     protected $fillable = [
         'gift_card_id',

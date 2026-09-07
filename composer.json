@@ -1,7 +1,7 @@
 {
-    "name": "liberu-eccommerce/ecommerce-laravel",
+    "name": "liberusoftware/ecommerce-laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Liberu Ecommerce — an open-source e-commerce platform built on Laravel, Filament and Livewire.",
     "keywords": [
         "laravel",
         "framework"
@@ -41,6 +41,8 @@
         "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
+        "liberusoftware/composer-installer": "^1.1",
+        "liberusoftware/module-manager": "^1.4",
         "livewire/livewire": "^4.0",
         "orangehill/iseed": "^3.0",
         "spatie/laravel-menu": "^4.2",
@@ -86,6 +88,23 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "lint": [
+            "@php vendor/bin/pint --test"
+        ],
+        "lint:fix": [
+            "@php vendor/bin/pint"
+        ],
+        "analyse": [
+            "@php vendor/bin/phpstan analyse --memory-limit=1G"
+        ],
+        "test": [
+            "@php artisan test"
+        ],
+        "check": [
+            "@lint",
+            "@analyse",
+            "@test"
         ]
     },
     "extra": {
@@ -98,6 +117,7 @@
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {
+            "liberusoftware/composer-installer": true,
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
         },
@@ -105,6 +125,6 @@
             "ext-posix": "1.0.0"
         }
     },
-    "minimum-stability": "beta",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

@@ -33,8 +33,25 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     use HasProfilePhoto {
         HasProfilePhoto::profilePhotoUrl as getPhotoUrl;
     }
+
+    /*
+     * Both traits declare teams(), which is a fatal error unless resolved —
+     * `spatie/laravel-permission` gained the method in 8.x, and the bump to
+     * ^8.3 stopped the application booting at all.
+     *
+     * Jetstream's wins, because it is the one this application means:
+     * allTeams(), currentTeam, switchTeam, Filament tenancy on both panels and
+     * canAccessPanel all read it, and `teams` rows carry Jetstream's shape.
+     *
+     * Spatie's is dropped rather than aliased. Its teams feature is off
+     * (config/permission.php sets 'teams' => false), under which its own
+     * implementation returns a `whereRaw('1 = 0')` no-op that exists only so
+     * model introspection does not break — and nothing inside the package
+     * calls it.
+     */
     use HasRoles { HasRoles::teams as permissionTeams; }
     use HasTeams { HasTeams::teams insteadof HasRoles; }
+
     use Notifiable;
 
     // use SetsProfilePhotoFromUrl;
@@ -46,7 +63,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
      * `admin` is the back-office for the whole store: super_admin only.
      *
      * `app` is a team's back-office — Products, Orders, Invoices, Customers,
-     * Articles, Collections — scoped by Filament to the current tenant. So the
+     * Collections — scoped by Filament to the current tenant. So the
      * question it answers is "do you belong to a team?", and teams are handed out
      * through TeamPolicy::create, which requires the `create_store` permission.
      * That keeps the decision in one place instead of duplicating a role check here.
@@ -169,10 +186,9 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->hasMany(BrowsingHistory::class);
     }
 
-    public function ratings(): HasMany
-    {
-        return $this->hasMany(Rating::class);
-    }
+    // A user's ratings are reached through their Customer since ADR 0008 —
+    // `$user->customer->rating`. The relation that hung off `User` belonged to
+    // the retired stack and pointed at a table that no longer exists.
 
     public function membership(): BelongsToMany
     {

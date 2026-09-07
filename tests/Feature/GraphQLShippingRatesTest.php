@@ -43,7 +43,7 @@ class GraphQLShippingRatesTest extends TestCase
     private function cartItem(User $user): Product
     {
         $product = Product::factory()->create(['price' => 100, 'inventory_count' => 5, 'is_downloadable' => false]);
-        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 100, 'session_id' => 'api']);
+        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 100]);
 
         return $product;
     }

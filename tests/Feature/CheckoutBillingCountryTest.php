@@ -48,14 +48,14 @@ class CheckoutBillingCountryTest extends TestCase
     {
         $product = Product::factory()->create(['price' => 50, 'inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => [
+        $this->withStoredCart([
             $product->id => [
                 'quantity' => 1,
                 'price' => (float) $product->price,
                 'is_downloadable' => true,
                 'name' => $product->name,
             ],
-        ]])->post(route('checkout.process'), [
+        ])->post(route('checkout.process'), [
             'email' => 'buyer@example.com',
             'has_physical_products' => 0,
             'country' => 'de',
@@ -73,9 +73,9 @@ class CheckoutBillingCountryTest extends TestCase
         Http::fake(['ec.europa.eu/*' => Http::response(['isValid' => true])]);
         $product = Product::factory()->create(['price' => 100, 'inventory_count' => 5, 'is_downloadable' => true]);
 
-        $this->withSession(['cart' => [
+        $this->withStoredCart([
             $product->id => ['quantity' => 1, 'price' => 100.0, 'is_downloadable' => true, 'name' => $product->name],
-        ]])->post(route('checkout.process'), [
+        ])->post(route('checkout.process'), [
             'email' => 'biz@example.com',
             'has_physical_products' => 0,
             'country' => 'FR',

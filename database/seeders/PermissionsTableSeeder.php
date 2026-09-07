@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -18,10 +19,10 @@ class PermissionsTableSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         Schema::disableForeignKeyConstraints();
-        \DB::table('permissions')->delete();
+        DB::table('permissions')->delete();
         Schema::enableForeignKeyConstraints();
 
-        \DB::table('permissions')->insert([
+        DB::table('permissions')->insert([
             0 => [
                 'id' => 1,
                 'name' => 'view_cart::item',
@@ -1386,6 +1387,50 @@ class PermissionsTableSeeder extends Seeder
                 'guard_name' => 'web',
                 'created_at' => '2024-09-04 14:20:26',
                 'updated_at' => '2024-09-04 14:20:26',
+            ],
+            // FacebookConnection has no soft deletes, so no restore/force-delete
+            // pair, and it is never reordered or replicated.
+            195 => [
+                'id' => 196,
+                'name' => 'view_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            196 => [
+                'id' => 197,
+                'name' => 'view_any_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            197 => [
+                'id' => 198,
+                'name' => 'create_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            198 => [
+                'id' => 199,
+                'name' => 'update_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            199 => [
+                'id' => 200,
+                'name' => 'delete_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
+            ],
+            200 => [
+                'id' => 201,
+                'name' => 'delete_any_facebook::connection',
+                'guard_name' => 'web',
+                'created_at' => '2026-08-17 00:00:00',
+                'updated_at' => '2026-08-17 00:00:00',
             ],
         ]);
 

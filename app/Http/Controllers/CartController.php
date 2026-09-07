@@ -6,18 +6,20 @@ use App\Models\Product;
 use App\Services\CartService;
 use App\Services\CouponService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
+/**
+ * The storefront cart. Backed by `cart_items` for guests and accounts alike —
+ * see {@see CartService}, which is the only door onto that store.
+ *
+ * This controller used to keep the cart in the session and mirror it into
+ * `cart_items` for signed-in shoppers on every write. The mirror is gone: there
+ * is one cart, and the API, the GraphQL mutation and this controller all read
+ * and write it.
+ */
 class CartController extends Controller
 {
-    /** Mirror the session cart to the signed-in user's persistent cart (no-op for guests). */
-    private function persistCart(): void
-    {
-        if (Auth::check()) {
-            app(CartService::class)->persistForUser(Auth::user(), Session::get('cart', []));
-        }
-    }
+    public function __construct(private CartService $cart) {}
 
     public function add(Request $request, Product $product)
     {
@@ -31,21 +33,7 @@ class CartController extends Controller
             return redirect()->back()->with('error', 'Not enough inventory available.');
         }
 
-        $cart = Session::get('cart', []);
-
-        if (isset($cart[$product->id])) {
-            $cart[$product->id]['quantity'] += $quantity;
-        } else {
-            $cart[$product->id] = [
-                'name' => $product->name,
-                'price' => $product->price,
-                'quantity' => $quantity,
-                'is_downloadable' => $product->is_downloadable,
-            ];
-        }
-
-        Session::put('cart', $cart);
-        $this->persistCart();
+        $this->cart->add($product, $quantity);
 
         return redirect()->back()->with('success', 'Product added to cart successfully!');
     }
@@ -63,9 +51,7 @@ class CartController extends Controller
             return redirect()->back()->with('error', 'Quantity must be at least 1.');
         }
 
-        $cart = Session::get('cart', []);
-
-        if (! isset($cart[$productId])) {
+        if (! $this->cart->has((int) $productId)) {
             return redirect()->back()->with('error', 'Product not found in cart.');
         }
 
@@ -78,33 +64,26 @@ class CartController extends Controller
             return redirect()->back()->with('error', 'Not enough inventory available.');
         }
 
-        $cart[$productId]['quantity'] = $quantity;
-        Session::put('cart', $cart);
-        $this->persistCart();
+        $this->cart->setQuantity((int) $productId, (int) $quantity);
 
         return redirect()->back()->with('success', 'Cart updated successfully!');
     }
 
     public function remove($productId)
     {
-        $cart = Session::get('cart', []);
-
-        if (isset($cart[$productId])) {
-            unset($cart[$productId]);
-            Session::put('cart', $cart);
-            $this->persistCart();
-
-            return redirect()->back()->with('success', 'Product removed from cart successfully!');
+        if (! $this->cart->has((int) $productId)) {
+            return redirect()->back()->with('error', 'Product not found in cart.');
         }
 
-        return redirect()->back()->with('error', 'Product not found in cart.');
+        $this->cart->remove((int) $productId);
+
+        return redirect()->back()->with('success', 'Product removed from cart successfully!');
     }
 
     public function clear()
     {
-        Session::forget('cart');
+        $this->cart->clear();
         Session::forget('coupon');
-        $this->persistCart();
 
         return redirect()->back()->with('success', 'Cart cleared successfully!');
     }
@@ -115,16 +94,11 @@ class CartController extends Controller
             'coupon_code' => 'required|string',
         ]);
 
-        $cart = Session::get('cart', []);
-        if (empty($cart)) {
+        if ($this->cart->isEmpty()) {
             return redirect()->back()->with('error', 'Your cart is empty.');
         }
 
-        $subtotal = collect($cart)->sum(function ($item) {
-            return $item['price'] * $item['quantity'];
-        });
-
-        $result = $couponService->validateAndApplyCoupon($request->coupon_code, $subtotal);
+        $result = $couponService->validateAndApplyCoupon($request->coupon_code, $this->cart->subtotal());
 
         if ($result['valid']) {
             Session::put('coupon', [

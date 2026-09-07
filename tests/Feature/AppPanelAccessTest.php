@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Actions\Fortify\CreateNewUser;
-use App\Filament\App\Resources\Articles\ArticleResource;
 use App\Filament\App\Resources\Collections\CollectionResource;
 use App\Filament\App\Resources\Orders\OrderResource;
 use App\Filament\App\Resources\Products\ProductResource;
@@ -111,14 +110,18 @@ class AppPanelAccessTest extends TestCase
     /**
      * Every app-panel resource denies a user who holds no permissions.
      *
-     * Article and Collection are in this list now. They used to be the exception:
-     * no policy, and strictAuthorization off, so Filament's authorization helper
-     * returned allow() and any team member could CRUD the tenant's articles and
-     * collections, price included. Closing it needed policies AND seeded
-     * permissions together — the Shield set had no article or collection entries
-     * at all, so a policy on its own would have denied super_admin too.
-     * AppPanelAuthorizationTest covers that pair in detail; they are here so this
-     * file's list is the whole panel rather than a subset.
+     * Collection is in this list now. It used to be the exception, alongside
+     * Article: no policy, and strictAuthorization off, so Filament's
+     * authorization helper returned allow() and any team member could CRUD the
+     * tenant's collections, price included. Closing it needed policies AND
+     * seeded permissions together — the Shield set had no collection entries at
+     * all, so a policy on its own would have denied super_admin too.
+     * AppPanelAuthorizationTest covers it in detail; it is here so this file's
+     * list is the whole panel rather than a subset.
+     *
+     * Article was the other half of that pair and no longer exists — its model,
+     * resource and two-column table were deleted rather than moved to the CMS
+     * that owns them, because there was nothing in them to move. See ADR 0012.
      */
     #[Test]
     public function permission_backed_resources_deny_a_user_without_permissions(): void
@@ -129,7 +132,6 @@ class AppPanelAccessTest extends TestCase
         foreach ([
             ProductResource::class,
             OrderResource::class,
-            ArticleResource::class,
             CollectionResource::class,
         ] as $resource) {
             $this->assertFalse($resource::canViewAny(), $resource.' must not be viewable without permission.');

@@ -89,7 +89,8 @@ class CheckoutCouponRevalidationTest extends TestCase
 
     private function checkout(Product $product, int $qty, array $coupon): void
     {
-        $this->withSession(['cart' => $this->cartFor($product, $qty), 'coupon' => $coupon])
+        $this->withStoredCart($this->cartFor($product, $qty))
+            ->withSession(['coupon' => $coupon])
             ->post(route('checkout.process'), $this->payload());
     }
 

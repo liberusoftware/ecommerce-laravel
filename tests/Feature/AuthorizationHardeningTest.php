@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCollection;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -28,7 +29,25 @@ class AuthorizationHardeningTest extends TestCase
     {
         Role::findOrCreate('super_admin', 'web');
 
-        return User::factory()->create()->assignRole('super_admin');
+        $admin = User::factory()->create()->assignRole('super_admin');
+
+        // Products and collections carry team_id with a database default of 1,
+        // and the API writes are now ownership-checked (#939). These tests are
+        // about the role gate, not the ownership one, so the admin is put in
+        // team 1 — where the rows they act on land — to keep the two apart.
+        // Team::create would drop id and user_id — neither is fillable. The
+        // factory writes unguarded, which is why the other suites can pass both.
+        $team = Team::find(1) ?? Team::factory()->create([
+            'id' => 1,
+            'name' => 'default',
+            'user_id' => $admin->id,
+        ]);
+
+        // Membership rather than ownership, since admin() is called more than
+        // once per test and only the first caller can own team 1.
+        $admin->teams()->syncWithoutDetaching([$team->id => ['role' => 'admin']]);
+
+        return $admin;
     }
 
     private function order(?int $userId): Order

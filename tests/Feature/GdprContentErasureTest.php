@@ -9,8 +9,6 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
-use App\Models\Rating;
-use App\Models\Review;
 use App\Models\User;
 use App\Services\GdprErasureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,10 +39,7 @@ class GdprContentErasureTest extends TestCase
         $user = User::factory()->create();
         $customer = $user->getOrCreateCustomer();
 
-        Review::create(['user_id' => $user->id, 'product_id' => $this->product->id, 'rating' => 5, 'review' => 'My private thoughts']);
-        Rating::create(['user_id' => $user->id, 'product_id' => $this->product->id, 'rating' => 4]);
-
-        (new ProductReview)->forceFill(['product_id' => $this->product->id, 'customer_id' => $customer->id, 'comments' => 'Customer comment'])->save();
+        (new ProductReview)->forceFill(['product_id' => $this->product->id, 'customer_id' => $customer->id, 'comments' => 'My private thoughts'])->save();
         (new ProductRating)->forceFill(['product_id' => $this->product->id, 'customer_id' => $customer->id, 'rating' => 3, 'overall_rating' => 3])->save();
 
         $registry = GiftRegistry::create([
@@ -69,8 +64,6 @@ class GdprContentErasureTest extends TestCase
         app(GdprErasureService::class)->erase($user);
 
         // The erased user's content is gone.
-        $this->assertSame(0, Review::where('user_id', $user->id)->count());
-        $this->assertSame(0, Rating::where('user_id', $user->id)->count());
         $this->assertSame(0, ProductReview::where('customer_id', $customerId)->count());
         $this->assertSame(0, ProductRating::where('customer_id', $customerId)->count());
         $this->assertSame(0, GiftRegistry::where('user_id', $user->id)->count());
@@ -79,8 +72,6 @@ class GdprContentErasureTest extends TestCase
         $this->assertSame(0, GiftRegistryPurchase::count() - 1); // only the survivor's purchase remains
 
         // The other user's content is untouched.
-        $this->assertSame(1, Review::where('user_id', $survivor->id)->count());
-        $this->assertSame(1, Rating::where('user_id', $survivor->id)->count());
         $this->assertSame(1, ProductReview::where('customer_id', $survivorCustomerId)->count());
         $this->assertSame(1, ProductRating::where('customer_id', $survivorCustomerId)->count());
         $this->assertSame(1, GiftRegistry::where('user_id', $survivor->id)->count());

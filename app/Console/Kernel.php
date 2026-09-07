@@ -14,6 +14,10 @@ class Kernel extends ConsoleKernel
     {
         // Clear out expired shipping quotes daily so the table doesn't grow unbounded.
         $schedule->command('shipping:prune-quotes')->daily();
+
+        // Meta applies its own review after upload, so local status goes stale
+        // without a read-back.
+        $schedule->command('facebook:reconcile-catalog')->hourly();
     }
 
     /**

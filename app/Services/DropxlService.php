@@ -19,8 +19,8 @@ class DropxlService
 
     public function __construct()
     {
-        $this->apiUrl = rtrim(env('DROPXL_API_URL', 'https://api.dropxl.com'), '/');
-        $this->apiKey = env('DROPXL_API_KEY', '');
+        $this->apiUrl = rtrim((string) config('services.dropxl.url'), '/');
+        $this->apiKey = (string) config('services.dropxl.key');
         $this->headers = [
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',

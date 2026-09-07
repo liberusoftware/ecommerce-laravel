@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,7 +35,7 @@ class ChatAnalytics extends Model
      */
     public static function averageResponseTime()
     {
-        return static::whereNotNull('response_time_seconds')->avg('response_time_seconds');
+        return static::inScope()->whereNotNull('response_time_seconds')->avg('response_time_seconds');
     }
 
     /**
@@ -42,6 +43,21 @@ class ChatAnalytics extends Model
      */
     public static function averageSatisfactionRating()
     {
-        return static::whereNotNull('satisfaction_rating')->avg('satisfaction_rating');
+        return static::inScope()->whereNotNull('satisfaction_rating')->avg('satisfaction_rating');
+    }
+
+    /**
+     * Analytics rows carry no tenant key of their own — they hang off a
+     * conversation, and the conversation is what is scoped.
+     *
+     * `whereHas` rather than a join, because the global scope on
+     * `ChatConversation` applies to the subquery for free. Both callers of the
+     * two averages above are panel surfaces — `ChatStatsWidget` and
+     * `ChatAgentDashboard` — and a widget is exactly where Filament's own
+     * tenancy does not reach.
+     */
+    protected static function inScope(): Builder
+    {
+        return static::whereHas('conversation');
     }
 }
