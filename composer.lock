@@ -4981,7 +4981,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims",
-                "reference": "882f6c4fcad9544213bba3c3e9d50d7466fb8175"
+                "reference": "7db84b52b9310360da1d368a4bdce2ee186a029e"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5031,13 +5031,16 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-api",
-                "reference": "abfa18640db6b1e9cfd77863cde056ab949f40c3"
+                "reference": "819532b888976a30bb2e95b060605020d102a21f"
             },
             "require": {
                 "illuminate/http": "^13.0",
                 "illuminate/routing": "^13.0",
                 "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
                 "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
             },
             "type": "library",
             "extra": {
@@ -5051,6 +5054,16 @@
                 "psr-4": {
                     "Liberu\\EcommerceWarrantyAndClaimsApi\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarrantyAndClaimsApi\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
             },
             "license": [
                 "MIT"
@@ -5067,12 +5080,15 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-filament",
-                "reference": "4995510e821ac62c4b6ffda33f6c183740b72a7d"
+                "reference": "7bbbd812dd269e6f1483afd168cab38840dad6fd"
             },
             "require": {
                 "filament/filament": "^5.0",
                 "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
                 "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
             },
             "type": "library",
             "extra": {
@@ -5086,6 +5102,16 @@
                 "psr-4": {
                     "Liberu\\EcommerceWarrantyAndClaimsFilament\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarrantyAndClaimsFilament\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
             },
             "license": [
                 "MIT"
@@ -5102,12 +5128,15 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-livewire",
-                "reference": "52e24d240dff0f5687bc94f9d19b815c3813d565"
+                "reference": "bf86ee2c38141347643de4db4e0d2bb6f1603f8d"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
                 "livewire/livewire": "^4.0",
                 "php": "^8.5"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
             },
             "type": "library",
             "extra": {
@@ -5121,6 +5150,16 @@
                 "psr-4": {
                     "Liberu\\EcommerceWarrantyAndClaimsLivewire\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Liberu\\EcommerceWarrantyAndClaimsLivewire\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
             },
             "license": [
                 "MIT"
