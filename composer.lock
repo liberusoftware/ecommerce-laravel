@@ -3262,16 +3262,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.30.1",
+            "version": "v13.31.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "718d17db56861e0a49f644217c8853dab1bff8ce"
+                "reference": "7c75fbf93f91fa077d3df1c820cc14f4e59a9774"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/718d17db56861e0a49f644217c8853dab1bff8ce",
-                "reference": "718d17db56861e0a49f644217c8853dab1bff8ce",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/7c75fbf93f91fa077d3df1c820cc14f4e59a9774",
+                "reference": "7c75fbf93f91fa077d3df1c820cc14f4e59a9774",
                 "shasum": ""
             },
             "require": {
@@ -3485,20 +3485,20 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-09-01T21:42:30+00:00"
+            "time": "2026-09-08T14:22:55+00:00"
         },
         {
             "name": "laravel/horizon",
-            "version": "v5.48.3",
+            "version": "v5.49.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/horizon.git",
-                "reference": "2d1045db2ecdc7842a13e96a7c21773f32c93ab3"
+                "reference": "6dce8a97b426be5305adad537ad4b6a99de61b31"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/horizon/zipball/2d1045db2ecdc7842a13e96a7c21773f32c93ab3",
-                "reference": "2d1045db2ecdc7842a13e96a7c21773f32c93ab3",
+                "url": "https://api.github.com/repos/laravel/horizon/zipball/6dce8a97b426be5305adad537ad4b6a99de61b31",
+                "reference": "6dce8a97b426be5305adad537ad4b6a99de61b31",
                 "shasum": ""
             },
             "require": {
@@ -3563,9 +3563,9 @@
             ],
             "support": {
                 "issues": "https://github.com/laravel/horizon/issues",
-                "source": "https://github.com/laravel/horizon/tree/v5.48.3"
+                "source": "https://github.com/laravel/horizon/tree/v5.49.0"
             },
-            "time": "2026-08-10T13:09:54+00:00"
+            "time": "2026-09-07T12:00:27+00:00"
         },
         {
             "name": "laravel/jetstream",
@@ -5109,7 +5109,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations",
-                "reference": "c7fc35c4b10cc4a945625571bc9c04fd81adf5ff"
+                "reference": "44a324ebb15b973a52cef5ad9ae5821314caef60"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5159,7 +5159,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-api",
-                "reference": "911541d787e874d81b26c39ac65406139723d9ca"
+                "reference": "d34b62a76674ceedbbe4b10be7900d8719d7bcbe"
             },
             "require": {
                 "illuminate/http": "^13.0",
@@ -5208,7 +5208,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-filament",
-                "reference": "0105fe5fff9f241701a31308e1b0f2b2598203c2"
+                "reference": "c5da4e7217307499c9e306006f79a7fd6ebe95bb"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -5256,7 +5256,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-livewire",
-                "reference": "21130157b1a37a923a22b84881218c95fab1f8b9"
+                "reference": "7a46406d5a0ef0027f18ca44e3f787a118cb744a"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
@@ -5304,7 +5304,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims",
-                "reference": "7db84b52b9310360da1d368a4bdce2ee186a029e"
+                "reference": "882f6c4fcad9544213bba3c3e9d50d7466fb8175"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5354,7 +5354,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-api",
-                "reference": "819532b888976a30bb2e95b060605020d102a21f"
+                "reference": "63ffd0c938c7bc3debb26c4cdf9098bcd916cfda"
             },
             "require": {
                 "illuminate/http": "^13.0",
@@ -5403,7 +5403,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-filament",
-                "reference": "7bbbd812dd269e6f1483afd168cab38840dad6fd"
+                "reference": "fe836fc71b94793171670906d40f4e5b2dc82660"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -5451,7 +5451,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-livewire",
-                "reference": "bf86ee2c38141347643de4db4e0d2bb6f1603f8d"
+                "reference": "4bb1bf4aca11e110e665db03b50e26c66b65970d"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
@@ -5771,16 +5771,16 @@
         },
         {
             "name": "monolog/monolog",
-            "version": "3.11.0",
+            "version": "3.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a"
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/147f303310f06334f03f409e49d7ad1e275ff05a",
-                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/72c534fc0ab181ef52d92a68382318631e301608",
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608",
                 "shasum": ""
             },
             "require": {
@@ -5806,6 +5806,7 @@
                 "phpstan/phpstan-strict-rules": "^2",
                 "phpunit/phpunit": "^10.5.17 || ^11.0.7",
                 "predis/predis": "^1.1 || ^2",
+                "psr/clock": "^1.0",
                 "rollbar/rollbar": "^4.0",
                 "ruflin/elastica": "^7 || ^8",
                 "symfony/mailer": "^5.4 || ^6",
@@ -5824,6 +5825,7 @@
                 "graylog2/gelf-php": "Allow sending log messages to a GrayLog2 server",
                 "mongodb/mongodb": "Allow sending log messages to a MongoDB server (via library)",
                 "php-amqplib/php-amqplib": "Allow sending log messages to an AMQP server using php-amqplib",
+                "psr/clock": "Required to pass a clock to the Logger and control the timestamp of log records",
                 "rollbar/rollbar": "Allow sending log messages to Rollbar",
                 "ruflin/elastica": "Allow sending log messages to an Elastic Search server"
             },
@@ -5858,7 +5860,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Seldaek/monolog/issues",
-                "source": "https://github.com/Seldaek/monolog/tree/3.11.0"
+                "source": "https://github.com/Seldaek/monolog/tree/3.12.0"
             },
             "funding": [
                 {
@@ -5870,7 +5872,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-02T12:39:56+00:00"
+            "time": "2026-09-09T08:34:20+00:00"
         },
         {
             "name": "nesbot/carbon",
