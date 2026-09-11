@@ -1746,7 +1746,7 @@
         },
         {
             "name": "filament/actions",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/actions.git",
@@ -1795,16 +1795,16 @@
         },
         {
             "name": "filament/filament",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/panels.git",
-                "reference": "dee3b8fb5432420386aa27af06151239200f020e"
+                "reference": "1c2d8ed04959da6da7b54bcd6e6b75aeb50ab19a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filamentphp/panels/zipball/dee3b8fb5432420386aa27af06151239200f020e",
-                "reference": "dee3b8fb5432420386aa27af06151239200f020e",
+                "url": "https://api.github.com/repos/filamentphp/panels/zipball/1c2d8ed04959da6da7b54bcd6e6b75aeb50ab19a",
+                "reference": "1c2d8ed04959da6da7b54bcd6e6b75aeb50ab19a",
                 "shasum": ""
             },
             "require": {
@@ -1849,20 +1849,20 @@
                 "issues": "https://github.com/filamentphp/filament/issues",
                 "source": "https://github.com/filamentphp/filament"
             },
-            "time": "2026-09-07T18:43:32+00:00"
+            "time": "2026-09-08T10:21:33+00:00"
         },
         {
             "name": "filament/forms",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/forms.git",
-                "reference": "f066cb545466d5c6a8b208a7485bd21512ffb76e"
+                "reference": "74b5cda7693267a55af24d314944c667d4669fab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filamentphp/forms/zipball/f066cb545466d5c6a8b208a7485bd21512ffb76e",
-                "reference": "f066cb545466d5c6a8b208a7485bd21512ffb76e",
+                "url": "https://api.github.com/repos/filamentphp/forms/zipball/74b5cda7693267a55af24d314944c667d4669fab",
+                "reference": "74b5cda7693267a55af24d314944c667d4669fab",
                 "shasum": ""
             },
             "require": {
@@ -1899,11 +1899,11 @@
                 "issues": "https://github.com/filamentphp/filament/issues",
                 "source": "https://github.com/filamentphp/filament"
             },
-            "time": "2026-09-07T18:42:41+00:00"
+            "time": "2026-09-08T10:24:44+00:00"
         },
         {
             "name": "filament/infolists",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/infolists.git",
@@ -1948,7 +1948,7 @@
         },
         {
             "name": "filament/notifications",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/notifications.git",
@@ -1995,7 +1995,7 @@
         },
         {
             "name": "filament/query-builder",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/query-builder.git",
@@ -2041,16 +2041,16 @@
         },
         {
             "name": "filament/schemas",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/schemas.git",
-                "reference": "ed0d42475497567a5b32d1b1a49c5ae9cfe3b73d"
+                "reference": "ca4e860522d9149f3442468bf7eaebf04bccca67"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filamentphp/schemas/zipball/ed0d42475497567a5b32d1b1a49c5ae9cfe3b73d",
-                "reference": "ed0d42475497567a5b32d1b1a49c5ae9cfe3b73d",
+                "url": "https://api.github.com/repos/filamentphp/schemas/zipball/ca4e860522d9149f3442468bf7eaebf04bccca67",
+                "reference": "ca4e860522d9149f3442468bf7eaebf04bccca67",
                 "shasum": ""
             },
             "require": {
@@ -2082,11 +2082,11 @@
                 "issues": "https://github.com/filamentphp/filament/issues",
                 "source": "https://github.com/filamentphp/filament"
             },
-            "time": "2026-09-07T18:43:53+00:00"
+            "time": "2026-09-08T10:21:40+00:00"
         },
         {
             "name": "filament/spatie-laravel-settings-plugin",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/spatie-laravel-settings-plugin.git",
@@ -2130,7 +2130,7 @@
         },
         {
             "name": "filament/support",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/support.git",
@@ -2189,7 +2189,7 @@
         },
         {
             "name": "filament/tables",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/tables.git",
@@ -2235,7 +2235,7 @@
         },
         {
             "name": "filament/widgets",
-            "version": "v5.8.0",
+            "version": "v5.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filamentphp/widgets.git",
@@ -3262,16 +3262,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.30.1",
+            "version": "v13.31.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "718d17db56861e0a49f644217c8853dab1bff8ce"
+                "reference": "7c75fbf93f91fa077d3df1c820cc14f4e59a9774"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/718d17db56861e0a49f644217c8853dab1bff8ce",
-                "reference": "718d17db56861e0a49f644217c8853dab1bff8ce",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/7c75fbf93f91fa077d3df1c820cc14f4e59a9774",
+                "reference": "7c75fbf93f91fa077d3df1c820cc14f4e59a9774",
                 "shasum": ""
             },
             "require": {
@@ -3485,7 +3485,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-09-01T21:42:30+00:00"
+            "time": "2026-09-08T14:22:55+00:00"
         },
         {
             "name": "laravel/horizon",
@@ -5109,7 +5109,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations",
-                "reference": "c7fc35c4b10cc4a945625571bc9c04fd81adf5ff"
+                "reference": "44a324ebb15b973a52cef5ad9ae5821314caef60"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5159,7 +5159,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-api",
-                "reference": "911541d787e874d81b26c39ac65406139723d9ca"
+                "reference": "d34b62a76674ceedbbe4b10be7900d8719d7bcbe"
             },
             "require": {
                 "illuminate/http": "^13.0",
@@ -5208,7 +5208,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-filament",
-                "reference": "0105fe5fff9f241701a31308e1b0f2b2598203c2"
+                "reference": "c5da4e7217307499c9e306006f79a7fd6ebe95bb"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -5256,7 +5256,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-livewire",
-                "reference": "21130157b1a37a923a22b84881218c95fab1f8b9"
+                "reference": "7a46406d5a0ef0027f18ca44e3f787a118cb744a"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
@@ -5304,7 +5304,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims",
-                "reference": "7db84b52b9310360da1d368a4bdce2ee186a029e"
+                "reference": "882f6c4fcad9544213bba3c3e9d50d7466fb8175"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5354,7 +5354,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-api",
-                "reference": "819532b888976a30bb2e95b060605020d102a21f"
+                "reference": "63ffd0c938c7bc3debb26c4cdf9098bcd916cfda"
             },
             "require": {
                 "illuminate/http": "^13.0",
@@ -5403,7 +5403,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-filament",
-                "reference": "7bbbd812dd269e6f1483afd168cab38840dad6fd"
+                "reference": "fe836fc71b94793171670906d40f4e5b2dc82660"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -5451,7 +5451,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-livewire",
-                "reference": "bf86ee2c38141347643de4db4e0d2bb6f1603f8d"
+                "reference": "4bb1bf4aca11e110e665db03b50e26c66b65970d"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
@@ -5771,16 +5771,16 @@
         },
         {
             "name": "monolog/monolog",
-            "version": "3.11.0",
+            "version": "3.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a"
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/147f303310f06334f03f409e49d7ad1e275ff05a",
-                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/72c534fc0ab181ef52d92a68382318631e301608",
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608",
                 "shasum": ""
             },
             "require": {
@@ -5806,6 +5806,7 @@
                 "phpstan/phpstan-strict-rules": "^2",
                 "phpunit/phpunit": "^10.5.17 || ^11.0.7",
                 "predis/predis": "^1.1 || ^2",
+                "psr/clock": "^1.0",
                 "rollbar/rollbar": "^4.0",
                 "ruflin/elastica": "^7 || ^8",
                 "symfony/mailer": "^5.4 || ^6",
@@ -5824,6 +5825,7 @@
                 "graylog2/gelf-php": "Allow sending log messages to a GrayLog2 server",
                 "mongodb/mongodb": "Allow sending log messages to a MongoDB server (via library)",
                 "php-amqplib/php-amqplib": "Allow sending log messages to an AMQP server using php-amqplib",
+                "psr/clock": "Required to pass a clock to the Logger and control the timestamp of log records",
                 "rollbar/rollbar": "Allow sending log messages to Rollbar",
                 "ruflin/elastica": "Allow sending log messages to an Elastic Search server"
             },
@@ -5858,7 +5860,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Seldaek/monolog/issues",
-                "source": "https://github.com/Seldaek/monolog/tree/3.11.0"
+                "source": "https://github.com/Seldaek/monolog/tree/3.12.0"
             },
             "funding": [
                 {
@@ -5870,7 +5872,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-02T12:39:56+00:00"
+            "time": "2026-09-09T08:34:20+00:00"
         },
         {
             "name": "nesbot/carbon",
