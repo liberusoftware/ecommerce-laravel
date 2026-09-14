@@ -5109,7 +5109,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations",
-                "reference": "c7fc35c4b10cc4a945625571bc9c04fd81adf5ff"
+                "reference": "44a324ebb15b973a52cef5ad9ae5821314caef60"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5159,7 +5159,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-api",
-                "reference": "911541d787e874d81b26c39ac65406139723d9ca"
+                "reference": "d34b62a76674ceedbbe4b10be7900d8719d7bcbe"
             },
             "require": {
                 "illuminate/http": "^13.0",
@@ -5208,7 +5208,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-filament",
-                "reference": "0105fe5fff9f241701a31308e1b0f2b2598203c2"
+                "reference": "c5da4e7217307499c9e306006f79a7fd6ebe95bb"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -5256,7 +5256,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warehouse-operations-livewire",
-                "reference": "21130157b1a37a923a22b84881218c95fab1f8b9"
+                "reference": "7a46406d5a0ef0027f18ca44e3f787a118cb744a"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warehouse-operations": "^0.1",
@@ -5304,7 +5304,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims",
-                "reference": "7db84b52b9310360da1d368a4bdce2ee186a029e"
+                "reference": "882f6c4fcad9544213bba3c3e9d50d7466fb8175"
             },
             "require": {
                 "illuminate/contracts": "^13.0",
@@ -5354,7 +5354,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-api",
-                "reference": "819532b888976a30bb2e95b060605020d102a21f"
+                "reference": "63ffd0c938c7bc3debb26c4cdf9098bcd916cfda"
             },
             "require": {
                 "illuminate/http": "^13.0",
@@ -5403,7 +5403,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-filament",
-                "reference": "7bbbd812dd269e6f1483afd168cab38840dad6fd"
+                "reference": "fe836fc71b94793171670906d40f4e5b2dc82660"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -5451,7 +5451,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/module-ecommerce-warranty-and-claims-livewire",
-                "reference": "bf86ee2c38141347643de4db4e0d2bb6f1603f8d"
+                "reference": "4bb1bf4aca11e110e665db03b50e26c66b65970d"
             },
             "require": {
                 "liberusoftware/module-ecommerce-warranty-and-claims": "^0.1",
@@ -6211,16 +6211,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.8.0",
+            "version": "v5.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f"
+                "reference": "9e33da9553fe7786f0962b35f4e4ecf01be89def"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
-                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/9e33da9553fe7786f0962b35f4e4ecf01be89def",
+                "reference": "9e33da9553fe7786f0962b35f4e4ecf01be89def",
                 "shasum": ""
             },
             "require": {
@@ -6262,9 +6262,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.8.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.9.0"
             },
-            "time": "2026-07-04T14:30:18+00:00"
+            "time": "2026-09-13T18:51:52+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -14438,16 +14438,16 @@
         },
         {
             "name": "phpunit/php-code-coverage",
-            "version": "14.3.2",
+            "version": "14.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/php-code-coverage.git",
-                "reference": "93d62632fb675b76c9b941fdcfcfa10ffb9dea75"
+                "reference": "f8640c238e930b914d0098a1edbad6652e61a64a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/93d62632fb675b76c9b941fdcfcfa10ffb9dea75",
-                "reference": "93d62632fb675b76c9b941fdcfcfa10ffb9dea75",
+                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/f8640c238e930b914d0098a1edbad6652e61a64a",
+                "reference": "f8640c238e930b914d0098a1edbad6652e61a64a",
                 "shasum": ""
             },
             "require": {
@@ -14466,7 +14466,7 @@
                 "theseer/tokenizer": "^2.0.1"
             },
             "require-dev": {
-                "phpunit/phpunit": "^13.3.2"
+                "phpunit/phpunit": "^13.3.3"
             },
             "suggest": {
                 "ext-pcov": "PHP extension that provides line coverage",
@@ -14504,7 +14504,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/php-code-coverage/issues",
                 "security": "https://github.com/sebastianbergmann/php-code-coverage/security/policy",
-                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/14.3.2"
+                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/14.3.3"
             },
             "funding": [
                 {
@@ -14524,7 +14524,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-04T03:46:43+00:00"
+            "time": "2026-09-10T13:08:32+00:00"
         },
         {
             "name": "phpunit/php-file-iterator",
@@ -14821,16 +14821,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "13.3.2",
+            "version": "13.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "22104a5ceb8d642e6b30ab00211d53d88e2db368"
+                "reference": "0d8711067516c1f6ba1a66f762e16c2fb1a8ccd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/22104a5ceb8d642e6b30ab00211d53d88e2db368",
-                "reference": "22104a5ceb8d642e6b30ab00211d53d88e2db368",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/0d8711067516c1f6ba1a66f762e16c2fb1a8ccd1",
+                "reference": "0d8711067516c1f6ba1a66f762e16c2fb1a8ccd1",
                 "shasum": ""
             },
             "require": {
@@ -14844,14 +14844,14 @@
                 "phar-io/manifest": "^2.0.4",
                 "phar-io/version": "^3.2.1",
                 "php": ">=8.4.1",
-                "phpunit/php-code-coverage": "^14.3.1",
+                "phpunit/php-code-coverage": "^14.3.2",
                 "phpunit/php-file-iterator": "^7.0.2",
                 "phpunit/php-invoker": "^7.0.0",
                 "phpunit/php-text-template": "^6.0.0",
                 "phpunit/php-timer": "^9.0.0",
                 "sebastian/cli-parser": "^5.0.1",
                 "sebastian/comparator": "^8.4",
-                "sebastian/diff": "^9.0",
+                "sebastian/diff": "^9.0.1",
                 "sebastian/environment": "^9.3.2",
                 "sebastian/exporter": "^8.2.1",
                 "sebastian/file-filter": "^1.0",
@@ -14901,7 +14901,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.3.2"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/13.3.3"
             },
             "funding": [
                 {
@@ -14909,7 +14909,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-08-27T08:40:49+00:00"
+            "time": "2026-09-09T04:50:32+00:00"
         },
         {
             "name": "rector/rector",
