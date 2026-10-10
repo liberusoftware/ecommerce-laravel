@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-core",
+  "display_name": "Core",
+  "description": "Core ecommerce foundation: users, teams, permissions, roles, settings",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Core\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.core.users",
+    "ecommerce.core.teams",
+    "ecommerce.core.settings"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Users",
+    "Teams",
+    "Permissions",
+    "Roles",
+    "Settings"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-facebook",
+  "display_name": "Facebook",
+  "description": "Facebook catalog integration and gift registries",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Facebook\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.facebook.catalog",
+    "ecommerce.facebook.giftregistries"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Facebook Catalog",
+    "Facebook Listings",
+    "Gift Registries",
+    "Wishlists"
+  ]
+}

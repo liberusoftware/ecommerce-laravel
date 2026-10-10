@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-inventory",
+  "display_name": "Inventory",
+  "description": "Inventory management: items, levels, locations, adjustments",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Inventory\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.inventory.items",
+    "ecommerce.inventory.levels"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Inventory Items",
+    "Inventory Levels",
+    "Inventory Locations",
+    "Stock Notifications"
+  ]
+}

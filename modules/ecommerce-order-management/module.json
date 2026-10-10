@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-order-management",
+  "display_name": "Order Management",
+  "description": "Order lifecycle management: orders, invoices, refunds, returns",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\OrderManagement\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.orders.lifecycle",
+    "ecommerce.orders.invoices",
+    "ecommerce.orders.refunds"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Orders",
+    "Order Items",
+    "Invoices",
+    "Refunds",
+    "Returns",
+    "Order Status History"
+  ]
+}

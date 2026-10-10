@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-marketing",
+  "display_name": "Marketing",
+  "description": "Marketing tools: coupons, discounts, A/B testing, loyalty programs",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Marketing\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.marketing.coupons",
+    "ecommerce.marketing.discounts",
+    "ecommerce.marketing.loyalty"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Coupons",
+    "Discounts",
+    "A/B Testing",
+    "Loyalty Programs",
+    "Wholesale Pricing"
+  ]
+}

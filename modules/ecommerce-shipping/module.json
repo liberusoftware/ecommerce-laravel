@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-shipping",
+  "display_name": "Shipping",
+  "description": "Shipping methods and carrier rate management",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Shipping\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.shipping.methods",
+    "ecommerce.shipping.quotes"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Shipping Methods",
+    "Shipping Quotes"
+  ]
+}

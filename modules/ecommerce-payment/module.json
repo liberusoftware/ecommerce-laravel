@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-payment",
+  "display_name": "Payment",
+  "description": "Payment methods, gift cards, and subscriptions",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Payment\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.payment.methods",
+    "ecommerce.payment.giftcards"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Payment Methods",
+    "Gift Cards",
+    "Subscriptions"
+  ]
+}

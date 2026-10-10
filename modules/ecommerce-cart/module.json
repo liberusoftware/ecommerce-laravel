@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-cart",
+  "display_name": "Cart",
+  "description": "Shopping cart and abandoned cart recovery",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Cart\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.cart.items",
+    "ecommerce.cart.recovery"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Cart Items",
+    "Abandoned Carts",
+    "Cart Recovery"
+  ]
+}

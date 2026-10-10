@@ -1,0 +1,21 @@
+{
+    "name": "liberusoftware/ecommerce-core",
+    "description": "Core ecommerce foundation: users, teams, permissions, roles, settings",
+    "type": "liberu-module",
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "illuminate/database": "^13.0",
+        "liberusoftware/module-manager": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Liberu\\Ecommerce\\Core\\": "src/"
+        }
+    },
+    "extra": {
+        "liberu": {
+            "name": "ecommerce-core"
+        }
+    }
+}

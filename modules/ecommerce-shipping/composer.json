@@ -1,0 +1,21 @@
+{
+    "name": "liberusoftware/ecommerce-shipping",
+    "description": "Shipping methods and carrier rate management",
+    "type": "liberu-module",
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "illuminate/database": "^13.0",
+        "liberusoftware/module-manager": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Liberu\\Ecommerce\\Shipping\\": "src/"
+        }
+    },
+    "extra": {
+        "liberu": {
+            "name": "ecommerce-shipping"
+        }
+    }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-content",
+  "display_name": "Content",
+  "description": "Content management: pages, menus, channels, settings",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Content\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.content.pages",
+    "ecommerce.content.menus",
+    "ecommerce.content.channels"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Pages",
+    "Menus",
+    "Channels",
+    "Site Settings",
+    "Currencies"
+  ]
+}

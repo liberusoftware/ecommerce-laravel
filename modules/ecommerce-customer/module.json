@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-customer",
+  "display_name": "Customer",
+  "description": "Customer management, segmentation, and analytics",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\Customer\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.customers.records",
+    "ecommerce.customers.segments",
+    "ecommerce.customers.analytics"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Customers",
+    "Customer Segments",
+    "Customer Groups",
+    "Customer Metrics",
+    "Analytics",
+    "Recommendations"
+  ]
+}

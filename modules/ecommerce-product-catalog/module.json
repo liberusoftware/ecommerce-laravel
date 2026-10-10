@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schemas.liberu.dev/module/v1.json",
+  "name": "ecommerce-product-catalog",
+  "display_name": "Product Catalog",
+  "description": "Product catalog management: products, variants, categories, collections, attributes",
+  "version": "1.0.0",
+  "category": "capability",
+  "provider": "Liberu\\Ecommerce\\ProductCatalog\\ServiceProvider",
+  "requires": {
+    "php": "^8.5",
+    "laravel": "^13.0",
+    "packages": {
+      "liberusoftware/module-manager": "^1.0"
+    }
+  },
+  "capabilities": [
+    "ecommerce.catalog.products",
+    "ecommerce.catalog.categories",
+    "ecommerce.catalog.collections"
+  ],
+  "default_enabled": true,
+  "features": [
+    "Products",
+    "Product Variants",
+    "Categories",
+    "Collections",
+    "Tags",
+    "Attributes",
+    "Tax Classes"
+  ]
+}
