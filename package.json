@@ -22,7 +22,7 @@
         "@fortawesome/fontawesome-free": "^7.1.0",
         "@tailwindcss/postcss": "^4.1.11",
         "flowbite": "^4.0.2",
-        "preline": "^4.2.0",
+        "preline": "^5.0.0",
         "vite-plugin-static-copy": "4.1"
     }
 }
