@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Widgets;
 
-use App\Models\OrderItem;
+use App\Models\Order;
 use App\Models\Product;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -12,35 +12,30 @@ use Illuminate\Support\Facades\DB;
 class TopProductsWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
-    protected int | string | array $columnSpan = 'full';
+
+    protected int|string|array $columnSpan = 'full';
 
     public function table(Table $table): Table
     {
         return $table
             ->heading('Top 10 Products')
             ->query(
-                fn() =>
-                Product::query()
-                    ->fromSub(
-                        OrderItem::query()
-                            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-                            ->join('products', 'order_items.product_id', '=', 'products.id')
-                            ->whereBetween('orders.order_date', [now()->subDays(30), now()])
-                            ->where('orders.payment_status', 'paid')
-                            ->select(
-                                'products.id',
-                                'products.name',
-                                'products.deleted_at',
-                                DB::raw('SUM(order_items.quantity) AS total_quantity'),
-                                DB::raw('SUM(order_items.price * order_items.quantity) AS total_revenue')
-                            )
-                            ->groupBy('products.id', 'products.name', 'products.deleted_at'),
-                        'products'
+                fn () => Product::query()
+                    ->join('order_items', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', Order::query()
+                        ->select('orders.id')
+                        ->whereBetween('orders.order_date', [now()->subDays(30), now()])
+                        ->where('orders.payment_status', 'paid'))
+                    ->select(
+                        'products.id',
+                        'products.name',
+                        DB::raw('SUM(order_items.quantity) AS total_quantity'),
+                        DB::raw('SUM(order_items.price * order_items.quantity) AS total_revenue')
                     )
+                    ->groupBy('products.id', 'products.name')
                     ->orderByDesc('total_revenue')
                     ->limit(10)
             )
-
 
             ->columns([
                 Tables\Columns\TextColumn::make('name')
