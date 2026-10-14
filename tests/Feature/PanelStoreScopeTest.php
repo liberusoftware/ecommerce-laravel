@@ -161,6 +161,31 @@ class PanelStoreScopeTest extends TestCase
         $this->assertSame(1, Product::query()->count());
     }
 
+    public function test_a_storeless_team_sees_no_other_merchants_rows_on_a_multi_store_deployment(): void
+    {
+        [, $theirs] = $this->merchant();
+        Product::factory()->create(['store_id' => $theirs->id]);
+        Product::factory()->create(['store_id' => Store::query()->firstOrFail()->id]);
+
+        $this->actingAs(User::factory()->create([
+            'current_team_id' => Team::factory()->create()->id,
+        ]));
+
+        $this->assertSame(0, Product::query()->count());
+    }
+
+    public function test_a_storeless_team_sees_nothing_when_no_store_exists(): void
+    {
+        Store::query()->delete();
+        Product::factory()->create(['store_id' => null]);
+
+        $this->actingAs(User::factory()->create([
+            'current_team_id' => Team::factory()->create()->id,
+        ]));
+
+        $this->assertSame(0, Product::query()->count());
+    }
+
     /**
      * A merchant is also a shopper. Browsing a storefront — their own or
      * anyone's — the host answers, not the team they happen to administer.

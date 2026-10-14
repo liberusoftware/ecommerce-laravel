@@ -44,7 +44,8 @@ class StoreContext
     }
 
     /**
-     * Narrow a query to the stores in scope, or leave it alone when none are.
+     * Narrow a query to the stores in scope, or leave it alone when there is
+     * nobody to scope by.
      *
      * Leaving it alone is the right answer off a storefront and off a panel —
      * a console command, a queued job — where scoping to nothing would mean an
@@ -58,7 +59,8 @@ class StoreContext
 
         $storeIds = self::inScope();
 
-        if ($storeIds !== []) {
+        // An empty list matches nothing: a panel user with no store to read.
+        if ($storeIds !== null) {
             $query->whereIn($column, $storeIds);
         }
     }
@@ -136,9 +138,13 @@ class StoreContext
      * scoping does not reach — relation managers, widgets, custom pages, and
      * any bare `Model::query()` written in a panel.
      *
-     * @return list<int>
+     * A panel user whose team owns no store reads the store `forWrites()` would
+     * stamp — the only one on a single-store deployment — and otherwise none.
+     * Null means nobody to scope by: off a storefront and off a panel.
+     *
+     * @return list<int>|null
      */
-    private static function inScope(): array
+    private static function inScope(): ?array
     {
         if ($storeId = ChannelResolver::current()?->store_id) {
             return [(int) $storeId];
@@ -146,7 +152,19 @@ class StoreContext
 
         $teamId = self::panelTeamId();
 
-        return $teamId === null ? [] : self::storeIdsOf($teamId);
+        if ($teamId === null) {
+            return null;
+        }
+
+        $storeIds = self::storeIdsOf($teamId);
+
+        if ($storeIds !== []) {
+            return $storeIds;
+        }
+
+        $onlyStore = self::theOnlyStoreOf(null);
+
+        return $onlyStore === null ? [] : [$onlyStore];
     }
 
     /**
