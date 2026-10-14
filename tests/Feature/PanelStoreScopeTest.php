@@ -152,6 +152,7 @@ class PanelStoreScopeTest extends TestCase
     public function test_a_team_with_no_store_is_not_scoped_to_an_empty_result(): void
     {
         $store = Store::query()->firstOrFail();
+        $this->assertNull($store->team_id, 'The fallback applies only to a store no team owns.');
         Product::factory()->create(['store_id' => $store->id]);
 
         $this->actingAs(User::factory()->create([
@@ -172,6 +173,42 @@ class PanelStoreScopeTest extends TestCase
         ]));
 
         $this->assertSame(0, Product::query()->count());
+    }
+
+    public function test_a_storeless_team_cannot_read_the_only_store_when_another_team_owns_it(): void
+    {
+        $onlyStore = Store::query()->firstOrFail();
+        $onlyStore->update(['team_id' => Team::factory()->create()->id]);
+        Product::factory()->create(['store_id' => $onlyStore->id]);
+
+        $this->actingAs(User::factory()->create([
+            'current_team_id' => Team::factory()->create()->id,
+        ]));
+
+        $this->assertSame(0, Product::query()->count());
+    }
+
+    public function test_a_storeless_teams_row_is_not_written_into_another_teams_only_store(): void
+    {
+        Store::query()->firstOrFail()->update(['team_id' => Team::factory()->create()->id]);
+
+        $this->actingAs(User::factory()->create([
+            'current_team_id' => Team::factory()->create()->id,
+        ]));
+
+        $this->assertNull(Product::factory()->create(['store_id' => null])->store_id);
+    }
+
+    /**
+     * With nobody signed in there is no other merchant to borrow from, so a
+     * seeder or console write still lands in the only store whoever owns it.
+     */
+    public function test_a_write_with_no_user_still_uses_an_owned_only_store(): void
+    {
+        $onlyStore = Store::query()->firstOrFail();
+        $onlyStore->update(['team_id' => Team::factory()->create()->id]);
+
+        $this->assertSame((int) $onlyStore->id, (int) Product::factory()->create(['store_id' => null])->store_id);
     }
 
     public function test_a_storeless_team_sees_nothing_when_no_store_exists(): void

@@ -81,15 +81,13 @@ class StoreContext
         // deployment it is the only thing that can, and it is right even when
         // the shortcut below would also have produced an answer.
         //
-        // Falling through when their team owns none is not the same as
-        // borrowing another team's store. The shortcut only answers when the
-        // whole deployment has exactly one store — a single-tenant install,
-        // where there is no other merchant to borrow from and the alternative
-        // is a row invisible to the one storefront there is.
+        // A team that owns none falls back only to a store no team owns: the
+        // single store of a single-tenant install. One owned by another team
+        // is that merchant's, not a shared default.
         $teamId = self::panelTeamId();
 
-        if ($teamId !== null && ($storeId = self::theOnlyStoreOf($teamId)) !== null) {
-            return $storeId;
+        if ($teamId !== null) {
+            return self::theOnlyStoreOf($teamId) ?? self::theOnlyUnownedStore();
         }
 
         return self::theOnlyStoreOf(null);
@@ -139,7 +137,8 @@ class StoreContext
      * any bare `Model::query()` written in a panel.
      *
      * A panel user whose team owns no store reads the store `forWrites()` would
-     * stamp — the only one on a single-store deployment — and otherwise none.
+     * stamp — the only store on the deployment if no team owns it — and
+     * otherwise none.
      * Null means nobody to scope by: off a storefront and off a panel.
      *
      * @return list<int>|null
@@ -162,7 +161,7 @@ class StoreContext
             return $storeIds;
         }
 
-        $onlyStore = self::theOnlyStoreOf(null);
+        $onlyStore = self::theOnlyUnownedStore();
 
         return $onlyStore === null ? [] : [$onlyStore];
     }
@@ -224,5 +223,17 @@ class StoreContext
             ->pluck('id');
 
         return $storeIds->count() === 1 ? (int) $storeIds->first() : null;
+    }
+
+    /**
+     * The deployment's single store when no team owns it, otherwise null.
+     */
+    private static function theOnlyUnownedStore(): ?int
+    {
+        $stores = Store::query()->orderBy('id')->limit(2)->get(['id', 'team_id']);
+
+        return $stores->count() === 1 && $stores->first()->team_id === null
+            ? (int) $stores->first()->id
+            : null;
     }
 }
