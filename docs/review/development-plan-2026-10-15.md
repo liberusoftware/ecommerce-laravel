@@ -219,3 +219,59 @@ existing panel tests that request both panels.
 | 9 | F-13 | `9aac441` | Done |
 
 Open, needing a decision: F-21 (store management, being investigated), F-14, F-15. Open, small: F-23. Unchanged by design: F-19.
+
+---
+
+## F-21 — Stores, channels and domains (approved architecture)
+
+**Agreed model.**
+- **User** is identity.
+- **Team** is the workspace: membership, permissions, and Filament's tenant switching.
+- **Store** owns products, orders and commercial settings.
+- **Channel** is a way customers reach a store (website, physical shop).
+- **Domain** is an address mapped to a channel.
+- **Website** is pages and content, optionally showing a selected main store's catalogue.
+
+Installation modes are single-store, SaaS and marketplace, one per installation. Each team has one store by default; an installation setting allows several.
+
+### Conflicts and prerequisites found in the code
+
+| # | Decision | Code today | Consequence |
+|---|---|---|---|
+| A | Every commerce record belongs to a store | `store_id` is nullable everywhere. Rows written with no store context (console, multi-store) get `null`. | Separate work; not F-21 |
+| B | The website works independently of commerce data | Every web route runs `ResolveChannel` (404 without a channel). Without a channel the store scope applies no filter, so catalogue pages would list **every** store's products. | A store-independent website needs routing work first: content routes without a store, commerce routes refusing without one. **Deferred.** |
+| C | The main store is chosen explicitly, never "the first store" | The initial migration attaches the `APP_URL` host to store 1; nothing marks a main store | F-21 makes it explicit: the main store **is** the store whose channel holds the `APP_URL` host, shown in the admin panel. Moving the host is a confirmed action. No second setting that could drift from the domain table. |
+| D | Installation modes and the multiple-stores setting | Nothing represents them | F-21 adds both to `config/ecommerce.php`, used only where F-21 needs them |
+| E | With multiple stores enabled, users can switch stores | The panel scope covers all of a team's stores; there's no selector | With the setting off (default), a team has at most one store, so resolution is automatic. **The switcher is deferred** until the setting is used. |
+| F | Each team has one store by default | Teams created in `/app` get no store | F-21 creates the team's store at team creation in SaaS and marketplace modes |
+
+### Steps (each with its tests; nothing committed until reviewed)
+
+| Step | Change | Tests |
+|---|---|---|
+| 21.1 ✅ | `installation.mode` (`single`, `saas`, `marketplace`; default `single`) and `installation.multiple_stores_per_team` (default `false`) in `config/ecommerce.php`; an `Installation` helper that answers "may this team get another store?"; `Team::stores()` | Mode values; the store limit per mode and setting |
+| 21.2 ✅ | Admin "Teams" resource (the old Team-backed "Stores" resource, relabelled). Create requires an owner. | Create works and records the owner |
+| 21.3 ✅ | Admin "Stores" resource for real `Store` records: name, slug, team; the installation limit applies on create; delete refused while the store has data; `StorePolicy` (super_admin); a main-store indicator | Authorization, the limit, delete safety, the indicator |
+| 21.4 ✅ | Channels on a store; a channel page with a domains relation manager: normalised, valid, unique hosts, one primary, per-record deletes, and the main host can't be removed | Domain rules; a new domain resolves over HTTP to its store only; a removed domain gets 404 and is untrusted |
+| 21.5 ✅ | Creating a team in SaaS or marketplace mode also creates its store (no channel, so not public until a domain is mapped) | Store created per mode; none in single mode |
+| 21.6 ✅ | `/app` "Storefront" page: the current team's stores, channels and addresses, read-only | Lists only the current team's stores |
+
+**As built (uncommitted, awaiting review).**
+- **21.4:** the main site's domain *can* be removed. Its delete confirmation warns that the main site goes offline until the host is mapped again; that is the deliberate way to choose a different main store (decision C). A store or channel serving the main site can't be deleted.
+- **21.2:** found and fixed F-24 (the admin Teams delete bypassed the Phase 4 guard).
+- **21.5:** Jetstream's `CreateTeam` authorizes through `TeamPolicy::create` (`create_store`), so registering a team in `/app` needs that permission. That's existing behaviour, unchanged.
+
+### Not in F-21
+
+- Store switcher (E).
+- Store-independent website routing (B).
+- `store_id NOT NULL` (A).
+- Channel types and `orders.channel_id`.
+- Merchant self-service domains with verification.
+- Subpath storefronts.
+- TLS.
+- Billing gates.
+- Marketplace features.
+- Per-store settings.
+- Restricting panels to the platform host.
+- The optional default-subdomain action (item 7 of the proposal; not approved).

@@ -366,6 +366,7 @@ repeated.
 - **Evidence:** the admin "Stores" resource (`app/Filament/Admin/Resources/Stores/StoreResource.php`) has `$model = Team::class`. No resource exists for `App\Models\Store`, `Channel` or `ChannelDomain`.
 - **Impact:** a new merchant team can't be given a store, and a storefront hostname can't be added, without editing the database. A store-less merchant's rows stay out of their own view until they have a store.
 - **Resolution (needs a product decision):** add an admin resource for stores and their channel domains, and decide whether the Team resource keeps the "Store" label.
+- **Resolved (F-21, steps 21.1–21.6, awaiting review):** admin Stores, Channels and Domains management; Teams relabelled with a working create; a store provisioned for each new team in SaaS and marketplace modes; a read-only Storefront page for merchants. See the F-21 section of the plan.
 
 ### F-22 — Invoices, reviews and ratings created outside a panel had no team
 - **Severity:** High. **Status:** Confirmed (found in Phase 7). **Area:** tenancy, back office.
@@ -383,6 +384,11 @@ repeated.
 - **Evidence:** `biostate/filament-menu-builder` registers `filament-menu-builder-scripts` with `FilamentAsset`, but `public/js/biostate/` has never been committed. `php artisan filament:assets` creates it.
 - **Impact:** the menu builder's interactive features may not work in the panel. Not verified in a browser.
 - **Resolution:** publish and commit the plugin's assets, or publish assets at deploy time.
+
+### F-24 — The admin Teams delete bypassed the financial-records guard
+- **Severity:** High. **Status:** Confirmed (found in F-21 step 21.2). **Area:** data integrity.
+- **Evidence:** the admin resource for teams deleted with `$team->delete()` and offered a bulk delete. Phase 4's guard was only in Jetstream's `DeleteTeam` action, and `orders.team_id` and `invoices.team_id` cascade from `teams`.
+- **Resolved (step 21.2):** `Team::hasFinancialRecords()` is shared by `DeleteTeam` and `TeamPolicy::delete`. The admin resource offers single deletes only, which purge as Jetstream does. `AdminTeamResourceTest` covers it.
 
 ### F-19 — Pint baseline
 - **Severity:** Low. **Status:** Confirmed, known.
