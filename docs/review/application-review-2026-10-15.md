@@ -208,6 +208,7 @@ repeated.
 
 ### F-06 — Logged-in user opening `/login` or `/register` lands on a 404
 - **Severity:** Medium. **Status:** Confirmed. **Area:** auth workflow.
+- **Resolved (Phase 5):** `RouteServiceProvider::HOME` is `/`. `GuestOnlyRedirectTest` covers `/login`, `/register` and `/forgot-password`.
 - **Evidence:** `RedirectIfAuthenticated` redirects to `RouteServiceProvider::HOME = '/home'`, and no
   `/home` route exists (`route:list --path=home` finds none). Probe: `/login` as an authenticated user
   gives 302 to `/home`, which returns 404.

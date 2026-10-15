@@ -119,6 +119,8 @@ database-level restrict test.
 
 ## Phase 5 — Logged-in users never hit `/home` (F-06)
 
+**Status: done.**
+
 **Goal:** guest-only pages redirect a logged-in user somewhere that exists.
 
 **Scope:** set `RouteServiceProvider::HOME` to `/`, or reuse `LoginResponse`'s role targets in
