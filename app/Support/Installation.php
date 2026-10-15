@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Store;
 use App\Models\Team;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -43,4 +44,19 @@ final class Installation
         return self::allowsMultipleStoresPerTeam() || ! $team->stores()->exists();
     }
 
+    /**
+     * Give a new team its store, except on a single-store installation. The store
+     * has no channel, so it is not public until a domain is mapped to it.
+     */
+    public static function provisionStoreFor(Team $team): ?Store
+    {
+        if (self::mode() === self::SINGLE || $team->stores()->exists()) {
+            return null;
+        }
+
+        return $team->stores()->create([
+            'name' => $team->name,
+            'slug' => Str::slug($team->name).'-'.$team->id,
+        ]);
+    }
 }
