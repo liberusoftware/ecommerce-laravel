@@ -30,6 +30,11 @@ class Channel extends Model
      * The hostname canonical URLs are built from, which is not necessarily the
      * one the request arrived on.
      */
+    public function servesMainSite(): bool
+    {
+        return $this->domains()->where('host', Store::mainSiteHost())->exists();
+    }
+
     public function primaryDomain(): ?ChannelDomain
     {
         return $this->domains()->where('is_primary', true)->first()
