@@ -153,6 +153,8 @@ live in their own repositories.
 
 ## Phase 7 — Small correctness fixes (F-08, F-09, F-10, F-11, F-18)
 
+**Status: done.** Also fixed, as found during the work: F-20 (customer delete with reviews) and F-22 (invoices, reviews and ratings created outside a panel had no team). F-08 needed no change (decision: hide and defer; nothing was exposed).
+
 These are independent of each other, so there's one commit each.
 
 | Item | Change | Test |
@@ -165,6 +167,11 @@ These are independent of each other, so there's one commit each.
 | F-08 ⚑ | Decide whether backorders and preorders exist; implement them in `reserveStock()` or hide the fields | Reserve beyond stock when `allow_backorders` is set |
 
 ## Phase 8 — Dependency advisories (F-12)
+
+**Status: blocked, needs a decision.** The fixed versions fit the current constraints, so only `composer.lock` changes, and `composer-require.yml` can't run without pushing. Options:
+- **A. Push and dispatch:** push the branch, then dispatch `composer-require.yml` with `filament/filament:^5.10.2`. This raises the constraint and updates the lock with CI's toolchain. `league/commonmark` would also need requiring directly, adding a direct dependency it doesn't need today.
+- **B. Local lock update (recommended):** run `composer update filament/filament league/commonmark` here, lock file only and no constraint changes, then let CI (`ComposerLockIsCurrentTest`, `install.yml`) confirm on the next push.
+- **C. Wait:** take the next routine dependency update. Neither advisory affects a feature this app uses.
 
 **Goal:** `composer audit` is clean.
 
@@ -193,3 +200,22 @@ existing panel tests that request both panels.
 - **F-15:** Spatie team-scoped roles, or removing the dead `setPermissionsTeamId` calls.
 - **F-19:** the whole-tree Pint reformat stays a ratchet.
 - **F-21** ⚑: an admin resource for stores, channels and domains, so merchants can be onboarded without editing the database.
+
+---
+
+## Progress
+
+| Phase | Findings | Commit(s) | State |
+|---|---|---|---|
+| Baseline | Review and plan | `357efcc` | — |
+| 1 | F-01, F-17 | `66c5355` | Done |
+| 2 | F-03 | `cc6ea1e` | Done |
+| 3 | F-04 | `85f5a72` | Done |
+| 4 | F-05 | `492c647` | Done |
+| 5 | F-06 | `ff2c5c2` | Done |
+| 6 | F-02, F-07, F-16 | `1e0194b` | Done |
+| 7 | F-20, F-09, F-10, F-22, F-11, F-18 (F-08 closed without change) | `9c9fe4c`, `e18b121`, `93ba169`, `8a97e7b`, `fd08742`, `69c0f4c` | Done |
+| 8 | F-12 | — | Blocked ⚑ |
+| 9 | F-13 | `9aac441` | Done |
+
+Open, needing a decision: F-12 (Phase 8), F-21 (store management), F-14, F-15. Unchanged by design: F-19.

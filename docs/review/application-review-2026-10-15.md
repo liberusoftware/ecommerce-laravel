@@ -244,6 +244,7 @@ repeated.
 
 ### F-08 — `allow_backorders` and `is_preorder` don't affect checkout
 - **Severity:** Low. **Status:** Confirmed. **Area:** catalogue rules.
+- **Closed (Phase 7), features deferred:** no Filament field, view, API rule or GraphQL field exposes either flag, so there is no control to hide. Backorders and preorders are deferred: the columns and the unused `Preorder` model remain, and `reserveStock()` keeps refusing orders beyond stock.
 - **Evidence:** both are columns on `products`, but nothing in `app/` reads them for stock decisions.
   `CheckoutService::reserveStock()` always refuses when `inventory_count < quantity`.
 - **Resolution:** decide whether these features exist. Either implement them in `reserveStock()`, or
@@ -277,6 +278,7 @@ repeated.
 
 ### F-12 — Dependencies with published advisories
 - **Severity:** Low. **Status:** Confirmed. **Area:** dependencies.
+- **Blocked (Phase 8), needs a decision:** fixed releases are within the current constraints (`filament/filament` 5.10.2 under `^5.0`; `league/commonmark` 2.10.3 under `laravel/framework`'s `^2.8.1`), so only `composer.lock` changes. The repo's `composer-require.yml` runs on GitHub against a pushed branch and pushes its own commit, which can't be used without pushing.
 - **Evidence:** `composer audit` reports:
   - `filament/filament` 5.8.0 (affected below 5.8.2): MFA management actions don't require
     re-authentication. The app doesn't use Filament MFA.
