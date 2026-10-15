@@ -3,7 +3,6 @@
 namespace Database\Seeders\DummyData;
 
 use App\Models\ProductCategory;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class ProductCategorySeeder extends Seeder
@@ -56,6 +55,10 @@ class ProductCategorySeeder extends Seeder
     public function run(): void
     {
         foreach ($this->categories as $category) {
+            if (ProductCategory::where('slug', $category['slug'])->exists()) {
+                continue;
+            }
+
             ProductCategory::factory()->create($category);
         }
     }

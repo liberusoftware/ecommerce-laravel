@@ -17,6 +17,8 @@ Working rules for every phase:
 
 ## Phase 1 — Fresh install produces an owned, visible catalogue (F-01, F-17)
 
+**Status: done.** Existing databases are re-seeded (decision: local data need not be preserved); no backfill command.
+
 **Goal:** after migrate and seed, the seeded admin sees and can edit the demo catalogue in both panels.
 
 **Scope:**

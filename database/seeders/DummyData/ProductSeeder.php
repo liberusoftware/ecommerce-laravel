@@ -72,6 +72,10 @@ class ProductSeeder extends Seeder
             $categoryId = ProductCategory::where('slug', $slug)->firstOrFail()->id;
 
             foreach ($products as [$name, $price, $shortDescription, $stock, $isFeatured]) {
+                if (Product::where('name', $name)->exists()) {
+                    continue;
+                }
+
                 Product::factory()->create([
                     'name' => $name,
                     'category_id' => $categoryId,

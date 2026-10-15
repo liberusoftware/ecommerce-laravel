@@ -106,6 +106,7 @@ repeated.
 
 ### F-01 — Seeded catalogue is invisible in both back-office panels
 - **Severity:** High. **Status:** Confirmed. **Area:** fresh install, seeding, tenancy.
+- **Resolved (Phase 1):** `DefaultTeamSeeder` now runs after `UserSeeder`, creates the default team owned by the admin, sets the admin's current team and gives the default store to that team. The seeders are repeatable. `FreshInstallTest` covers it, and it was verified with `migrate:fresh --seed` on the local MySQL database.
 - **Evidence:**
   - The migration `2026_08_08_000001_create_the_initial_channel.php` creates store 1 before any team
     exists, so `stores.team_id = NULL`.
@@ -311,6 +312,7 @@ repeated.
 
 ### F-17 — Seeder fragility
 - **Severity:** Low. **Status:** Confirmed. **Area:** seeding.
+- **Resolved (Phase 1):** the team is created from the admin, and with no admin it is skipped with a warning; the dead import is gone. `TeamSeeder` is left in place: it is unused but harmless, and deleting it is cleanup outside this fix.
 - **Evidence:**
   - `DefaultTeamSeeder` hard-codes `id => 1, user_id => 1` before any user exists. Outside `local`
     without `SEED_ADMIN_PASSWORD`, `UserSeeder` creates no user, so team 1 is owned by a user who
