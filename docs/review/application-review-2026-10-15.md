@@ -278,7 +278,7 @@ repeated.
 
 ### F-12 — Dependencies with published advisories
 - **Severity:** Low. **Status:** Confirmed. **Area:** dependencies.
-- **Blocked (Phase 8), needs a decision:** fixed releases are within the current constraints (`filament/filament` 5.10.2 under `^5.0`; `league/commonmark` 2.10.3 under `laravel/framework`'s `^2.8.1`), so only `composer.lock` changes. The repo's `composer-require.yml` runs on GitHub against a pushed branch and pushes its own commit, which can't be used without pushing.
+- **Resolved (Phase 8, option B):** `filament/*` 5.8.0 → 5.9.0 and `league/commonmark` 2.10.1 → 2.10.3, lock file only, with the published Filament assets rebuilt to match. `composer audit` is clean. Before that: **Blocked (Phase 8), needed a decision:** fixed releases are within the current constraints (`filament/filament` 5.10.2 under `^5.0`; `league/commonmark` 2.10.3 under `laravel/framework`'s `^2.8.1`), so only `composer.lock` changes. The repo's `composer-require.yml` runs on GitHub against a pushed branch and pushes its own commit, which can't be used without pushing.
 - **Evidence:** `composer audit` reports:
   - `filament/filament` 5.8.0 (affected below 5.8.2): MFA management actions don't require
     re-authentication. The app doesn't use Filament MFA.
@@ -377,6 +377,12 @@ repeated.
   - Reviews and ratings use `IsTenantModel`, taking the team from the storefront's store.
   - Invoices, and the guest customers created for them, take `team_id` and `store_id` from the order.
   - `StorefrontRowTeamAttributionTest` covers it.
+
+### F-23 — The menu builder plugin's script was never published
+- **Severity:** Low. **Status:** Suspected (found in Phase 8). **Area:** `/admin` menu builder.
+- **Evidence:** `biostate/filament-menu-builder` registers `filament-menu-builder-scripts` with `FilamentAsset`, but `public/js/biostate/` has never been committed. `php artisan filament:assets` creates it.
+- **Impact:** the menu builder's interactive features may not work in the panel. Not verified in a browser.
+- **Resolution:** publish and commit the plugin's assets, or publish assets at deploy time.
 
 ### F-19 — Pint baseline
 - **Severity:** Low. **Status:** Confirmed, known.

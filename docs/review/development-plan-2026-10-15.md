@@ -168,7 +168,7 @@ These are independent of each other, so there's one commit each.
 
 ## Phase 8 — Dependency advisories (F-12)
 
-**Status: blocked, needs a decision.** The fixed versions fit the current constraints, so only `composer.lock` changes, and `composer-require.yml` can't run without pushing. Options:
+**Status: done (option B), `f9f23d6`.** Resolved to Filament 5.9.0, above every fixed-in version; the Filament family moves together because the settings plugin pins it. Before the decision it was **blocked**: The fixed versions fit the current constraints, so only `composer.lock` changes, and `composer-require.yml` can't run without pushing. Options:
 - **A. Push and dispatch:** push the branch, then dispatch `composer-require.yml` with `filament/filament:^5.10.2`. This raises the constraint and updates the lock with CI's toolchain. `league/commonmark` would also need requiring directly, adding a direct dependency it doesn't need today.
 - **B. Local lock update (recommended):** run `composer update filament/filament league/commonmark` here, lock file only and no constraint changes, then let CI (`ComposerLockIsCurrentTest`, `install.yml`) confirm on the next push.
 - **C. Wait:** take the next routine dependency update. Neither advisory affects a feature this app uses.
@@ -215,7 +215,7 @@ existing panel tests that request both panels.
 | 5 | F-06 | `ff2c5c2` | Done |
 | 6 | F-02, F-07, F-16 | `1e0194b` | Done |
 | 7 | F-20, F-09, F-10, F-22, F-11, F-18 (F-08 closed without change) | `9c9fe4c`, `e18b121`, `93ba169`, `8a97e7b`, `fd08742`, `69c0f4c` | Done |
-| 8 | F-12 | — | Blocked ⚑ |
+| 8 | F-12 | `f9f23d6` | Done |
 | 9 | F-13 | `9aac441` | Done |
 
-Open, needing a decision: F-12 (Phase 8), F-21 (store management), F-14, F-15. Unchanged by design: F-19.
+Open, needing a decision: F-21 (store management, being investigated), F-14, F-15. Open, small: F-23. Unchanged by design: F-19.
