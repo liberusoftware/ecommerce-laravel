@@ -287,6 +287,7 @@ repeated.
 ### F-13 — In-process tests can lose the second panel's tenancy scope
 - **Severity:** Low. **Status:** Suspected for production; Confirmed in the test harness.
   **Area:** test reliability.
+- **Resolved (Phase 9):** `Tests\TestCase::call()` flushes scoped bindings and the cached `filament` facade before each test request, as a real request (or an Octane worker) does. Static model scopes are already reset per test by `DatabaseServiceProvider`. `PanelTenancyAcrossRequestsTest` visits both panels in one test and fails if the second is unscoped. Production behaviour under Octane is still not verified here.
 - **Evidence:**
   - `FilamentManager::bootCurrentPanel()` boots only once per manager instance (the
     `isCurrentPanelBooted` flag).

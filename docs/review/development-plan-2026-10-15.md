@@ -176,6 +176,8 @@ tests pass.
 
 ## Phase 9 — Test-harness tenancy reliability (F-13)
 
+**Status: done.** Fixed in the base `TestCase` rather than with a one-panel-per-test rule. The full suite passed unchanged, so no existing test was relying on a missing scope.
+
 **Goal:** no test passes because a panel's tenancy scope was never registered.
 
 **Scope:** a test helper that serves one panel per test, or boots the panel explicitly. Audit the

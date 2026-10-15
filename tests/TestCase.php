@@ -7,6 +7,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
@@ -32,6 +33,19 @@ abstract class TestCase extends BaseTestCase
         // asserts on asset URLs, and the assets are verified where they actually
         // matter, in the image (see the docker job's smoke step).
         $this->withoutVite();
+    }
+
+    /**
+     * Start each test request with fresh scoped bindings, as a real request does.
+     * Filament's panel manager is scoped and boots only one panel per instance, so
+     * without this the second panel a test visits runs without its tenancy scope.
+     */
+    public function call($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
+    {
+        $this->app->forgetScopedInstances();
+        Facade::clearResolvedInstance('filament');
+
+        return parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
     }
 
     /**
