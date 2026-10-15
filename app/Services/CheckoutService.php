@@ -10,6 +10,7 @@ use App\Models\InventoryLog;
 use App\Models\Order;
 use App\Models\Product;
 use App\Notifications\SupplierFailureNotification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -136,8 +137,6 @@ class CheckoutService
                 'price' => $line['price'],
             ]);
 
-            $before = Product::where('id', $line['product_id'])->value('inventory_count');
-
             $affected = Product::where('id', $line['product_id'])
                 ->where('inventory_count', '>=', $line['quantity'])
                 ->decrement('inventory_count', $line['quantity']);
@@ -146,11 +145,15 @@ class CheckoutService
                 throw new CheckoutException('Some items in your cart are no longer available in the requested quantity.');
             }
 
+            // Read after the update: inside the caller's transaction the row is
+            // locked by our UPDATE, so this is exactly the stock we left.
+            $after = Product::where('id', $line['product_id'])->value('inventory_count');
+
             InventoryLog::create([
                 'product_id' => $line['product_id'],
                 'quantity_change' => -$line['quantity'],
-                'old_quantity' => $before,
-                'new_quantity' => $before - $line['quantity'],
+                'old_quantity' => $after + $line['quantity'],
+                'new_quantity' => $after,
                 'reason' => 'order',
                 'reference_id' => $order->id,
                 'reference_type' => Order::class,
@@ -167,22 +170,23 @@ class CheckoutService
     public function releaseStock(Order $order, array $lineItems): void
     {
         foreach ($lineItems as $line) {
-            $before = Product::where('id', $line['product_id'])->value('inventory_count');
-            if ($before === null) {
-                continue;
-            }
+            DB::transaction(function () use ($order, $line) {
+                if (Product::where('id', $line['product_id'])->increment('inventory_count', $line['quantity']) === 0) {
+                    return;
+                }
 
-            Product::where('id', $line['product_id'])->increment('inventory_count', $line['quantity']);
+                $after = Product::where('id', $line['product_id'])->value('inventory_count');
 
-            InventoryLog::create([
-                'product_id' => $line['product_id'],
-                'quantity_change' => $line['quantity'],
-                'old_quantity' => $before,
-                'new_quantity' => $before + $line['quantity'],
-                'reason' => 'payment_failed_release',
-                'reference_id' => $order->id,
-                'reference_type' => Order::class,
-            ]);
+                InventoryLog::create([
+                    'product_id' => $line['product_id'],
+                    'quantity_change' => $line['quantity'],
+                    'old_quantity' => $after - $line['quantity'],
+                    'new_quantity' => $after,
+                    'reason' => 'payment_failed_release',
+                    'reference_id' => $order->id,
+                    'reference_type' => Order::class,
+                ]);
+            });
         }
     }
 

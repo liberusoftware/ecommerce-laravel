@@ -344,6 +344,7 @@ repeated.
 
 ### F-18 — Inventory log values are read outside the guarded decrement
 - **Severity:** Low. **Status:** Confirmed (by reading the code). **Area:** inventory audit.
+- **Resolved (Phase 7):** the log is written from a read taken after the guarded update. It's inside the caller's transaction for reservations, and in a per-line transaction for releases. `InventoryLogAccuracyTest` simulates a competing checkout between the read and the write.
 - **Evidence:** `CheckoutService::reserveStock()` and `releaseStock()` read `inventory_count` before the
   atomic update and write `old_quantity`/`new_quantity` from that read.
 - **Impact:** under concurrent checkouts the audit rows can disagree with the real sequence. Stock
