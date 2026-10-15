@@ -154,6 +154,12 @@ repeated.
 
 ### F-04 — `/app` order form edits `payment_status` and `total_amount` directly
 - **Severity:** High. **Status:** Confirmed. **Area:** order integrity, money.
+- **Resolved (Phase 3):**
+  - **Creating:** a manual order needs at least one line item. Prices come from the products, the total from the lines, and stock is reserved through `CheckoutService::reserveStock()`; the order starts `pending`.
+  - **Editing:** only `shipping_status` can be saved.
+  - **Status changes:** header actions call `Order::transitionTo()` (mark paid, mark failed, cancel a pending order, start processing, complete). Leaving `pending` unpaid releases the stock.
+  - Refund and supplier statuses stay with their own workflows.
+  - `ManualOrderTest` covers it.
 - **Evidence:**
   - `app/Filament/App/Resources/Orders/OrderResource.php::form()` exposes `payment_status` (pending,
     paid, cancelled), `total_amount`, `shipping_status`, `order_date` and `customer_id`.

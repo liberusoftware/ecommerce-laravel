@@ -75,6 +75,8 @@ deletes all data.
 
 ## Phase 3 — Orders change payment state only through the state machine (F-04)
 
+**Status: done.** Manual creation kept (decision), with required line items and computed totals. Cancel is offered only for pending orders; cancelling a paid order needs the refund workflow.
+
 **Goal:** a back-office user can't make an order "paid", or change its total, without an audited
 transition.
 
