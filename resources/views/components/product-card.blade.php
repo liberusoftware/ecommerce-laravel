@@ -12,7 +12,10 @@
     // review_count / rating_avg_rating come from the controller's eager loads;
     // the method calls are the fallback for any caller that didn't eager-load.
     $reviewCount = $product->review_count ?? $product->getTotalReviews();
-    $rating = (float) ($product->rating_avg_rating ?? $product->getAverageRating());
+    // An unrated product's eager-loaded average is null, which still counts as loaded.
+    $rating = (float) (array_key_exists('rating_avg_rating', $product->getAttributes())
+        ? $product->rating_avg_rating
+        : $product->getAverageRating());
 
     $price = \Illuminate\Support\Number::currency($product->price, $product->currency_code ?: 'USD');
 @endphp

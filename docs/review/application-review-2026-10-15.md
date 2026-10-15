@@ -251,6 +251,7 @@ repeated.
 
 ### F-09 — Home page runs one rating query per product
 - **Severity:** Low. **Status:** Confirmed. **Area:** performance.
+- **Resolved (Phase 7):** the controller already eager-loaded the averages. The card treated an unrated product's `null` average as missing and queried again. It now checks whether the attribute was loaded. `HomePageQueryTest` covers it.
 - **Evidence:** a probe of `/` after a fresh seed ran 20 queries, 10 of them identical
   `select avg(rating) from product_rating where product_id = ?`. The other storefront pages run 6–7.
 - **Resolution:** eager-load the averages with `withAvg('ratings', 'rating')` for both home-page lists
