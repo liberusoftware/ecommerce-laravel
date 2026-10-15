@@ -266,6 +266,7 @@ repeated.
 
 ### F-11 — Placeholder payment and shipping code
 - **Severity:** Low. **Status:** Confirmed. **Area:** payments, shipping.
+- **Resolved (Phase 7, Stripe part):** `StripeGateway::processSubscription()` fails closed, as the PayPal gateway already did. `StripeGatewaySubscriptionTest` covers it. **Not changed:** distance-based shipping pricing stays unimplemented (`calculateDistanceRate()` returns 0); building it is new functionality.
 - **Evidence:**
   - `StripeGateway::processSubscription()` returns `success: true` with an invented `stripe_sub_…`
     id. It's reachable only through `PaymentGatewayService::processSubscription()`, which has no
