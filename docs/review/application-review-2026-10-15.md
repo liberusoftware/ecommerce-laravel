@@ -350,6 +350,7 @@ repeated.
 
 ### F-20 — Deleting a customer with reviews fails with a server error
 - **Severity:** Low. **Status:** Confirmed (found in Phase 4). **Area:** `/app` customers.
+- **Resolved (Phase 7):** `CustomerPolicy::delete` also refuses a customer with reviews or ratings. `CustomerDeletionPolicyTest` covers it.
 - **Evidence:** `product_reviews.customer_id` and `product_rating.customer_id` reference `customers` with the default `RESTRICT`. `CustomerPolicy::delete` doesn't check reviews or ratings, so the delete action is offered and then fails at the database.
 - **Resolution:** have the policy also refuse a customer with reviews or ratings (Phase 7).
 
