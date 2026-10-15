@@ -115,7 +115,7 @@ class OrderResource extends Resource
                 EditAction::make(),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()->authorizeIndividualRecords('delete'),
             ]);
     }
 

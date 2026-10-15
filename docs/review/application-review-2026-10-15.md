@@ -180,6 +180,13 @@ repeated.
 
 ### F-05 — Hard deletes cascade through financial records
 - **Severity:** High. **Status:** Confirmed. **Area:** data integrity.
+- **Resolved (Phase 4):**
+  - **Policies:** an order can be deleted only if it is failed or cancelled and was never paid; a customer only with no orders or invoices; invoices never.
+  - **Bulk deletes:** orders and customers authorize each record.
+  - **`DeleteTeam`:** refuses a team that has orders or invoices.
+  - **Database:** `orders.customer_id`, `invoices.customer_id`, `invoices.order_id` and `refunds.order_id` are `RESTRICT` (migrations edited in place).
+  - GDPR erasure anonymises rather than deletes, so it is unaffected; its tests pass.
+  - `FinancialRecordDeletionTest` covers it.
 - **Evidence:**
   - Foreign keys: `orders.customer_id → customers ON DELETE CASCADE`; `order_items.order_id`,
     `invoices.order_id`, `refunds.order_id` and `return_requests.order_id` all cascade;
@@ -337,6 +344,11 @@ repeated.
   itself stays correct.
 - **Resolution:** lock the row (`lockForUpdate`) inside the transaction, or record only
   `quantity_change`.
+
+### F-20 — Deleting a customer with reviews fails with a server error
+- **Severity:** Low. **Status:** Confirmed (found in Phase 4). **Area:** `/app` customers.
+- **Evidence:** `product_reviews.customer_id` and `product_rating.customer_id` reference `customers` with the default `RESTRICT`. `CustomerPolicy::delete` doesn't check reviews or ratings, so the delete action is offered and then fails at the database.
+- **Resolution:** have the policy also refuse a customer with reviews or ratings (Phase 7).
 
 ### F-19 — Pint baseline
 - **Severity:** Low. **Status:** Confirmed, known.

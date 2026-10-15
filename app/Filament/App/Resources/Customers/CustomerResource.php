@@ -2,30 +2,24 @@
 
 namespace App\Filament\App\Resources\Customers;
 
-use Filament\Schemas\Schema;
-use Filament\Forms\Components\TextInput;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Actions\EditAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use App\Filament\App\Resources\Customers\Pages\ListCustomers;
 use App\Filament\App\Resources\Customers\Pages\CreateCustomer;
 use App\Filament\App\Resources\Customers\Pages\EditCustomer;
-use App\Filament\App\Resources\CustomerResource\Pages;
-use App\Filament\App\Resources\CustomerResource\RelationManagers;
+use App\Filament\App\Resources\Customers\Pages\ListCustomers;
 use App\Models\Customer;
-use Filament\Forms;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CustomerResource extends Resource
 {
     protected static ?string $model = Customer::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-users';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
     protected static ?int $navigationSort = 3;
 
@@ -92,7 +86,7 @@ class CustomerResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()->authorizeIndividualRecords('delete'),
                 ]),
             ]);
     }

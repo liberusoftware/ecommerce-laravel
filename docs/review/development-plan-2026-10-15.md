@@ -97,6 +97,8 @@ total from them, and start the order at `pending`.
 
 ## Phase 4 — Financial records can't be erased by a delete (F-05)
 
+**Status: done.** Retention as decided: paid orders, invoices and refunds can't be erased by back-office actions; GDPR erasure is unchanged. Account deletion still cascades return requests (`return_requests.customer_id → users`), which is outside this decision and recorded as remaining.
+
 ⚑ **Decision required first:** the retention policy. Should customers and orders be deletable at all?
 GDPR erasure already exists (`GdprErasureService`) and is the correct path for personal data.
 
@@ -155,6 +157,7 @@ These are independent of each other, so there's one commit each.
 | F-10 | Invoice customer column uses the first and last name | Table renders the name |
 | F-11 | Stripe `processSubscription` fails closed (as PayPal's does) | Gateway unit test |
 | F-18 | Inventory log written from a locked read, or only `quantity_change` | Log matches the stock sequence |
+| F-20 | Customer delete policy also refuses a customer with reviews or ratings | Policy test |
 | F-08 ⚑ | Decide whether backorders and preorders exist; implement them in `reserveStock()` or hide the fields | Reserve beyond stock when `allow_backorders` is set |
 
 ## Phase 8 — Dependency advisories (F-12)
