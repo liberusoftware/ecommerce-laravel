@@ -6,8 +6,8 @@ See [AGENTS.md](./AGENTS.md) — it is the source of truth for agent configurati
 
 ## House rules
 
-- **The application is `src/`.** The repository root holds only the Docker compose files and
-  `.docker/`. Every path in this document is relative to `src/`.
+- **The application is at the repository root**, alongside the Docker compose files and
+  `.docker/`. Every path in this document is relative to the root.
 - **Do not write long comments.** Much of the existing tree carries essay-length docblocks
   explaining the defect a line prevents. Do not extend that style and do not add more of it: a
   short comment where the code cannot say it itself, and nothing else. The reasoning belongs in
@@ -49,8 +49,8 @@ npm run build
 Tests are PHPUnit classes extending `Tests\TestCase`, on sqlite `:memory:`; `phpunit.xml` holds the
 env the suite needs (including the social-login provider list, which production leaves empty).
 
-**Neither PHP nor Composer exists on this machine, so none of the above runs from a bare shell.
-They run in Docker.** `docker run --rm composer:2` and `php:8.5-cli` resolve Packagist and run
+**Where the host has no usable PHP or Composer, none of the above runs from a bare shell, and
+they run in Docker.** `docker run --rm composer:2` and `php:8.5-cli` resolve Packagist and run
 install, Pint, PHPStan, Pest and `pecl install pcov` for coverage — verified 2026-08-17, and used
 for every gate of wave 17 before anything was pushed.
 
@@ -137,7 +137,7 @@ One architecture epic at a time, built as four packages, recorded, closed. Run i
    module replaces. Name each fault from the code, not from the issue text — the issue
    describes the capability, not what is wrong here.
 4. **Write the wave addendum**, at
-   `~/.claude/projects/-home-tom-code-ecommerce-laravel/briefs/wave<N>-addendum.md`. It carries
+   `~/.claude/projects/<this project>/briefs/wave<N>-addendum.md`. It carries
    the boundary statement, the host's faults, the one fact that shapes the module, and the
    decisions agents must implement rather than rediscover. Briefs live outside `/tmp`, which is
    not durable here.

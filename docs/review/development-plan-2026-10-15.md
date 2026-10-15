@@ -132,6 +132,8 @@ database-level restrict test.
 
 ## Phase 6 — Configuration and repository hygiene (F-02, F-07, F-16)
 
+**Status: done.** Found F-21 (no panel manages real stores); it needs a product decision and is listed under "Not planned".
+
 **Goal:** what the repo and `.env` say matches what the code does.
 
 **Scope:**
@@ -188,3 +190,4 @@ existing panel tests that request both panels.
 - **F-14:** per-store outbound webhooks.
 - **F-15:** Spatie team-scoped roles, or removing the dead `setPermissionsTeamId` calls.
 - **F-19:** the whole-tree Pint reformat stays a ratchet.
+- **F-21** ⚑: an admin resource for stores, channels and domains, so merchants can be onboarded without editing the database.

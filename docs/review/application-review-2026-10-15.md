@@ -216,6 +216,7 @@ repeated.
 
 ### F-07 — `modules/ecommerce-*` holds 267 unloaded copies of `app/` code
 - **Severity:** Medium. **Status:** Confirmed. **Area:** maintainability.
+- **Resolved (Phase 6):** deleted after confirming that no workflow, Docker file, script, Composer or PHPUnit config, test or application code references them. They were added upstream by the maintainer on 2026-10-10 (`d166bec`), so a later upstream merge may bring them back.
 - **Evidence:**
   - Commit `d166bec` added 13,694 lines under 13 `modules/ecommerce-*` folders.
   - The files are line-for-line copies of `app/` with renamed namespaces (for example, `Product.php`
@@ -231,6 +232,7 @@ repeated.
 
 ### F-02 — `MULTITENANCY=false` is not read by anything
 - **Severity:** Medium (it misleads operators). **Status:** Confirmed. **Area:** configuration.
+- **Resolved (Phase 6):** removed from `.env.example`. A local `.env` that still contains it is harmless; remove it by hand.
 - **Evidence:**
   - Added to `.env.example` in `41f77d5` (a docs commit). No PHP, YAML or shell file in any commit
     of the history has ever read it.
@@ -312,12 +314,12 @@ repeated.
 
 ### F-16 — Documentation drift
 - **Severity:** Low. **Status:** Confirmed. **Area:** docs and tooling.
+- **Resolved (Phase 6):** `CLAUDE.md` (layout, PHP availability, brief path), `CONTEXT.md` (the `stores` table exists) and `MIGRATION_PLAN.md` §352 are corrected. **Correction to this finding:** `StoreResource` still has `$model = Team::class`, so `CONTEXT.md`'s warning about it is accurate and stays (see F-21).
 - **Evidence:**
   - `CLAUDE.md` says the app lives in `src/` (it's at the root) and that "neither PHP nor Composer
     exists on this machine" (both do).
   - It refers to `/home/tom/...` brief paths.
   - It says "No `Store` model or `stores` table exists yet" in `CONTEXT.md` §Store warning.
-  - It says `StoreResource` models `Team`; it now uses `Store`.
   - **New evidence about my own commit `a25d78f`:** its message and `MIGRATION_PLAN.md` §352 say
     "every Jetstream personal team is one" store-less team. In fact `CreateNewUser` creates no team for
     shoppers. Store-less teams come from the seeded default team and from `/app` CreateTeam
@@ -350,6 +352,12 @@ repeated.
 - **Severity:** Low. **Status:** Confirmed (found in Phase 4). **Area:** `/app` customers.
 - **Evidence:** `product_reviews.customer_id` and `product_rating.customer_id` reference `customers` with the default `RESTRICT`. `CustomerPolicy::delete` doesn't check reviews or ratings, so the delete action is offered and then fails at the database.
 - **Resolution:** have the policy also refuse a customer with reviews or ratings (Phase 7).
+
+### F-21 — No panel manages stores, channels or domains
+- **Severity:** Medium. **Status:** Confirmed (found in Phase 6). **Area:** back office, onboarding.
+- **Evidence:** the admin "Stores" resource (`app/Filament/Admin/Resources/Stores/StoreResource.php`) has `$model = Team::class`. No resource exists for `App\Models\Store`, `Channel` or `ChannelDomain`.
+- **Impact:** a new merchant team can't be given a store, and a storefront hostname can't be added, without editing the database. A store-less merchant's rows stay out of their own view until they have a store.
+- **Resolution (needs a product decision):** add an admin resource for stores and their channel domains, and decide whether the Team resource keeps the "Store" label.
 
 ### F-19 — Pint baseline
 - **Severity:** Low. **Status:** Confirmed, known.
