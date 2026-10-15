@@ -46,6 +46,11 @@ class Team extends JetstreamTeam
         ];
     }
 
+    public function stores(): HasMany
+    {
+        return $this->hasMany(Store::class);
+    }
+
     public function customers(): HasMany
     {
         return $this->hasMany(Customer::class);
