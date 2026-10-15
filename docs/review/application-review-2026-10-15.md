@@ -362,6 +362,17 @@ repeated.
 - **Impact:** a new merchant team can't be given a store, and a storefront hostname can't be added, without editing the database. A store-less merchant's rows stay out of their own view until they have a store.
 - **Resolution (needs a product decision):** add an admin resource for stores and their channel domains, and decide whether the Team resource keeps the "Store" label.
 
+### F-22 — Invoices, reviews and ratings created outside a panel had no team
+- **Severity:** High. **Status:** Confirmed (found in Phase 7). **Area:** tenancy, back office.
+- **Evidence:**
+  - `ProductReview` and `ProductRating` are store-scoped but didn't use `IsTenantModel`, so a storefront review and its rating were saved with `team_id = NULL`.
+  - `Invoice::generateForOrder()` didn't copy the order's team or store. When a payment webhook marked an order paid, with no host or panel user to derive them from, the invoice had neither. A guest order's new customer had neither too.
+  - The `/app` Invoices, Product Reviews, Product Ratings and Customers pages filter by `team_id`, so merchants never saw these rows.
+- **Resolved (Phase 7):**
+  - Reviews and ratings use `IsTenantModel`, taking the team from the storefront's store.
+  - Invoices, and the guest customers created for them, take `team_id` and `store_id` from the order.
+  - `StorefrontRowTeamAttributionTest` covers it.
+
 ### F-19 — Pint baseline
 - **Severity:** Low. **Status:** Confirmed, known.
 - **Evidence:** 297 files fail `pint --test` across the whole tree. CI checks only changed files.

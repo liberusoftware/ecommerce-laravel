@@ -34,15 +34,20 @@ class Invoice extends Model
     {
         $order->loadMissing('items');
 
-        $invoice = static::firstOrCreate(
-            ['order_id' => $order->id],
-            [
+        $invoice = static::firstOrNew(['order_id' => $order->id]);
+
+        if (! $invoice->exists) {
+            // Team and store come from the order: a webhook that marks it paid
+            // has no storefront host or panel user to derive them from.
+            $invoice->forceFill([
                 'customer_id' => static::resolveCustomerId($order),
                 'invoice_date' => now(),
                 'total_amount' => $order->total_amount,
                 'payment_status' => $order->payment_status ?: 'paid',
-            ]
-        );
+                'team_id' => $order->team_id,
+                'store_id' => $order->store_id,
+            ])->save();
+        }
 
         if ($invoice->wasRecentlyCreated) {
             foreach ($order->items as $item) {
@@ -67,11 +72,16 @@ class Invoice extends Model
         }
 
         // Guest order: a minimal customer from the order email (profile fields nullable).
-        return Customer::create([
+        $guest = (new Customer)->forceFill([
             'first_name' => 'Guest',
             'last_name' => '',
             'email' => $order->customer_email,
-        ])->id;
+            'team_id' => $order->team_id,
+            'store_id' => $order->store_id,
+        ]);
+        $guest->save();
+
+        return $guest->id;
     }
 
     public function order()
