@@ -259,6 +259,7 @@ repeated.
 
 ### F-10 — Invoices table shows a blank customer column
 - **Severity:** Low. **Status:** Confirmed. **Area:** `/app` UI.
+- **Resolved (Phase 7):** the column shows first and last name, with the customer eager-loaded. `InvoiceTableTest` covers it.
 - **Evidence:** `InvoiceResource` uses `TextColumn::make('customer.name')`, but `Customer` has
   `first_name`/`last_name` and no `name` accessor.
 - **Resolution:** use a state callback, or add a `name` accessor.
