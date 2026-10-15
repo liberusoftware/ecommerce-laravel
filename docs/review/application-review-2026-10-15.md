@@ -133,6 +133,7 @@ repeated.
 ### F-03 — Panels never update `current_team_id`; the store scope relies on it
 - **Severity:** High. **Status:** Confirmed (stub, null value); Suspected (mismatch scenario).
   **Area:** tenancy, authorization.
+- **Resolved (Phase 2):** `SwitchTeam` now switches the user to the tenant a panel opens. The listener is registered globally, so it covers both panels, and `switchTeam()` refuses a team the user doesn't belong to. The mismatch was **confirmed** before the fix: a two-team user opening team B saw no rows. `PanelTeamSwitchTest` covers both panels and a non-member.
 - **Evidence:**
   - `app/Listeners/SwitchTeam.php::handle()` is empty (`// dd($event);`), yet `AppPanelProvider::boot()`
     registers it for `TenantSet`.

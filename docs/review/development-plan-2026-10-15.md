@@ -48,6 +48,8 @@ deletes all data.
 
 ## Phase 2 — Panels keep `current_team_id` in step with the Filament tenant (F-03)
 
+**Status: done.** The listener alone; `StoreContext` was not changed to read the Filament tenant, since the listener runs before any page query on every panel request.
+
 **Depends on:** Phase 1.
 
 **Goal:** the store scope always uses the team the user is actually working in.
