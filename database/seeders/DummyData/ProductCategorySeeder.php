@@ -5,61 +5,31 @@ namespace Database\Seeders\DummyData;
 use App\Models\ProductCategory;
 use Illuminate\Database\Seeder;
 
+/**
+ * The demo category tree from catalogue.json: departments with one level of
+ * subcategories. Creates what is missing and never changes existing rows.
+ */
 class ProductCategorySeeder extends Seeder
 {
-    /**
-     * Define the product categories to seed.
-     * Each category can be easily customized or extended.
-     */
-    private array $categories = [
-        [
-            'name' => 'Electronics',
-            'slug' => 'electronics',
-            'description' => 'Gadgets, devices, and home appliances.',
-        ],
-        [
-            'name' => 'Clothing',
-            'slug' => 'clothing',
-            'description' => 'Men\'s, women\'s, and kids\' fashion.',
-        ],
-        [
-            'name' => 'Books',
-            'slug' => 'books',
-            'description' => 'Fiction, non-fiction, and educational books.',
-        ],
-        [
-            'name' => 'Home & Living',
-            'slug' => 'home',
-            'description' => 'Furniture, decor, and essentials for every room.',
-        ],
-        [
-            'name' => 'Beauty',
-            'slug' => 'beauty',
-            'description' => 'Skincare, cosmetics, and personal care products.',
-        ],
-        [
-            'name' => 'Sports',
-            'slug' => 'sports',
-            'description' => 'Sporting goods, fitness gear, and outdoor equipment.',
-        ],
-        [
-            'name' => 'Toys',
-            'slug' => 'toys',
-            'description' => 'Kids toys, games, and family entertainment.',
-        ],
-    ];
-
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        foreach ($this->categories as $category) {
-            if (ProductCategory::where('slug', $category['slug'])->exists()) {
-                continue;
-            }
+        foreach (DemoCatalogue::load()['categories'] as $department) {
+            $parent = $this->ensure($department, null);
 
-            ProductCategory::factory()->create($category);
+            foreach ($department['children'] as $child) {
+                $this->ensure($child, $parent->id);
+            }
         }
+    }
+
+    private function ensure(array $category, ?int $parentId): ProductCategory
+    {
+        return ProductCategory::where('slug', $category['slug'])->first()
+            ?? ProductCategory::create([
+                'name' => $category['name'],
+                'slug' => $category['slug'],
+                'description' => $category['description'],
+                'parent_category_id' => $parentId,
+            ]);
     }
 }
