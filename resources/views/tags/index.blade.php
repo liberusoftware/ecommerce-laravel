@@ -1,30 +1,33 @@
 @extends('layouts.app')
 
+@section('title', 'Tags — '.config('app.name'))
+
 @section('content')
-<div class="container">
-    <div class="row">
-        @if($tags->count() > 0)
-            @foreach($tags as $tag)
-                <div class="col-md-4 mb-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ $tag->name }}</h5>
-                            <p class="card-text">{{ $tag->description }}</p>
-                            <p class="text-muted">Products: {{ number_format($tag->product_count) }}</p>
-                        </div>
-                    </div>
-                </div>
+<div class="page-container py-10">
+    <header class="border-b border-hairline pb-8">
+        <h1 class="heading-2">Tags</h1>
+    </header>
+
+    @if ($tags->isEmpty())
+        <x-empty-state class="mt-10" title="No tags yet" />
+    @else
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($tags as $tag)
+                <a href="{{ route('tags.show', $tag) }}" class="card card-hover block p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+                    <h2 class="text-lead font-semibold text-ink">{{ $tag->name }}</h2>
+                    @if ($tag->description)
+                        <p class="mt-2 text-label text-muted">{{ $tag->description }}</p>
+                    @endif
+                    <p class="mt-4 text-caption text-muted">
+                        <span class="data">{{ $tag->products_count }}</span> {{ Str::plural('product', $tag->products_count) }}
+                    </p>
+                </a>
             @endforeach
-        @else
-            <div class="col-12">
-                <p>No tags available.</p>
-            </div>
-        @endif
-    </div>
-    <div class="row">
-        <div class="col-12 d-flex justify-content-center">
-            {{ $tags->links() }}
         </div>
-    </div>
+
+        @if ($tags->hasPages())
+            <div class="mt-12">{{ $tags->links() }}</div>
+        @endif
+    @endif
 </div>
 @endsection

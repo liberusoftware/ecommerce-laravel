@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
+@section('title', 'Cart — '.config('app.name'))
+
 @section('content')
-<div class="container mx-auto px-4 py-8">
     @livewire('shopping-cart')
-</div>
 @endsection

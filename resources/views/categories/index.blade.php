@@ -1,27 +1,50 @@
 @extends('layouts.app')
 
+@section('title', 'Categories — '.config('app.name'))
+
 @section('content')
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6">Product Categories</h1>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        @if($categories->count() > 0)
-            @foreach($categories as $category)
-                <a href="{{ route('categories.show', $category) }}" class="block group">
-                    <div class="card card-hover p-6 h-full">
-                        <h5 class="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">{{ $category->name }}</h5>
-                        <p class="text-gray-600 mb-3">{{ $category->description }}</p>
-                        <p class="text-sm text-gray-500">{{ $category->products_count }} Products</p>
-                    </div>
-                </a>
+<div class="page-container py-10">
+    <header class="border-b border-hairline pb-8">
+        <h1 class="heading-2">Shop by category</h1>
+        <p class="mt-2 text-label text-muted">Browse the catalogue by department.</p>
+    </header>
+
+    @if ($categories->isEmpty())
+        <x-empty-state class="mt-10" title="No categories yet" message="Categories appear here once products are organised." />
+    @else
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($categories as $category)
+                @php($total = $category->products_count + $category->children->sum('products_count'))
+                <article class="card card-hover flex flex-col p-6">
+                    <h2 class="text-lead font-semibold text-ink">
+                        <a href="{{ route('categories.show', $category) }}" class="rounded hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+                            {{ $category->name }}
+                        </a>
+                    </h2>
+                    @if ($category->description)
+                        <p class="mt-2 text-label text-muted">{{ $category->description }}</p>
+                    @endif
+
+                    @if ($category->children->isNotEmpty())
+                        <ul class="mt-4 flex flex-wrap gap-2">
+                            @foreach ($category->children as $child)
+                                <li>
+                                    <a href="{{ route('categories.show', $child) }}" class="badge badge-primary hover:bg-primary-200">{{ $child->name }}</a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    <p class="mt-auto pt-6 text-caption text-muted">
+                        <span class="data">{{ $total }}</span> {{ Str::plural('product', $total) }}
+                    </p>
+                </article>
             @endforeach
-        @else
-            <div class="col-span-3">
-                <p class="text-gray-500">No categories available.</p>
-            </div>
+        </div>
+
+        @if ($categories->hasPages())
+            <div class="mt-12">{{ $categories->links() }}</div>
         @endif
-    </div>
-    <div class="mt-6 flex justify-center">
-        {{ $categories->links() }}
-    </div>
+    @endif
 </div>
 @endsection

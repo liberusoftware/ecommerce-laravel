@@ -97,11 +97,30 @@
     --text-title--line-height: 1.25;
     --text-headline: 1.875rem;
     --text-headline--line-height: 1.2;
+
+    --animate-slide-in-right: slide-in-right 0.2s ease-out;
+
+    @keyframes slide-in-right {
+        from {
+            opacity: 0;
+            transform: translateX(1rem);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
 }
 
-/* Smooth Animations */
-* {
-    transition: all 0.2s ease-in-out;
+/* Motion is opt-in per component (transition-colors on interactive elements),
+   never global: a blanket `transition: all` animated layout and shadows too. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 
 /* Component classes live in @layer components so that utilities win.
@@ -115,7 +134,7 @@
 @layer components {
     /* Enhanced Button Styles */
     .btn {
-        @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2;
     }
 
     /* Disabled was previously unstyled, so a sold-out product's button rendered as a
@@ -134,22 +153,27 @@
     }
 
     .btn-primary {
-        @apply bg-primary-700 text-white hover:bg-primary-600 focus:ring-primary-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5;
+        @apply bg-primary-700 text-white hover:bg-primary-600;
     }
 
     .btn-secondary {
-        @apply bg-surface text-ink hover:bg-primary-50 focus:ring-primary-600 border border-stroke;
+        @apply bg-white text-ink border border-stroke hover:bg-surface;
     }
 
     /* Identical to .btn-primary by design: moss is the affirmative colour, and a
        second green would fight the brand. Kept as an alias so existing views don't
        break; prefer .btn-primary in new work. */
     .btn-success {
-        @apply bg-primary-700 text-white hover:bg-primary-600 focus:ring-primary-600 shadow-md hover:shadow-lg;
+        @apply bg-primary-700 text-white hover:bg-primary-600;
     }
 
     .btn-danger {
-        @apply bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-600 shadow-md hover:shadow-lg;
+        @apply bg-danger-600 text-white hover:bg-danger-700 focus-visible:ring-danger-600;
+    }
+
+    /* Quiet actions in dense rows (remove, clear): text weight, no fill. */
+    .btn-ghost {
+        @apply text-muted hover:bg-surface hover:text-ink;
     }
 
     .btn-lg {
@@ -160,13 +184,14 @@
         @apply px-3 py-1.5 text-xs;
     }
 
-    /* Enhanced Card Styles */
+    /* Cards are bounded by a hairline, not lifted by shadow: depth on a white
+       ground reads as noise once a page holds more than a few of them. */
     .card {
-        @apply bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100;
+        @apply bg-white rounded-xl border border-hairline;
     }
 
     .card-hover {
-        @apply transform hover:-translate-y-1 hover:scale-105;
+        @apply transition-colors duration-150 hover:border-stroke;
     }
 
     .card-body {
@@ -174,18 +199,23 @@
     }
 
     .card-header {
-        @apply px-6 py-4 border-b border-gray-100;
+        @apply px-6 py-4 border-b border-hairline;
+    }
+
+    /* One content width for every storefront page. */
+    .page-container {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
     }
 
     /* Enhanced Form Styles */
     /* border-stroke, not the old border-gray-300: a control's boundary is the only
        thing identifying it, so it owes 3:1 (WCAG 1.4.11). gray-300 managed 1.47:1. */
     .form-input {
-        @apply w-full px-4 py-3 border border-stroke rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all duration-200 bg-white;
+        @apply w-full rounded-lg border border-stroke bg-white px-3.5 py-2.5 text-body text-ink placeholder:text-muted transition-colors duration-150 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600;
     }
 
-    .form-input:focus {
-        @apply shadow-md;
+    .form-input[aria-invalid='true'] {
+        @apply border-danger-600 focus:border-danger-600 focus:ring-danger-600;
     }
 
     .form-label {
@@ -220,15 +250,11 @@
     }
 
     .product-card {
-        @apply bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100;
-    }
-
-    .product-card:hover {
-        @apply transform -translate-y-1;
+        @apply bg-white rounded-xl overflow-hidden border border-hairline;
     }
 
     .product-image {
-        @apply w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105;
+        @apply aspect-square w-full object-cover;
     }
 
     /* Ink, not red. A red badge on a product tile is urgency theatre — and it would
@@ -339,7 +365,7 @@
 
     /* Enhanced Modals */
     .modal-overlay {
-        @apply fixed inset-0 bg-black z-50 flex items-center justify-center p-4;
+        @apply fixed inset-0 bg-ink/60 z-50 flex items-center justify-center p-4;
     }
 
     .modal-content {
@@ -352,41 +378,41 @@
     }
 
     .dropdown-menu {
-        @apply absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black z-50;
+        @apply absolute right-0 mt-2 w-56 rounded-lg border border-hairline bg-white shadow-lg z-50;
     }
 
     .dropdown-item {
-        @apply block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150;
+        @apply block px-4 py-2 text-sm text-ink hover:bg-surface transition-colors duration-150;
     }
 
     /* Enhanced Tables */
     .table {
-        @apply min-w-full divide-y divide-gray-200;
+        @apply min-w-full divide-y divide-hairline;
     }
 
     .table-header {
-        @apply bg-gray-50;
+        @apply bg-surface;
     }
 
     .table-header th {
-        @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+        @apply px-6 py-3 text-left text-caption font-medium text-muted uppercase tracking-wider;
     }
 
     .table-body {
-        @apply bg-white divide-y divide-gray-200;
+        @apply bg-white divide-y divide-hairline;
     }
 
     .table-body td {
-        @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+        @apply px-6 py-4 text-label text-ink;
     }
 
     /* Enhanced Pagination */
     .pagination {
-        @apply flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6;
+        @apply flex items-center justify-between border-t border-hairline bg-white px-4 py-3 sm:px-6;
     }
 
     .pagination-link {
-        @apply relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md transition-colors duration-150;
+        @apply relative inline-flex items-center px-4 py-2 text-sm font-medium text-muted hover:text-ink hover:bg-surface border border-stroke rounded-md transition-colors duration-150;
     }
 
     .pagination-link.active {
@@ -403,25 +429,25 @@
     }
 
     .search-icon {
-        @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400;
+        @apply absolute left-3 top-1/2 -translate-y-1/2 text-muted;
     }
 
     /* Enhanced Breadcrumbs */
     .breadcrumb {
-        @apply flex items-center space-x-2 text-sm text-gray-500;
+        @apply flex flex-wrap items-center gap-2 text-label text-muted;
     }
 
     .breadcrumb-item {
-        @apply hover:text-gray-700;
+        @apply hover:text-ink;
     }
 
     .breadcrumb-separator {
-        @apply text-gray-300;
+        @apply text-stroke;
     }
 
     /* Enhanced Progress Bars */
     .progress {
-        @apply w-full bg-gray-200 rounded-full h-2;
+        @apply w-full bg-hairline rounded-full h-2;
     }
 
     .progress-bar {
@@ -430,20 +456,20 @@
 
     /* Enhanced Tooltips */
     .tooltip {
-        @apply absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg;
+        @apply absolute z-50 px-2 py-1 text-xs text-white bg-ink rounded shadow-lg;
     }
 
     /* Enhanced Skeleton Loading */
     .skeleton {
-        @apply animate-pulse bg-gray-200 rounded;
+        @apply animate-pulse bg-hairline rounded;
     }
 
     .skeleton-text {
-        @apply h-4 bg-gray-200 rounded;
+        @apply h-4 bg-hairline rounded;
     }
 
     .skeleton-avatar {
-        @apply h-10 w-10 bg-gray-200 rounded-full;
+        @apply h-10 w-10 bg-hairline rounded-full;
     }
 
     /* Enhanced Responsive Utilities */

@@ -174,6 +174,8 @@ install_standalone() {
     else
         print_error "Key generation failed."; exit 1
     fi
+    # Product images live on the public disk; without the link none of them load.
+    "$PHP_CMD" artisan storage:link 2>/dev/null || print_warning "storage:link failed; product images will not load."
 
     run_migrations || exit 1
 
@@ -250,6 +252,7 @@ install_sail() {
 
     print_info "Running Sail setup commands..."
     "$SAIL_CMD" artisan key:generate
+    "$SAIL_CMD" artisan storage:link
     "$SAIL_CMD" artisan migrate --force
     "$SAIL_CMD" artisan db:seed
 

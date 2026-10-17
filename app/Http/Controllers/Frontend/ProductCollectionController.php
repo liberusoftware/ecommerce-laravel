@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
 use App\Models\ProductCollection;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -16,6 +15,7 @@ class ProductCollectionController extends Controller
         $collections = QueryBuilder::for(ProductCollection::class)
             ->allowedFilters('name')
             ->allowedSorts('name', 'created_at')
+            ->withCount('products')
             ->paginate();
 
         return view('collections.index', compact('collections'));
@@ -23,7 +23,12 @@ class ProductCollectionController extends Controller
 
     public function show(ProductCollection $collection)
     {
-        return view('collections.show', compact('collection'));
+        $products = $collection->products()
+            ->withCount('review')
+            ->withAvg('rating', 'rating')
+            ->paginate(config('pagination.per_page'));
+
+        return view('collections.show', compact('collection', 'products'));
     }
 
     public function products(Request $request, ProductCollection $collection)
@@ -37,6 +42,8 @@ class ProductCollectionController extends Controller
                 AllowedFilter::scope('price_max'),
             )
             ->allowedSorts('name', 'price', 'created_at')
+            ->withCount('review')
+            ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());
 

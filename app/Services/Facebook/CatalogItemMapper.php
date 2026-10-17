@@ -103,7 +103,7 @@ class CatalogItemMapper
 
     private static function image(Product $product): ?string
     {
-        $image = $product->featured_image;
+        $image = $product->image_url;
 
         if (blank($image)) {
             return null;

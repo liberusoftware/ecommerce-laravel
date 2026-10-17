@@ -66,6 +66,9 @@ class CartService
                 'quantity' => (int) $item->quantity,
                 'is_downloadable' => (bool) $product?->is_downloadable,
                 'weight' => (float) ($product?->weight ?? 0),
+                'image' => $product?->image_url,
+                'url' => $product ? route('products.show', $product) : null,
+                'currency' => $product?->currency_code ?: 'USD',
             ];
         }
 

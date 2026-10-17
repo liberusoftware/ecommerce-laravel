@@ -1,26 +1,17 @@
 @extends('layouts.app')
 
+@section('title', 'Shared wishlist — '.config('app.name'))
+
 @section('content')
-<div class="container">
-    <h1>Shared Wishlist</h1>
-    @if($wishlist->isEmpty())
-        <p>This wishlist is empty.</p>
-    @else
-        <div class="row">
-            @foreach($wishlist as $item)
-                <div class="col-md-4 mb-3">
-                    <div class="card">
-                        <img src="/images/placeholder.png" alt="{{ $item->product->name }}" class="card-img-top">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ $item->product->name }}</h5>
-                            <p class="card-text">{{ $item->product->description }}</p>
-                            <p class="card-text"><strong>Price:</strong> ${{ number_format($item->product->price, 2) }}</p>
-                            <a href="{{ route('products.show', $item->product) }}" class="btn btn-primary">View Product</a>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    @endif
+<div class="page-container py-10">
+    <header class="border-b border-hairline pb-8">
+        <h1 class="heading-2">Shared wishlist</h1>
+    </header>
+
+    <div class="mt-10">
+        <x-product-grid :products="$wishlist->pluck('product')->filter()"
+                        empty-title="This wishlist is empty"
+                        empty-message="Nothing has been saved to it yet." />
+    </div>
 </div>
 @endsection
