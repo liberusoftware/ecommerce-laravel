@@ -12,17 +12,21 @@
     // review_count / rating_avg_rating come from the controller's eager loads;
     // the method calls are the fallback for any caller that didn't eager-load.
     $reviewCount = $product->review_count ?? $product->getTotalReviews();
-    $rating = (float) ($product->rating_avg_rating ?? $product->getAverageRating());
+    // An unrated product's eager-loaded average is null, which still counts as loaded.
+    $rating = (float) (array_key_exists('rating_avg_rating', $product->getAttributes())
+        ? $product->rating_avg_rating
+        : $product->getAverageRating());
 
     $price = \Illuminate\Support\Number::currency($product->price, $product->currency_code ?: 'USD');
+    $image = $product->image_url ?: asset('images/placeholder-product.svg');
 @endphp
 
 <article class="group flex flex-col">
     {{-- One link over image + title: one tab stop, and the accessible name comes
          from the title text, so the image carries alt="" rather than repeating it. --}}
-    <a href="{{ route('products.show', $product) }}" class="flex flex-col rounded-sm">
-        <span class="relative block aspect-square overflow-hidden border border-hairline bg-surface">
-            <img src="{{ $product->image_url }}"
+    <a href="{{ route('products.show', $product) }}" class="flex flex-col rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2">
+        <span class="relative block aspect-square overflow-hidden rounded-lg border border-hairline bg-surface">
+            <img src="{{ $image }}"
                  alt=""
                  aria-hidden="true"
                  loading="lazy"
@@ -65,7 +69,7 @@
 
     {{-- mt-auto pins the price/action row to the bottom so cards of different
          title lengths still align along a common baseline. --}}
-    <div class="mt-auto flex items-end justify-between gap-3 pt-4">
+    <div class="mt-auto flex flex-wrap items-end justify-between gap-3 pt-4">
         <div class="min-w-0">
             <p class="data text-title font-semibold text-ink">{{ $price }}</p>
 

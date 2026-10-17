@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
-use App\Models\ProductTag;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -17,6 +16,7 @@ class ProductTagController extends Controller
         $tags = QueryBuilder::for(Tag::class)
             ->allowedFilters('name')
             ->allowedSorts('name', 'created_at')
+            ->withCount('products')
             ->paginate();
 
         return view('tags.index', compact('tags'));
@@ -34,6 +34,8 @@ class ProductTagController extends Controller
             )
             ->withTag($tag)
             ->allowedSorts('name', 'price', 'created_at')
+            ->withCount('review')
+            ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());
 

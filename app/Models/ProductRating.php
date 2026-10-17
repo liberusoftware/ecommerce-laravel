@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\IsStoreScoped;
+use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,6 +11,7 @@ class ProductRating extends Model
 {
     use HasFactory;
     use IsStoreScoped;
+    use IsTenantModel;
 
     protected $table = 'product_rating';
 

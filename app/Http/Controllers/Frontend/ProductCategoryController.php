@@ -16,7 +16,10 @@ class ProductCategoryController extends Controller
         $categories = QueryBuilder::for(ProductCategory::class)
             ->allowedFilters('name')
             ->allowedSorts('name', 'created_at')
+            ->topLevel()
             ->withCount('products')
+            ->with(['children' => fn ($query) => $query->withCount('products')->orderBy('name')])
+            ->defaultSort('name')
             ->paginate();
 
         return view('categories.index', compact('categories'));
@@ -24,17 +27,23 @@ class ProductCategoryController extends Controller
 
     public function show(ProductCategory $category)
     {
+        $categoryIds = $category->listingCategoryIds();
+
         $productCount = Product::query()
-            ->where('category_id', $category->id)
+            ->whereIn('category_id', $categoryIds)
             ->count();
 
         $featuredProducts = Product::query()
-            ->where('category_id', $category->id)
+            ->whereIn('category_id', $categoryIds)
+            ->withCount('review')
+            ->withAvg('rating', 'rating')
             ->latest()
-            ->take(3)
+            ->take(4)
             ->get();
 
-        return view('categories.show', compact('category', 'productCount', 'featuredProducts'));
+        $subcategories = $category->children()->withCount('products')->orderBy('name')->get();
+
+        return view('categories.show', compact('category', 'productCount', 'featuredProducts', 'subcategories'));
     }
 
     public function products(Request $request, ProductCategory $category)
@@ -47,7 +56,9 @@ class ProductCategoryController extends Controller
                 AllowedFilter::scope('price_min'),
                 AllowedFilter::scope('price_max'),
             )
-            ->where('category_id', $category->id)
+            ->whereIn('category_id', $category->listingCategoryIds())
+            ->withCount('review')
+            ->withAvg('rating', 'rating')
             ->allowedSorts('name', 'price', 'created_at')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());

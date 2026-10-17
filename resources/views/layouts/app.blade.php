@@ -115,7 +115,7 @@
     {{-- The footer is the one dark surface: a moss-tinted near-black, so it reads
          as the same material as the brand rather than as generic gray chrome. --}}
     <footer class="bg-primary-950 text-white py-8 mt-8">
-        <div class="container mx-auto px-4">
+        <div class="page-container">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div>
                     <h2 class="text-lg font-semibold mb-4">{{ config('app.name') }}</h2>

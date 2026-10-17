@@ -75,7 +75,9 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->paginate(config('pagination.per_page'))
+        $products = $query->withCount('review')
+            ->withAvg('rating', 'rating')
+            ->paginate(config('pagination.per_page'))
             ->appends($request->query());
 
         return view('products.index', compact('products'));
@@ -107,10 +109,14 @@ class ProductController extends Controller
         }
 
         if ($categoryId) {
-            $query->where('category_id', $categoryId);
+            $category = ProductCategory::find($categoryId);
+            $query->whereIn('category_id', $category ? $category->listingCategoryIds() : [$categoryId]);
         }
 
-        $products = $query->paginate(config('pagination.per_page'))->appends($request->query());
+        $products = $query->withCount('review')
+            ->withAvg('rating', 'rating')
+            ->paginate(config('pagination.per_page'))
+            ->appends($request->query());
 
         $categories = ProductCategory::orderBy('name')->get();
 

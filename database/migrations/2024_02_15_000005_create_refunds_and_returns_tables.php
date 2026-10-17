@@ -11,7 +11,7 @@ return new class extends Migration
         // Refunds table
         Schema::create('refunds', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_id')->constrained()->restrictOnDelete();
             $table->decimal('amount', 10, 2);
             $table->string('reason');
             $table->text('notes')->nullable();
@@ -69,7 +69,7 @@ return new class extends Migration
         });
 
         // Add refund-related fields to orders
-        if (!Schema::hasColumn('orders', 'refund_total')) {
+        if (! Schema::hasColumn('orders', 'refund_total')) {
             Schema::table('orders', function (Blueprint $table) {
                 $table->decimal('refund_total', 10, 2)->default(0);
                 $table->boolean('fully_refunded')->default(false);

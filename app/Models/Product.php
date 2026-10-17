@@ -93,10 +93,27 @@ class Product extends Model implements Orderable
         return $this->hasMany(ProductImage::class)->orderBy('order');
     }
 
-    public function getImageUrlAttribute()
+    /**
+     * Uploaded images are public-disk paths; external URLs and root-relative
+     * paths are used as given. Local-disk files are served host-relative so they
+     * load on every storefront domain and port, not only on APP_URL.
+     */
+    public function getImageUrlAttribute(): ?string
     {
-        return $this->featured_image;
-        // return asset(Storage::url($this->featured_image));
+        $path = $this->featured_image;
+
+        if (blank($path)) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://', '//', '/'])) {
+            return $path;
+        }
+
+        $url = Storage::disk('public')->url($path);
+        $appUrl = rtrim((string) config('app.url'), '/').'/';
+
+        return str_starts_with($url, $appUrl) ? '/'.ltrim((string) parse_url($url, PHP_URL_PATH), '/') : $url;
     }
 
     public function cartItems()

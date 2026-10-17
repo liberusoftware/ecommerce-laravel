@@ -1,118 +1,112 @@
-<div class="shopping-cart">
-    <h2 class="mb-4">Shopping Cart</h2>
-    @if (session()->has('error'))
-        <div class="alert alert-danger">
-            {{ session('error') }}
-        </div>
-    @endif
-    @if (session()->has('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if($errors->any())
-        <div class="alert alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+@php
+    $currency = collect($items)->first()['currency'] ?? 'USD';
+    $money = fn ($amount) => \Illuminate\Support\Number::currency($amount, $currency);
+@endphp
 
-    @if(count($items) > 0)
-        <div class="card mb-4">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th>Product</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th>Total</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($items as $id => $item)
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            @if(isset($item['image']))
-                                                <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" class="img-thumbnail mr-3" style="width: 50px; height: 50px; object-fit: cover;">
-                                            @endif
-                                            <div>
-                                                <h6 class="mb-0">{{ $item['name'] }}</h6>
-                                                @if($item['is_downloadable'])
-                                                    <span class="badge bg-info text-white">Digital</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>${{ number_format($item['price'], 2) }}</td>
-                                    <td>
-                                        <div class="input-group" style="width: 120px;">
-                                            <button class="btn btn-outline-secondary btn-sm" wire:click="updateQuantity('{{ $id }}', {{ max(1, $item['quantity'] - 1) }})">-</button>
-                                            <input type="number" class="form-control form-control-sm text-center" wire:model.lazy="items.{{ $id }}.quantity" wire:change="updateQuantity('{{ $id }}', $event.target.value)" min="1">
-                                            <button class="btn btn-outline-secondary btn-sm" wire:click="updateQuantity('{{ $id }}', {{ $item['quantity'] + 1 }})">+</button>
-                                        </div>
-                                    </td>
-                                    <td>${{ number_format($item['price'] * $item['quantity'], 2) }}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-danger" wire:click="removeItem('{{ $id }}')">
-                                            <i class="fa fa-trash"></i> Remove
-                                        </button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<div class="page-container py-10">
+    <h1 class="heading-2">Shopping cart</h1>
 
-        <div class="row">
-            <div class="col-md-6">
-                <button class="btn btn-outline-secondary" wire:click="clearCart">
-                    <i class="fa fa-trash"></i> Clear Cart
-                </button>
+    {{-- Livewire actions don't re-render the layout's flash area, so the cart reports its own outcomes. --}}
+    <div class="mt-6 space-y-3" aria-live="polite">
+        @if (session()->has('error'))
+            <div class="alert alert-error" role="alert">{{ session('error') }}</div>
+        @endif
+        @if (session()->has('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-error" role="alert">
+                <ul class="list-inside list-disc">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
             </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Order Summary</h5>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Subtotal:</span>
-                            <strong>${{ number_format($this->calculateTotal(), 2) }}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span>Shipping:</span>
-                            <span>Calculated at checkout</span>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span>Total:</span>
-                            <strong>${{ number_format($this->calculateTotal(), 2) }}</strong>
-                        </div>
-                        <div class="d-grid">
-                            <a href="{{ route('checkout.initiate') }}" class="btn btn-primary">
-                                Proceed to Checkout
+        @endif
+    </div>
+
+    @if (count($items) > 0)
+        <div class="mt-6 grid gap-10 lg:grid-cols-3">
+            <section class="lg:col-span-2" aria-labelledby="cart-items-heading">
+                <h2 id="cart-items-heading" class="sr-only">Items in your cart</h2>
+
+                <ul class="divide-y divide-hairline border-y border-hairline">
+                    @foreach ($items as $id => $item)
+                        <li class="flex gap-4 py-6" wire:key="cart-item-{{ $id }}">
+                            <a href="{{ $item['url'] ?? '#' }}" class="block size-20 shrink-0 overflow-hidden rounded-lg border border-hairline bg-surface sm:size-24">
+                                <img src="{{ $item['image'] ?: asset('images/placeholder-product.svg') }}" alt="" class="size-full object-cover">
                             </a>
-                        </div>
-                    </div>
+
+                            <div class="flex min-w-0 grow flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <a href="{{ $item['url'] ?? '#' }}" class="font-medium text-ink hover:text-primary-700">{{ $item['name'] }}</a>
+                                    <p class="data mt-1 text-label text-muted">{{ $money($item['price']) }} each</p>
+                                    @if ($item['is_downloadable'])
+                                        <span class="badge badge-primary mt-2">Digital</span>
+                                    @endif
+                                </div>
+
+                                <div class="flex items-center gap-4 sm:flex-col sm:items-end">
+                                    <div class="inline-flex items-center rounded-lg border border-stroke">
+                                        <button type="button" class="btn btn-ghost btn-sm rounded-r-none px-3"
+                                                wire:click="updateQuantity('{{ $id }}', {{ max(1, $item['quantity'] - 1) }})"
+                                                @disabled($item['quantity'] <= 1)
+                                                aria-label="Decrease quantity of {{ $item['name'] }}">&minus;</button>
+                                        <label for="qty-{{ $id }}" class="sr-only">Quantity of {{ $item['name'] }}</label>
+                                        <input id="qty-{{ $id }}" type="number" min="1" inputmode="numeric"
+                                               class="data w-14 border-x border-stroke py-1.5 text-center text-label text-ink focus:outline-none focus:ring-2 focus:ring-primary-600"
+                                               wire:model.lazy="items.{{ $id }}.quantity"
+                                               wire:change="updateQuantity('{{ $id }}', $event.target.value)">
+                                        <button type="button" class="btn btn-ghost btn-sm rounded-l-none px-3"
+                                                wire:click="updateQuantity('{{ $id }}', {{ $item['quantity'] + 1 }})"
+                                                aria-label="Increase quantity of {{ $item['name'] }}">+</button>
+                                    </div>
+
+                                    <p class="data font-semibold text-ink">{{ $money($item['price'] * $item['quantity']) }}</p>
+
+                                    <button type="button" class="btn btn-ghost btn-sm" wire:click="removeItem('{{ $id }}')">
+                                        Remove<span class="sr-only"> {{ $item['name'] }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+
+                <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+                    <a href="{{ route('products.index') }}" class="text-label font-medium text-primary-700 hover:underline">Continue shopping</a>
+                    <button type="button" class="btn btn-ghost btn-sm" wire:click="clearCart" wire:confirm="Remove every item from your cart?">
+                        Clear cart
+                    </button>
                 </div>
-            </div>
+            </section>
+
+            <aside class="lg:sticky lg:top-6 lg:self-start" aria-labelledby="summary-heading">
+                <div class="card p-6">
+                    <h2 id="summary-heading" class="text-lead font-semibold text-ink">Order summary</h2>
+                    <dl class="mt-6 space-y-3 text-label">
+                        <div class="flex justify-between">
+                            <dt class="text-muted">Subtotal</dt>
+                            <dd class="data text-ink">{{ $money($this->calculateTotal()) }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-muted">Shipping</dt>
+                            <dd class="text-muted">Calculated at checkout</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-hairline pt-3 text-body">
+                            <dt class="font-semibold text-ink">Total</dt>
+                            <dd class="data font-semibold text-ink">{{ $money($this->calculateTotal()) }}</dd>
+                        </div>
+                    </dl>
+                    <a href="{{ route('checkout.initiate') }}" class="btn btn-primary btn-lg mt-6 w-full">Proceed to checkout</a>
+                </div>
+            </aside>
         </div>
     @else
-        <div class="card">
-            <div class="card-body text-center py-5">
-                <h4>Your cart is empty</h4>
-                <p class="mb-4">Looks like you haven't added any products to your cart yet.</p>
-                <a href="{{ route('products.index') }}" class="btn btn-primary">
-                    Continue Shopping
-                </a>
-            </div>
-        </div>
+        <x-empty-state class="mt-6"
+                       title="Your cart is empty"
+                       message="Looks like you haven't added any products yet."
+                       :action-url="route('products.index')"
+                       action-label="Continue shopping" />
     @endif
 </div>

@@ -5,7 +5,7 @@
 <header class="bg-white border-b border-hairline">
     <!-- Top Bar -->
     <div class="bg-primary-950 text-white py-2">
-        <div class="container mx-auto px-4 flex justify-between items-center gap-4">
+        <div class="page-container flex justify-between items-center gap-4">
             {{-- Real contact details from settings only. The hardcoded
                  support@example.com / +1234567890 shipped as a merchant's live
                  support contact; an unset field now renders nothing instead.
@@ -62,7 +62,7 @@
     </div>
 
     <!-- Main Navigation -->
-    <div class="container mx-auto px-4 py-4">
+    <div class="page-container py-4">
         <div class="flex items-center justify-between">
             <!-- Logo -->
             {{-- A logo is not the page heading: this was a second <h1> on every page,
@@ -166,7 +166,7 @@
                                 <hr class="my-1">
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
-                                    <button type="submit" class="dropdown-item w-full text-left text-red-600">
+                                    <button type="submit" class="dropdown-item w-full text-left text-danger-600">
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                         </svg>
@@ -222,18 +222,18 @@
         </div>
 
         <!-- Mobile Menu -->
-        <div id="mobile-menu" class="hidden md:hidden mt-4 bg-white border-t border-gray-200 py-4">
+        <div id="mobile-menu" class="hidden md:hidden mt-4 bg-white border-t border-hairline py-4">
             <div class="space-y-2">
                 @guest
-                    <a href="{{ route('login') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Login</a>
-                    <a href="{{ route('register') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Register</a>
+                    <a href="{{ route('login') }}" class="block px-4 py-2 text-ink hover:bg-surface rounded-md">Login</a>
+                    <a href="{{ route('register') }}" class="block px-4 py-2 text-ink hover:bg-surface rounded-md">Register</a>
                 @else
-                    <a href="{{ route('profile.show') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Profile</a>
-                    <a href="{{ route('orders.index') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">My Orders</a>
-                    <a href="{{ route('wishlist.index') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Wishlist</a>
+                    <a href="{{ route('profile.show') }}" class="block px-4 py-2 text-ink hover:bg-surface rounded-md">Profile</a>
+                    <a href="{{ route('orders.index') }}" class="block px-4 py-2 text-ink hover:bg-surface rounded-md">My Orders</a>
+                    <a href="{{ route('wishlist.index') }}" class="block px-4 py-2 text-ink hover:bg-surface rounded-md">Wishlist</a>
                     <form method="POST" action="{{ route('logout') }}" class="mt-2">
                         @csrf
-                        <button type="submit" class="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-md">
+                        <button type="submit" class="block w-full text-left px-4 py-2 text-danger-600 hover:bg-danger-50 rounded-md">
                             Logout
                         </button>
                     </form>
@@ -243,11 +243,11 @@
     </div>
 
     <!-- Category Navigation -->
-    {{-- Surface + a hairline rather than bg-gray-100 and an inner shadow: this system
+    {{-- Surface + a hairline rather than bg-surface and an inner shadow: this system
          separates with rules, not shadows. Renders empty until the "main" menu has
          items, which is a seed/config concern rather than a layout one. --}}
     <nav class="border-t border-hairline bg-surface py-3">
-        <div class="container mx-auto px-4">
+        <div class="page-container">
             <x-filament-menu-builder::menu slug="main" view="components.menus.home-category-menu" />
         </div>
     </nav>

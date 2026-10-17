@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Invoice;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class InvoicePolicy
@@ -45,9 +45,10 @@ class InvoicePolicy
     /**
      * Determine whether the user can delete the model.
      */
+    /** Invoices are financial records and are never deleted. */
     public function delete(User $user, Invoice $invoice): bool
     {
-        return $user->can('delete_invoice');
+        return false;
     }
 
     /**
@@ -55,7 +56,7 @@ class InvoicePolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_invoice');
+        return false;
     }
 
     /**
@@ -63,7 +64,7 @@ class InvoicePolicy
      */
     public function forceDelete(User $user, Invoice $invoice): bool
     {
-        return $user->can('force_delete_invoice');
+        return false;
     }
 
     /**
@@ -71,7 +72,7 @@ class InvoicePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_invoice');
+        return false;
     }
 
     /**
