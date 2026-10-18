@@ -15,7 +15,7 @@
         "postcss": "^8.5.26",
         "postcss-nesting": "^14.0.0",
         "tailwindcss": "^4.1.14",
-        "vite": "^8.2.0",
+        "vite": "^8.3.4",
         "vite-plugin-static-copy": "4.1"
     },
     "dependencies": {
