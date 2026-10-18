@@ -126,13 +126,13 @@ class FacebookCatalogSyncTest extends TestCase
         Http::assertSent(fn ($request) => $request->data()['requests'][0]['data']['availability'] === 'out of stock');
     }
 
-    public function test_price_is_sent_in_the_configured_currency(): void
+    public function test_price_is_sent_in_the_stores_currency(): void
     {
-        config(['ecommerce.default_currency' => 'GBP']);
         Http::fake(['graph.facebook.com/*' => Http::response(['handles' => ['h1']], 200)]);
         Queue::fake();
 
         $product = $this->listedProduct(['price' => 12.5]);
+        $product->store->update(['currency_code' => 'GBP']);
 
         $this->runSync($product);
 

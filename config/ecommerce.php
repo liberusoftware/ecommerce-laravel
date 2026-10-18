@@ -8,10 +8,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | How this installation operates, chosen once by whoever deploys it:
-    | 'single' (one store), 'saas' (merchants run their own stores) or
-    | 'marketplace' (sellers share a marketplace). Each team has one store
-    | unless multiple stores per team are enabled; a single-store
-    | installation has one store in total.
+    | 'single' (one merchant), 'saas' (merchants run their own stores) or
+    | 'marketplace' (sellers share a marketplace).
+    |
+    | Whether a team may run several stores is a platform setting changed
+    | under Admin > Platform settings; the env value below only seeds it.
     |
     */
 
@@ -24,7 +25,8 @@ return [
     | Tax Settings
     |--------------------------------------------------------------------------
     |
-    | Configure how taxes are displayed and calculated in your store.
+    | Each store sets its own tax display and country in its settings. These
+    | seed existing stores on upgrade and apply off a storefront.
     |
     */
 
@@ -40,7 +42,8 @@ return [
     | Currency Settings
     |--------------------------------------------------------------------------
     |
-    | Configure the default currency and multi-currency behavior.
+    | Each store has its own currency. This seeds the platform default given
+    | to new stores.
     |
     */
 

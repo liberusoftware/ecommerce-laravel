@@ -13,11 +13,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable($this->table)) {
+        if (! Schema::hasTable($this->table)) {
             Schema::create($this->table, function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('slug')->nullable()->unique();
+                $table->string('slug')->nullable();
                 $table->decimal('price', 10, 2)->nullable();
                 $table->text('description')->nullable();
                 $table->text('short_description')->nullable();

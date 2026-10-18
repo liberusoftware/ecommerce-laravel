@@ -24,6 +24,7 @@ class ProductCollectionController extends Controller
     public function show(ProductCollection $collection)
     {
         $products = $collection->products()
+            ->listed()
             ->withCount('review')
             ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'));
@@ -33,7 +34,7 @@ class ProductCollectionController extends Controller
 
     public function products(Request $request, ProductCollection $collection)
     {
-        $products = QueryBuilder::for($collection->products())
+        $products = QueryBuilder::for($collection->products()->listed())
             ->allowedFilters(
                 'name',
                 'price',

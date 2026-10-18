@@ -47,13 +47,13 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-ink">
-                                ${{ number_format($method->base_rate, 2) }}
+                                {{ \App\Support\Money::format($method->base_rate) }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-ink">
-                                ${{ number_format($method->weight_rate, 2) }}/lb
+                                {{ \App\Support\Money::format($method->weight_rate) }}/kg
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-ink">
-                                {{ $method->max_weight ? number_format($method->max_weight, 2) . ' lb' : 'No limit' }}
+                                {{ $method->max_weight ? number_format($method->max_weight, 2) . ' kg' : 'No limit' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-ink">
                                 {{ $method->estimated_delivery_time ?? 'N/A' }}
@@ -114,13 +114,13 @@
                         <input type="number" name="base_rate" step="0.01" min="0" required class="mt-1 block w-full rounded-md border-stroke focus:border-primary-600 focus:ring-primary-600">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-ink">Weight Rate ($/lb)</label>
+                        <label class="block text-sm font-medium text-ink">Rate per kg</label>
                         <input type="number" name="weight_rate" step="0.01" min="0" value="0" class="mt-1 block w-full rounded-md border-stroke focus:border-primary-600 focus:ring-primary-600">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-ink">Max Weight (lb)</label>
+                        <label class="block text-sm font-medium text-ink">Max weight (kg)</label>
                         <input type="number" name="max_weight" step="0.01" min="0" class="mt-1 block w-full rounded-md border-stroke focus:border-primary-600 focus:ring-primary-600">
                     </div>
                     <div>
@@ -176,13 +176,13 @@
                         <input type="number" id="edit_base_rate" name="base_rate" step="0.01" min="0" required class="mt-1 block w-full rounded-md border-stroke focus:border-primary-600 focus:ring-primary-600">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-ink">Weight Rate ($/lb)</label>
+                        <label class="block text-sm font-medium text-ink">Rate per kg</label>
                         <input type="number" id="edit_weight_rate" name="weight_rate" step="0.01" min="0" class="mt-1 block w-full rounded-md border-stroke focus:border-primary-600 focus:ring-primary-600">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-ink">Max Weight (lb)</label>
+                        <label class="block text-sm font-medium text-ink">Max weight (kg)</label>
                         <input type="number" id="edit_max_weight" name="max_weight" step="0.01" min="0" class="mt-1 block w-full rounded-md border-stroke focus:border-primary-600 focus:ring-primary-600">
                     </div>
                     <div>

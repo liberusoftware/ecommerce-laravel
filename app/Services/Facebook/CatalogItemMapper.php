@@ -4,6 +4,7 @@ namespace App\Services\Facebook;
 
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Support\Money;
 
 /**
  * Maps a Product (or its Variants) into Meta Catalog items_batch requests.
@@ -38,11 +39,11 @@ class CatalogItemMapper
                 'description' => self::description($product),
                 'availability' => $product->inventory_count > 0 ? 'in stock' : 'out of stock',
                 'condition' => 'new',
-                'price' => self::money($product->price),
+                'price' => self::money($product->price, $product),
                 'link' => self::link($product),
                 'image_link' => self::image($product),
-                'brand' => config('app.name'),
-            ],
+                'brand' => $product->store?->name ?? config('app.name'),
+            ] + ($product->isOnSale() ? ['sale_price' => self::money($product->sale_price, $product)] : []),
         ];
     }
 
@@ -61,10 +62,10 @@ class CatalogItemMapper
                 'description' => self::description($product),
                 'availability' => $variant->inventory_quantity > 0 ? 'in stock' : 'out of stock',
                 'condition' => 'new',
-                'price' => self::money($variant->price ?? $product->price),
+                'price' => self::money($variant->price ?? $product->price, $product),
                 'link' => self::link($product),
                 'image_link' => self::image($product),
-                'brand' => config('app.name'),
+                'brand' => $product->store?->name ?? config('app.name'),
             ],
         ];
     }
@@ -112,8 +113,8 @@ class CatalogItemMapper
         return str_starts_with($image, 'http') ? $image : url($image);
     }
 
-    private static function money(int|float|string $price): string
+    private static function money(int|float|string $price, Product $product): string
     {
-        return number_format((float) $price, 2, '.', '').' '.config('ecommerce.default_currency', 'USD');
+        return number_format((float) $price, 2, '.', '').' '.($product->store?->currency_code ?? Money::currency());
     }
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Exceptions\InvalidOrderTransitionException;
 use App\Jobs\DispatchOutboundWebhook;
+use App\Support\Money;
 use App\Traits\IsStoreScoped;
 use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -63,10 +64,20 @@ class Order extends Model
 
     protected $table = 'orders';
 
+    /** An order keeps the currency its store charged in, whatever the store uses later. */
+    protected static function booted(): void
+    {
+        static::creating(function (Order $order) {
+            $order->currency_code ??= ($order->store_id ? Store::query()->whereKey($order->store_id)->value('currency_code') : null)
+                ?? Money::currency();
+        });
+    }
+
     protected $fillable = [
         'customer_id',
         'user_id',
         'customer_email',
+        'currency_code',
         'order_date',
         'total_amount',
         'shipping_cost',

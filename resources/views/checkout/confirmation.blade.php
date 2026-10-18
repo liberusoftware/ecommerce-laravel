@@ -51,36 +51,36 @@
                                 <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">Digital</span>
                             @endif
                         </div>
-                        <span class="font-medium text-ink">${{ number_format($item->price * $item->quantity, 2) }}</span>
+                        <span class="font-medium text-ink">{{ \App\Support\Money::format($item->price * $item->quantity, $order->currency_code) }}</span>
                     </div>
                 @endforeach
             </div>
             <div class="pt-4 mt-2 space-y-2 text-sm">
                 <div class="flex justify-between text-muted">
                     <span>Subtotal</span>
-                    <span>${{ number_format($order->total_amount - $order->shipping_cost - $order->tax_amount + ($order->discount_amount ?? 0), 2) }}</span>
+                    <span>{{ \App\Support\Money::format($order->total_amount - $order->shipping_cost - $order->tax_amount + ($order->discount_amount ?? 0), $order->currency_code) }}</span>
                 </div>
                 @if($order->discount_amount > 0)
                     <div class="flex justify-between text-primary-700">
                         <span>Discount {{ $order->coupon_code ? '(' . $order->coupon_code . ')' : '' }}</span>
-                        <span>-${{ number_format($order->discount_amount, 2) }}</span>
+                        <span>-{{ \App\Support\Money::format($order->discount_amount, $order->currency_code) }}</span>
                     </div>
                 @endif
                 @if($order->shipping_cost > 0)
                     <div class="flex justify-between text-muted">
                         <span>Shipping</span>
-                        <span>${{ number_format($order->shipping_cost, 2) }}</span>
+                        <span>{{ \App\Support\Money::format($order->shipping_cost, $order->currency_code) }}</span>
                     </div>
                 @endif
                 @if($order->tax_amount > 0)
                     <div class="flex justify-between text-muted">
                         <span>Tax</span>
-                        <span>${{ number_format($order->tax_amount, 2) }}</span>
+                        <span>{{ \App\Support\Money::format($order->tax_amount, $order->currency_code) }}</span>
                     </div>
                 @endif
                 <div class="flex justify-between font-bold text-ink text-base pt-2 border-t border-hairline">
                     <span>Total</span>
-                    <span>${{ number_format($order->total_amount, 2) }}</span>
+                    <span>{{ \App\Support\Money::format($order->total_amount, $order->currency_code) }}</span>
                 </div>
             </div>
         </div>

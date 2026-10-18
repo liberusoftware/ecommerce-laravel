@@ -49,7 +49,7 @@ class SitemapController extends Controller
             $urls[] = ['loc' => $root.'/products?category='.urlencode($category->slug)];
         }
 
-        $products = Product::query()
+        $products = Product::listed()
             ->select(['id', 'slug', 'updated_at'])
             ->orderBy('id')
             ->limit(max(0, $limit - count($urls)))

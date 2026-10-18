@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
 @section('title', 'Contact')
-@section('meta_description', 'Get in touch with '.config('app.name').'.')
+@section('meta_description', 'Get in touch with '.$storeName.'.')
 
 @php
     // Only what the merchant has actually configured. The page this replaced listed
     // "Knowledgebase", "Developer APIs" and "Contact sales" — Preline's SaaS template
     // copy, on a shop, with all four links pointing at "#".
     $channels = array_filter([
-        'Email' => $settings->site_email,
-        'Phone' => $settings->site_phone,
-        'Address' => $settings->site_address,
+        'Email' => $currentStore?->email,
+        'Phone' => $currentStore?->phone,
+        'Address' => $currentStore ? implode(', ', $currentStore->addressLines()) : null,
     ], fn ($value) => filled($value));
 @endphp
 

@@ -3,15 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\CheckoutException;
+use App\Factories\PaymentGatewayFactory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShippingMethod;
+use App\Models\Store;
 use App\Notifications\OrderConfirmationNotification;
 use App\Services\CartService;
 use App\Services\CheckoutService;
 use App\Services\ShippingService;
 use App\Services\TaxCalculator;
 use App\Services\ViesService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -60,6 +63,8 @@ class CheckoutController extends Controller
 
         return view('checkout.checkout', [
             'cart' => $cart,
+            'paymentGateways' => Store::current()?->paymentGateways() ?? array_keys(PaymentGatewayFactory::GATEWAYS),
+            'currency' => Money::currency(),
             'shippingMethods' => $shippingMethods,
             'isGuest' => $isGuest,
             'subtotal' => $subtotal,
@@ -152,9 +157,15 @@ class CheckoutController extends Controller
                 ->with('error', 'Your cart is empty');
         }
 
+        try {
+            $this->checkoutService->assertGatewayAccepted((string) $request->payment_method);
+        } catch (CheckoutException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
         // Verify inventory before processing
         foreach ($cart as $productId => $item) {
-            $product = Product::find($productId);
+            $product = Product::active()->find($productId);
             if (! $product || $product->inventory_count < $item['quantity']) {
                 return redirect()->back()->with('error', 'Some items in your cart are no longer available in the requested quantity.');
             }
@@ -189,7 +200,12 @@ class CheckoutController extends Controller
                 $shippingServiceName = $quote->service;
                 $shippingQuoteId = $quote->id;
             } elseif ($request->filled('shipping_method_id')) {
-                $shippingMethod = ShippingMethod::find($request->shipping_method_id);
+                // Scoped to this store and active only: the validator's `exists` sees every store's rows.
+                $shippingMethod = ShippingMethod::where('is_active', true)->find($request->shipping_method_id);
+                if (! $shippingMethod) {
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Please choose a shipping method.');
+                }
                 $shippingCost = $request->has('dropship') ?
                     $this->shippingService->calculateDropShippingCost($shippingMethod, $cart, $request->shipping_address) :
                     $this->shippingService->calculateShippingCost($shippingMethod, $cart, $request->shipping_address);

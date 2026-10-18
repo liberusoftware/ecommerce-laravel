@@ -65,7 +65,7 @@ class StorefrontSchema
                     // Products are eager-loaded rather than resolved per collection:
                     // `Collection.products` was one query per collection.
                     'resolve' => fn () => ProductCollection::query()
-                        ->with(['products' => fn ($q) => $q->orderBy('products.id')->limit(self::MAX_LIST)])
+                        ->with(['products' => fn ($q) => $q->listed()->orderBy('products.id')->limit(self::MAX_LIST)])
                         ->orderBy('name')
                         ->limit(self::MAX_LIST)
                         ->get(),
@@ -135,7 +135,10 @@ class StorefrontSchema
                 'slug' => Type::string(),
                 'description' => Type::string(),
                 'shortDescription' => ['type' => Type::string(), 'resolve' => fn (Product $p) => $p->short_description],
-                'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => (float) $p->price],
+                'sku' => Type::string(),
+                'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => $p->sellingPrice()],
+                'regularPrice' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => (float) $p->price],
+                'onSale' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isOnSale()],
                 'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (Product $p) => $p->inventory_count],
                 'isDownloadable' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_downloadable],
                 'isFeatured' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_featured],
@@ -172,7 +175,7 @@ class StorefrontSchema
                     // Loading here would be the N+1 back again.
                     'resolve' => fn (ProductCollection $c) => $c->relationLoaded('products')
                         ? $c->products
-                        : $c->products()->orderBy('products.id')->limit(self::MAX_LIST)->get(),
+                        : $c->products()->listed()->orderBy('products.id')->limit(self::MAX_LIST)->get(),
                 ],
             ],
         ]);
@@ -230,6 +233,7 @@ class StorefrontSchema
         $search = $args['search'] ?? null;
 
         $paginator = Product::query()
+            ->listed()
             ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
             ->orderBy('id')
             ->paginate($perPage, ['*'], 'page', $page);
@@ -246,10 +250,10 @@ class StorefrontSchema
     private function resolveProduct(array $args): ?Product
     {
         if (! empty($args['id'])) {
-            return Product::find($args['id']);
+            return Product::active()->find($args['id']);
         }
         if (! empty($args['slug'])) {
-            return Product::where('slug', $args['slug'])->first();
+            return Product::active()->where('slug', $args['slug'])->first();
         }
 
         throw new Error('Provide either id or slug.');
@@ -268,7 +272,7 @@ class StorefrontSchema
 
         $item->fill([
             'quantity' => $quantity,
-            'price' => $product->price,
+            'price' => $product->sellingPrice(),
         ])->save();
 
         return $item;
@@ -399,7 +403,7 @@ class StorefrontSchema
 
     private function findProduct(int $productId): Product
     {
-        return Product::find($productId) ?? throw new Error('Product not found.');
+        return Product::active()->find($productId) ?? throw new Error('Product not found.');
     }
 
     private function assertPositive(int $quantity): void

@@ -28,13 +28,45 @@ class Product extends Model implements Orderable
 
     protected $table = 'products';
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_ARCHIVED = 'archived';
+
+    public const STATUSES = [
+        self::STATUS_DRAFT => 'Draft',
+        self::STATUS_ACTIVE => 'Active',
+        self::STATUS_ARCHIVED => 'Archived',
+    ];
+
+    public const VISIBILITY_VISIBLE = 'visible';
+
+    public const VISIBILITY_HIDDEN = 'hidden';
+
+    public const VISIBILITIES = [
+        self::VISIBILITY_VISIBLE => 'Listed in catalogue and search',
+        self::VISIBILITY_HIDDEN => 'Hidden — reachable by direct link only',
+    ];
+
+    protected $attributes = [
+        'status' => self::STATUS_ACTIVE,
+        'visibility' => self::VISIBILITY_VISIBLE,
+        'inventory_count' => 0,
+        'low_stock_threshold' => 0,
+    ];
+
     protected $fillable = [
         'name',
         'slug',
+        'sku',
+        'status',
+        'visibility',
         'description',
         'short_description',
         'long_description',
         'price',
+        'sale_price',
         'category_id',
         'featured_image',
         'inventory_count',
@@ -52,6 +84,8 @@ class Product extends Model implements Orderable
         'minimum_price',
         'is_featured',
         'list_on_facebook',
+        'tax_class_id',
+        'tax_status',
 
         // Fillable so the API write paths can stamp the creating admin's team.
         // No validator accepts it from request input, so it cannot be set by a
@@ -63,6 +97,9 @@ class Product extends Model implements Orderable
         'is_downloadable' => 'boolean',
         'list_on_facebook' => 'boolean',
         'price' => 'decimal:2',
+        'sale_price' => 'decimal:2',
+        'is_featured' => 'boolean',
+        'tax_status' => 'boolean',
         'weight' => 'decimal:2',
         'suggested_price' => 'decimal:2',
         'minimum_price' => 'decimal:2',
@@ -215,17 +252,10 @@ class Product extends Model implements Orderable
 
     protected static function booted(): void
     {
-        static::creating(function ($product) {
-            // Auto-generate slug if not provided
+        // Only on create: a product's URL does not change because it was renamed.
+        static::creating(function (Product $product) {
             if (empty($product->slug)) {
-                $product->slug = Str::slug($product->name);
-            }
-        });
-
-        static::updating(function ($product) {
-            // Update slug if name changed and slug not manually set
-            if ($product->isDirty('name') && ! $product->isDirty('slug')) {
-                $product->slug = Str::slug($product->name);
+                $product->slug = $product->uniqueSlug(Str::slug($product->name) ?: 'product');
             }
         });
 
@@ -356,6 +386,60 @@ class Product extends Model implements Orderable
         $query->where('price', '<=', (float) $max);
     }
 
+    /** The base slug, or the first `-N` variant of it not yet used in this store. */
+    public function uniqueSlug(string $base): string
+    {
+        $slug = $base;
+        $n = 2;
+
+        while (static::withoutGlobalScopes()
+            ->where('slug', $slug)
+            ->where('store_id', $this->store_id)
+            ->when($this->exists, fn ($query) => $query->whereKeyNot($this->getKey()))
+            ->exists()) {
+            $slug = $base.'-'.$n++;
+        }
+
+        return $slug;
+    }
+
+    /** Active products can be viewed and bought on a storefront. */
+    public function scopeActive(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('status'), self::STATUS_ACTIVE);
+    }
+
+    /** Active and listed: what catalogue pages, search and feeds show. */
+    public function scopeListed(Builder $query): void
+    {
+        $query->active()->where($this->qualifyColumn('visibility'), self::VISIBILITY_VISIBLE);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isOnSale(): bool
+    {
+        return $this->sale_price !== null && (float) $this->sale_price < (float) $this->price;
+    }
+
+    /** What a shopper pays per unit before tax and discounts. */
+    public function sellingPrice(): float
+    {
+        if ($this->isFree()) {
+            return 0.0;
+        }
+
+        return $this->isOnSale() ? (float) $this->sale_price : (float) $this->price;
+    }
+
+    public function isInStock(): bool
+    {
+        return (int) $this->inventory_count > 0;
+    }
+
     public function isLowStock()
     {
         return $this->inventory_count <= $this->low_stock_threshold;
@@ -363,11 +447,7 @@ class Product extends Model implements Orderable
 
     public function getPrice(): float
     {
-        if ($this->isFree()) {
-            return 0.00;
-        }
-
-        return $this->price;
+        return $this->sellingPrice();
     }
 
     public function getName(): string

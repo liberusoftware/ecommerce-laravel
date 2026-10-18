@@ -2,29 +2,18 @@
 
 namespace App\Filament\Admin\Resources\Products\Pages;
 
-use Filament\Actions\CreateAction;
-use Filament\Actions\Action;
 use App\Filament\Admin\Resources\Products\ProductResource;
-use Filament\Pages\Actions;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListProducts extends ListRecords
 {
     protected static string $resource = ProductResource::class;
 
-    protected function getActions(): array
+    protected function getHeaderActions(): array
     {
         return [
             CreateAction::make(),
-            Action::make('import')
-                ->label('Import Products')
-                ->icon('heroicon-o-arrow-up-tray')
-                ->action(fn () => $this->import()),
         ];
-    }
-
-    protected function import()
-    {
-        // Implement import functionality here
     }
 }

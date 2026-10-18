@@ -24,8 +24,8 @@ class HomeController extends Controller
         // empty category is a dead end, so it is never offered.
         $categories = ProductCategory::query()
             ->topLevel()
-            ->withCount('products')
-            ->with(['children' => fn ($query) => $query->withCount('products')])
+            ->withCount(['products' => fn ($q) => $q->listed()])
+            ->with(['children' => fn ($query) => $query->withCount(['products' => fn ($q) => $q->listed()])])
             ->orderBy('name')
             ->get()
             ->each(fn (ProductCategory $category) => $category->products_count += $category->children->sum('products_count'))
@@ -38,8 +38,8 @@ class HomeController extends Controller
 
         return view('home', [
             'categories' => $categories,
-            'featuredProducts' => $withRatings(Product::where('is_featured', true))->take(6)->get(),
-            'latestProducts' => $withRatings(Product::latest())->take(6)->get(),
+            'featuredProducts' => $withRatings(Product::listed()->where('is_featured', true))->take(6)->get(),
+            'latestProducts' => $withRatings(Product::listed()->latest())->take(6)->get(),
         ]);
     }
 }

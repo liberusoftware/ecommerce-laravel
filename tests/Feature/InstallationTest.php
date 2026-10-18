@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Store;
 use App\Models\Team;
+use App\Settings\GeneralSettings;
 use App\Support\Installation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
@@ -15,10 +16,11 @@ class InstallationTest extends TestCase
 
     private function configure(string $mode, bool $multipleStores = false): void
     {
-        config([
-            'ecommerce.installation.mode' => $mode,
-            'ecommerce.installation.multiple_stores_per_team' => $multipleStores,
-        ]);
+        config(['ecommerce.installation.mode' => $mode]);
+
+        $settings = app(GeneralSettings::class);
+        $settings->allow_multiple_stores_per_team = $multipleStores;
+        $settings->save();
     }
 
     public function test_a_fresh_installation_is_single_store_with_one_store_per_team(): void
@@ -37,7 +39,7 @@ class InstallationTest extends TestCase
 
     public function test_a_single_store_installation_allows_one_store_in_total(): void
     {
-        $this->configure(Installation::SINGLE, multipleStores: true);
+        $this->configure(Installation::SINGLE);
         $team = Team::factory()->create();
 
         // The migration's default store already exists.
@@ -45,6 +47,24 @@ class InstallationTest extends TestCase
 
         Store::query()->delete();
         $this->assertTrue(Installation::canCreateStoreFor($team));
+    }
+
+    public function test_a_single_store_installation_lets_its_one_merchant_own_several_stores_when_allowed(): void
+    {
+        $this->configure(Installation::SINGLE, multipleStores: true);
+        $merchant = Team::factory()->create();
+        Store::query()->update(['team_id' => $merchant->id]);
+
+        $this->assertTrue(Installation::canCreateStoreFor($merchant));
+        $this->assertFalse(Installation::canCreateStoreFor(Team::factory()->create()));
+    }
+
+    public function test_the_multiple_stores_allowance_is_a_platform_setting_not_only_env(): void
+    {
+        config(['ecommerce.installation.multiple_stores_per_team' => false]);
+        $this->configure(Installation::SAAS, multipleStores: true);
+
+        $this->assertTrue(Installation::allowsMultipleStoresPerTeam());
     }
 
     public function test_saas_allows_one_store_per_team_unless_multiple_stores_are_enabled(): void

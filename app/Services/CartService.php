@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +58,7 @@ class CartService
     {
         $contents = [];
 
-        foreach ($this->query()->with('product')->get() as $item) {
+        foreach ($this->query()->with('product.store')->get() as $item) {
             $product = $item->product;
 
             $contents[$item->product_id] = [
@@ -68,7 +69,7 @@ class CartService
                 'weight' => (float) ($product?->weight ?? 0),
                 'image' => $product?->image_url,
                 'url' => $product ? route('products.show', $product) : null,
-                'currency' => $product?->currency_code ?: 'USD',
+                'currency' => $product?->store?->currency_code ?? Money::currency(),
             ];
         }
 
@@ -90,6 +91,11 @@ class CartService
         return (int) $this->query()->sum('quantity');
     }
 
+    public function quantityOf(int $productId): int
+    {
+        return (int) $this->query()->where('product_id', $productId)->value('quantity');
+    }
+
     public function has(int $productId): bool
     {
         return $this->query()->where('product_id', $productId)->exists();
@@ -102,7 +108,7 @@ class CartService
      * session cart did: a price change between adding and checking out is not
      * something to spring on somebody at the payment step.
      */
-    public function add(Product $product, int $quantity): void
+    public function add(Product $product, int $quantity, ?float $unitPrice = null): void
     {
         $item = $this->query()->where('product_id', $product->id)->first();
 
@@ -115,7 +121,7 @@ class CartService
         CartItem::create($this->owner() + [
             'product_id' => $product->id,
             'quantity' => $quantity,
-            'price' => $product->price,
+            'price' => $unitPrice ?? $product->sellingPrice(),
         ]);
     }
 

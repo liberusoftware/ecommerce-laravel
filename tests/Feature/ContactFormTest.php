@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Mail\ContactMessage;
+use App\Models\Store;
 use App\Settings\GeneralSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -80,7 +82,7 @@ class ContactFormTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidPayloads')]
+    #[DataProvider('invalidPayloads')]
     #[Test]
     public function invalid_input_is_rejected_and_nothing_is_sent(array $overrides, string $field): void
     {
@@ -135,13 +137,11 @@ class ContactFormTest extends TestCase
     #[Test]
     public function the_page_shows_contact_details_the_merchant_has_configured(): void
     {
-        $this->app->extend(GeneralSettings::class, function (GeneralSettings $settings) {
-            $settings->site_email = 'merchant@example.test';
-            $settings->site_phone = '+44 20 7946 0000';
-            $settings->site_address = null; // unset: must not render an empty row
-
-            return $settings;
-        });
+        // The localhost storefront's store; an unset address must not render an empty row.
+        Store::query()->firstOrFail()->update([
+            'email' => 'merchant@example.test',
+            'phone' => '+44 20 7946 0000',
+        ]);
 
         $response = $this->get(route('contact'));
 

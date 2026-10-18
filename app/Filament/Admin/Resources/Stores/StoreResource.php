@@ -5,14 +5,17 @@ namespace App\Filament\Admin\Resources\Stores;
 use App\Filament\Admin\Resources\Stores\Pages\CreateStore;
 use App\Filament\Admin\Resources\Stores\Pages\EditStore;
 use App\Filament\Admin\Resources\Stores\Pages\ListStores;
+use App\Filament\Schemas\StoreSettingsForm;
 use App\Models\Store;
 use App\Models\Team;
 use App\Support\Installation;
 use Closure;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -34,7 +37,8 @@ class StoreResource extends Resource
         return $schema->components([
             TextInput::make('name')
                 ->required()
-                ->maxLength(255),
+                ->maxLength(255)
+                ->hiddenOn('edit'),
             TextInput::make('slug')
                 ->required()
                 ->alphaDash()
@@ -55,6 +59,10 @@ class StoreResource extends Resource
                         $fail('This installation does not allow another store for this team.');
                     }
                 }, fn (string $operation): bool => $operation === 'create'),
+            // Currency and locale come from the platform defaults on create; the rest is edited after.
+            Group::make(StoreSettingsForm::sections())
+                ->columnSpanFull()
+                ->visibleOn('edit'),
         ]);
     }
 
@@ -72,6 +80,13 @@ class StoreResource extends Resource
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('serveMainSite')
+                    ->label('Serve main site')
+                    ->icon('heroicon-o-home')
+                    ->requiresConfirmation()
+                    ->modalDescription(fn () => 'Moves '.Store::mainSiteHost().' to this store, so the main site shows its catalogue.')
+                    ->hidden(fn (Store $record): bool => $record->servesMainSite())
+                    ->action(fn (Store $record) => $record->makeMainSite()),
             ]);
     }
 

@@ -17,6 +17,25 @@ class StoreContext
 {
     private static bool $spanningAllStores = false;
 
+    private static ?int $writingTo = null;
+
+    /**
+     * Stamp rows created inside the callback with a store the caller chose — a
+     * panel form where the team owns several and the merchant picked one. The
+     * caller is responsible for having checked the store is theirs.
+     */
+    public static function writingTo(int $storeId, callable $callback): mixed
+    {
+        $previous = self::$writingTo;
+        self::$writingTo = $storeId;
+
+        try {
+            return $callback();
+        } finally {
+            self::$writingTo = $previous;
+        }
+    }
+
     /**
      * Run a callback with the store scope suspended.
      *
@@ -73,6 +92,10 @@ class StoreContext
      */
     public static function forWrites(): ?int
     {
+        if (self::$writingTo !== null) {
+            return self::$writingTo;
+        }
+
         if ($storeId = ChannelResolver::current()?->store_id) {
             return (int) $storeId;
         }

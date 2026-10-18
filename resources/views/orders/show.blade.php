@@ -7,7 +7,7 @@
     <p>Status: {{ ucfirst($order->status) }}</p>
     <p>Payment: {{ $order->payment_status ? ucfirst($order->payment_status) : '—' }}</p>
     <p>Shipping: {{ $order->shipping_status ? ucfirst($order->shipping_status) : '—' }}</p>
-    <p>Total: ${{ number_format($order->total_amount, 2) }}</p>
+    <p>Total: {{ \App\Support\Money::format($order->total_amount, $order->currency_code) }}</p>
 
     <a href="{{ route('orders.index') }}" class="btn btn-secondary">Back to orders</a>
 </div>

@@ -16,8 +16,9 @@ class CartPageTest extends TestCase
     {
         $product = Product::factory()->create([
             'name' => 'Ceramic Lamp', 'price' => 69.00, 'inventory_count' => 10,
-            'currency_code' => 'GBP', 'featured_image' => 'products/lamp.webp',
+            'featured_image' => 'products/lamp.webp',
         ]);
+        $product->store->update(['currency_code' => 'GBP']);
         $this->withStoredCart([$product->id => ['price' => 69.00, 'quantity' => 2]]);
 
         Livewire::test(ShoppingCart::class)

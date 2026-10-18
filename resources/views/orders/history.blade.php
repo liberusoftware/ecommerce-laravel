@@ -21,7 +21,7 @@
                     <tr>
                         <td>{{ $order->id }}</td>
                         <td>{{ $order->created_at->format('Y-m-d H:i') }}</td>
-                        <td>${{ number_format($order->total_amount, 2) }}</td>
+                        <td>{{ \App\Support\Money::format($order->total_amount, $order->currency_code) }}</td>
                         <td>{{ ucfirst($order->status) }}</td>
                         <td>
                             <a href="{{ route('orders.show', $order->id) }}" class="btn btn-sm btn-primary">View Details</a>

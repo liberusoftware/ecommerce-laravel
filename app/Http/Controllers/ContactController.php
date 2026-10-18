@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ContactMessage;
+use App\Models\Store;
 use App\Settings\GeneralSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,9 +12,9 @@ use Illuminate\View\View;
 
 class ContactController extends Controller
 {
-    public function show(GeneralSettings $settings): View
+    public function show(): View
     {
-        return view('contact', ['settings' => $settings]);
+        return view('contact');
     }
 
     public function send(Request $request, GeneralSettings $settings): RedirectResponse
@@ -38,10 +39,11 @@ class ContactController extends Controller
             'message.min' => 'Please add a little more detail so we can help.',
         ]);
 
-        Mail::to($settings->site_email)->send(new ContactMessage(
+        // The store's own inbox; the platform's only when the merchant has not set one.
+        Mail::to(Store::current()?->email ?: $settings->site_email)->send(new ContactMessage(
             senderName: $validated['name'],
             senderEmail: $validated['email'],
-            contactSubject: $validated['subject'] ?: 'No subject',
+            contactSubject: ($validated['subject'] ?? null) ?: 'No subject',
             body: $validated['message'],
         ));
 

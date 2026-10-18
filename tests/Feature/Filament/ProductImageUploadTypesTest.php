@@ -46,12 +46,17 @@ class ProductImageUploadTypesTest extends TestCase
         Filament::setCurrentPanel(Filament::getPanel('app'));
         Filament::setTenant($team);
 
-        $schema = Livewire::test(CreateProduct::class)->instance()->getSchema('form');
+        // The gallery starts empty, so add one item for its upload to exist.
+        $schema = Livewire::test(CreateProduct::class)
+            ->set('data.images', ['item' => ['image' => []]])
+            ->instance()
+            ->getSchema('form');
 
         $uploads = [];
 
         foreach ($schema->getFlatComponents(withActions: false, withHidden: true) as $component) {
-            if ($component instanceof FileUpload) {
+            // Image uploads only; the private download file has its own allowlist.
+            if ($component instanceof FileUpload && $component->getName() !== 'downloadable_file') {
                 $uploads[$component->getName()] = $component;
             }
         }

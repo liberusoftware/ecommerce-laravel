@@ -9,6 +9,7 @@ use App\Models\Coupon;
 use App\Models\InventoryLog;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Store;
 use App\Notifications\SupplierFailureNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,6 +32,31 @@ use Throwable;
 class CheckoutService
 {
     public function __construct(private CouponService $couponService) {}
+
+    /**
+     * Every line must still be an active product: a product taken down after it
+     * was added to a cart is no longer for sale.
+     *
+     * @param  iterable<int>  $productIds
+     */
+    public function assertPurchasable(iterable $productIds): void
+    {
+        $productIds = collect($productIds)->unique()->values();
+
+        if (Product::active()->whereKey($productIds)->count() !== $productIds->count()) {
+            throw new CheckoutException('Some items in your cart are no longer available.');
+        }
+    }
+
+    /** The store must accept the gateway the shopper chose. */
+    public function assertGatewayAccepted(string $gateway): void
+    {
+        $accepted = Store::current()?->paymentGateways() ?? array_keys(PaymentGatewayFactory::GATEWAYS);
+
+        if (! in_array($gateway, $accepted, true)) {
+            throw new CheckoutException('That payment method is not available for this store.');
+        }
+    }
 
     /**
      * Re-validate a coupon against the LIVE subtotal and return the discount to apply.

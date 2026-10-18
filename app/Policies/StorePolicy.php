@@ -29,6 +29,19 @@ class StorePolicy
     }
 
     /** Commerce rows are not constrained to their store, and the main site must not go offline. */
+    /** A merchant's own settings: the team's owner or one of its admins, or the platform operator. */
+    public function manageSettings(User $user, Store $store): bool
+    {
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        $team = $store->team;
+
+        return $team !== null && ($user->ownsTeam($team)
+            || $team->users()->whereKey($user->getKey())->wherePivot('role', 'admin')->exists());
+    }
+
     public function delete(User $user, Store $store): bool
     {
         return $user->hasRole('super_admin')

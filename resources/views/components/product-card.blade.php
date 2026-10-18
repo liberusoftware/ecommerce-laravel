@@ -17,7 +17,7 @@
         ? $product->rating_avg_rating
         : $product->getAverageRating());
 
-    $price = \Illuminate\Support\Number::currency($product->price, $product->currency_code ?: 'USD');
+    $price = \App\Support\Money::format($product->sellingPrice());
     $image = $product->image_url ?: asset('images/placeholder-product.svg');
 @endphp
 
@@ -71,7 +71,12 @@
          title lengths still align along a common baseline. --}}
     <div class="mt-auto flex flex-wrap items-end justify-between gap-3 pt-4">
         <div class="min-w-0">
-            <p class="data text-title font-semibold text-ink">{{ $price }}</p>
+            <p class="data text-title font-semibold text-ink">
+                {{ $price }}
+                @if ($product->isOnSale())
+                    <s class="ml-1 text-label font-normal text-muted"><span class="sr-only">Was </span>{{ \App\Support\Money::format($product->price) }}</s>
+                @endif
+            </p>
 
             @if ($isOut)
                 <p class="text-caption text-muted">Unavailable</p>

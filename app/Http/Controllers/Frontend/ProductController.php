@@ -66,6 +66,8 @@ class ProductController extends Controller
             )
             ->allowedSorts('name', 'price', 'created_at');
 
+        $query->listed();
+
         if ($request->filled('keyword') || $request->filled('search')) {
             $keyword = $request->input('keyword') ?? $request->input('search');
             $query->where(function ($q) use ($keyword) {
@@ -90,7 +92,7 @@ class ProductController extends Controller
         $maxPrice = $request->input('max_price');
         $categoryId = $request->input('category');
 
-        $query = Product::query();
+        $query = Product::listed();
 
         if ($keyword) {
             $query->where(function ($q) use ($keyword) {
@@ -125,6 +127,10 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
+        abort_unless($product->isActive(), 404);
+
+        $product->load(['images', 'category']);
+
         // // Track browsing history
         // if (auth()->check()) {
         //     BrowsingHistory::create([

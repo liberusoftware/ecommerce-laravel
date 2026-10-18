@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\Money;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -48,7 +49,7 @@ class TopProductsWidget extends BaseWidget
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_revenue')
                     ->label('Revenue')
-                    ->money('USD')
+                    ->money(fn () => Money::currency())
                     ->sortable(),
             ])
             ->paginated(false);

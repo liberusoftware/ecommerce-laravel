@@ -6,7 +6,6 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Product>
@@ -37,17 +36,5 @@ class ProductFactory extends Factory
             'featured_image' => null,
             'price' => $this->faker->randomFloat(2, 10, 1000),
         ];
-    }
-
-    /**
-     * Configure the factory to auto-generate slug from name after making.
-     */
-    public function configure(): static
-    {
-        return $this->afterMaking(function (Product $product) {
-            if (empty($product->slug)) {
-                $product->slug = Str::slug($product->name);
-            }
-        });
     }
 }

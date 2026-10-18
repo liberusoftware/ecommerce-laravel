@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\Store;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\PermissionRegistrar;
@@ -12,6 +14,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        View::composer(['layouts.app', 'components.home-navbar', 'contact'], function ($view) {
+            $store = Store::current();
+            $view->with('currentStore', $store)->with('storeName', $store?->name ?? config('app.name'));
+        });
+
         app(PermissionRegistrar::class)
             ->setPermissionClass(Permission::class)
             ->setRoleClass(Role::class);

@@ -34,7 +34,7 @@ class CreateOrder extends CreateRecord
         $lines = collect($data['items'])->map(function (array $item): array {
             $product = Product::findOrFail($item['product_id']);
 
-            return ['product_id' => $product->id, 'quantity' => (int) $item['quantity'], 'price' => (float) $product->price];
+            return ['product_id' => $product->id, 'quantity' => (int) $item['quantity'], 'price' => $product->sellingPrice()];
         })->all();
 
         try {
