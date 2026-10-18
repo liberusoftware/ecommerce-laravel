@@ -39,7 +39,10 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            // Host-relative: uploads load on whichever host and port served the page — every
+            // store domain, and the panels — not only on APP_URL. Wrap in url() where an
+            // absolute URL is needed (feeds, og:image).
+            'url' => '/storage',
             'visibility' => 'public',
             'throw' => false,
         ],
