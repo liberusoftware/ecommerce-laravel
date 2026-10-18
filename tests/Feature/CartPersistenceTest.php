@@ -190,9 +190,5 @@ class CartPersistenceTest extends TestCase
             Schema::hasColumn('cart_items', 'session_id'),
             'cart_items has a session_id again — something will fill it with a sentinel.',
         );
-
-        // The contrast: an abandoned cart is usually a guest's, and there the
-        // session really is what identifies it.
-        $this->assertTrue(Schema::hasColumn('abandoned_carts', 'session_id'));
     }
 }

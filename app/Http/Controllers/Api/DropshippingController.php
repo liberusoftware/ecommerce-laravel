@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\DropshippingService;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -24,7 +26,7 @@ class DropshippingController extends Controller
      */
     public function suppliers(Request $request)
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, null, 'update_order'), 403);
 
         $suppliers = $this->dropshippingService->getSuppliers();
 
@@ -47,7 +49,7 @@ class DropshippingController extends Controller
      */
     public function checkAvailability(Request $request)
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, null, 'update_order'), 403);
 
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|string',
@@ -75,7 +77,7 @@ class DropshippingController extends Controller
      */
     public function placeOrder(Request $request)
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, null, 'update_order'), 403);
 
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|string',
@@ -103,7 +105,7 @@ class DropshippingController extends Controller
      */
     public function trackOrder(Request $request)
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, null, 'update_order'), 403);
 
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|string',

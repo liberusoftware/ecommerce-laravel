@@ -33,6 +33,7 @@ class ProductTagController extends Controller
                 AllowedFilter::scope('price_max'),
             )
             ->withTag($tag)
+            ->listed()
             ->allowedSorts('name', 'price', 'created_at')
             ->withCount('review')
             ->withAvg('rating', 'rating')

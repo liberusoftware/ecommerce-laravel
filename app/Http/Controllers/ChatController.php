@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\ChatConversation;
 use App\Services\ChatService;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,7 +27,7 @@ class ChatController extends Controller
      */
     private function authorizeConversationAccess(ChatConversation $conversation): void
     {
-        $isAgent = Auth::check() && Auth::user()->hasRole(['super_admin', 'admin']);
+        $isAgent = Auth::check() && StoreAccess::allows(Auth::user(), TeamPermission::CUSTOMERS_MANAGE, null, 'update_chat::conversation');
         $ownsSession = in_array($conversation->session_id, session('chat_conversations', []), true);
 
         abort_unless($isAgent || $ownsSession, 403);
@@ -70,7 +72,7 @@ class ChatController extends Controller
 
         $message = $this->chatService->addMessage($conversationId, [
             'message' => $validated['message'],
-            'sender_type' => Auth::check() && Auth::user()->hasRole(['super_admin', 'admin']) ? 'agent' : 'customer',
+            'sender_type' => Auth::check() && StoreAccess::allows(Auth::user(), TeamPermission::CUSTOMERS_MANAGE, null, 'update_chat::conversation') ? 'agent' : 'customer',
         ]);
 
         return response()->json([
@@ -93,7 +95,7 @@ class ChatController extends Controller
         $this->authorizeConversationAccess($conversation);
 
         // Mark messages as read
-        $readerType = Auth::check() && Auth::user()->hasRole(['super_admin', 'admin']) ? 'agent' : 'customer';
+        $readerType = Auth::check() && StoreAccess::allows(Auth::user(), TeamPermission::CUSTOMERS_MANAGE, null, 'update_chat::conversation') ? 'agent' : 'customer';
         $this->chatService->markMessagesAsRead($conversationId, $readerType);
 
         return response()->json([
@@ -167,7 +169,7 @@ class ChatController extends Controller
      */
     public function agentConversations()
     {
-        if (! Auth::check() || ! Auth::user()->hasRole(['super_admin', 'admin'])) {
+        if (! Auth::check() || ! StoreAccess::allows(Auth::user(), TeamPermission::CUSTOMERS_MANAGE, null, 'update_chat::conversation')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -184,7 +186,7 @@ class ChatController extends Controller
      */
     public function assignAgent(Request $request, $conversationId)
     {
-        if (! Auth::check() || ! Auth::user()->hasRole(['super_admin', 'admin'])) {
+        if (! Auth::check() || ! StoreAccess::allows(Auth::user(), TeamPermission::CUSTOMERS_MANAGE, null, 'update_chat::conversation')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -201,7 +203,7 @@ class ChatController extends Controller
      */
     public function nextQueued()
     {
-        if (! Auth::check() || ! Auth::user()->hasRole(['super_admin', 'admin'])) {
+        if (! Auth::check() || ! StoreAccess::allows(Auth::user(), TeamPermission::CUSTOMERS_MANAGE, null, 'update_chat::conversation')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

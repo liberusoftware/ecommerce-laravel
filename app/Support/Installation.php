@@ -4,11 +4,14 @@ namespace App\Support;
 
 use App\Models\Store;
 use App\Models\Team;
+use App\Settings\GeneralSettings;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Throwable;
 
 /**
- * The installation's operating model, from config/ecommerce.php.
+ * The installation's operating model. The mode is deployment config; whether a
+ * team may own several stores is a platform setting the operator changes in the UI.
  */
 final class Installation
 {
@@ -31,14 +34,28 @@ final class Installation
 
     public static function allowsMultipleStoresPerTeam(): bool
     {
-        return (bool) config('ecommerce.installation.multiple_stores_per_team', false);
+        try {
+            return app(GeneralSettings::class)->allow_multiple_stores_per_team;
+        } catch (Throwable) {
+            // Settings not migrated yet: the env value is what the setting is seeded from.
+            return (bool) config('ecommerce.installation.multiple_stores_per_team', false);
+        }
     }
 
-    /** A single-store installation has one store in total; otherwise one per team unless several are allowed. */
+    /**
+     * A single-store installation has one merchant: one store, or several for that
+     * merchant alone when the platform allows it. Otherwise one per team unless
+     * several are allowed.
+     */
     public static function canCreateStoreFor(Team $team): bool
     {
         if (self::mode() === self::SINGLE) {
-            return ! Store::query()->exists();
+            if (! Store::query()->exists()) {
+                return true;
+            }
+
+            return self::allowsMultipleStoresPerTeam()
+                && ! Store::query()->whereNotNull('team_id')->where('team_id', '!=', $team->id)->exists();
         }
 
         return self::allowsMultipleStoresPerTeam() || ! $team->stores()->exists();

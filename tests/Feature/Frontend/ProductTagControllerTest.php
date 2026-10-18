@@ -3,10 +3,8 @@
 namespace Tests\Feature\Frontend;
 
 use App\Models\Product;
-use App\Models\ProductTag;
 use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
 class ProductTagControllerTest extends TestCase
@@ -28,9 +26,9 @@ class ProductTagControllerTest extends TestCase
     // Test that exactly one tag exists
     public function test_list_tags_with_one_tag()
     {
-        $tagName = "Test Tag";
+        $tagName = 'Test Tag';
         $tag = Tag::factory()->create([
-            "name" => $tagName
+            'name' => $tagName,
         ]);
         // ProductTag::factory()->create(["tag_id" => $tag->id]);
 
@@ -39,11 +37,10 @@ class ProductTagControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewIs('tags.index');
         $response->assertViewHas('tags', function ($tags) use ($tag, $tagName) {
-            return (
+            return
                 $tags->count() === 1
                 && $tags->first()->id === $tag->id
-                && $tags->first()->name === $tagName
-            );
+                && $tags->first()->name === $tagName;
         });
     }
 
@@ -51,9 +48,9 @@ class ProductTagControllerTest extends TestCase
     public function test_list_tags_with_multiple_tags()
     {
         $tags = Tag::factory()->count(3)->sequence(
-            ["name" => "Tag 1"],
-            ["name" => "Tag 2"],
-            ["name" => "Tag 3"]
+            ['name' => 'Tag 1'],
+            ['name' => 'Tag 2'],
+            ['name' => 'Tag 3']
         )->create();
         // ProductTag::factory()->count(3)->sequence(
         //     ["tag_id" => $tags->get(0)],
@@ -207,16 +204,16 @@ class ProductTagControllerTest extends TestCase
         $products->get(3)->tags()->attach($tag2);
         $products->get(4)->tags()->attach($tag2);
 
-        $response = $this->get(route('tags.show', ["tag" => $tag1]));
+        $response = $this->get(route('tags.show', ['tag' => $tag1]));
 
         $response->assertStatus(200);
         $response->assertViewIs('tags.show');
         $response->assertViewHas('products', function ($viewProducts) use ($products) {
             $tag1Products = collect([$products->get(0), $products->get(2)]);
-            return (
+
+            return
                 $viewProducts->count() === 2 &&
-                $viewProducts->pluck('id')->diff($tag1Products->pluck('id'))->isEmpty()
-            );
+                $viewProducts->pluck('id')->diff($tag1Products->pluck('id'))->isEmpty();
         });
     }
 

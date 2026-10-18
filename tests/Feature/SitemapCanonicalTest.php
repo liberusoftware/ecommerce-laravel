@@ -109,7 +109,7 @@ class SitemapCanonicalTest extends TestCase
         $category = ProductCategory::factory()->create(['store_id' => $store->id, 'slug' => 'mugs & cups']);
 
         $this->assertContains(
-            'http://shop.example.com/products?category='.urlencode($category->slug),
+            e('http://shop.example.com'.route('categories.show', $category, absolute: false)),
             $this->locations('http://shop.example.com/sitemap.xml'),
         );
     }

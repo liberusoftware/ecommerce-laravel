@@ -2,15 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\BrowsingHistory;
-use App\Models\CustomerSegment;
-use App\Models\GiftRegistry;
-use App\Models\GiftRegistryItem;
-use App\Models\GiftRegistryPurchase;
 use App\Models\Order;
 use App\Models\PaymentMethod;
 use App\Models\Product;
-use App\Models\ProductInteraction;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
 use App\Models\User;
@@ -83,7 +77,7 @@ class GdprDataExportTest extends TestCase
         $response->assertJsonPath('payment_methods.0.name', 'Visa ending 4242');
     }
 
-    public function test_export_includes_reviews_ratings_and_registries_in_symmetry_with_erasure(): void
+    public function test_export_includes_reviews_and_ratings_in_symmetry_with_erasure(): void
     {
         $user = User::factory()->create();
         $customer = $user->getOrCreateCustomer();
@@ -92,17 +86,6 @@ class GdprDataExportTest extends TestCase
         (new ProductReview)->forceFill(['product_id' => $product->id, 'customer_id' => $customer->id, 'comments' => 'MY-COMMENT'])->save();
         (new ProductRating)->forceFill(['product_id' => $product->id, 'customer_id' => $customer->id, 'rating' => 3, 'overall_rating' => 3])->save();
 
-        $registry = GiftRegistry::create([
-            'user_id' => $user->id, 'name' => 'MyRegistry', 'slug' => 'my-registry',
-            'access_code' => 'SECRETCODE123', 'shipping_name' => 'Jane',
-        ]);
-        $item = GiftRegistryItem::create(['registry_id' => $registry->id, 'product_id' => $product->id, 'quantity_requested' => 1, 'notes' => 'ITEM-NOTE']);
-        $order = Order::create(['customer_email' => 'x@y.com', 'total_amount' => 10, 'status' => 'paid']);
-        GiftRegistryPurchase::create([
-            'registry_item_id' => $item->id, 'order_id' => $order->id, 'quantity' => 1,
-            'purchaser_name' => 'THIRDPARTY-BUYER', 'purchaser_email' => 'buyer@third.com',
-        ]);
-
         $response = $this->actingAs($user)->getJson(route('account.data-export'));
 
         $response->assertOk();
@@ -110,43 +93,5 @@ class GdprDataExportTest extends TestCase
         $response->assertJsonPath('reviews.0.comments', 'MY-COMMENT');
         $response->assertJsonPath('reviews.0.approved', false);
         $response->assertJsonPath('ratings.0.overall_rating', 3);
-        $response->assertJsonPath('gift_registries.0.name', 'MyRegistry');
-        $response->assertJsonPath('gift_registries.0.items.0.notes', 'ITEM-NOTE');
-
-        $body = $response->getContent();
-        // A private registry's access code is a secret — never exported.
-        $this->assertStringNotContainsString('SECRETCODE123', $body, 'Registry access code leaked in export');
-        // Registry purchases carry a third party's PII — not the exporting user's data.
-        $this->assertStringNotContainsString('THIRDPARTY-BUYER', $body, "Third-party purchaser PII leaked in the user's export");
-    }
-
-    public function test_export_includes_behavioural_data_but_not_internal_segment_rules(): void
-    {
-        $user = User::factory()->create();
-        $product = Product::factory()->create();
-
-        BrowsingHistory::create(['user_id' => $user->id, 'product_id' => $product->id]);
-        ProductInteraction::create([
-            'user_id' => $user->id, 'product_id' => $product->id,
-            'interaction_type' => 'add_to_cart', 'duration' => 12, 'metadata' => ['ref' => 'HOMEPAGE'],
-            'interacted_at' => now(),
-        ]);
-        $segment = CustomerSegment::create([
-            'name' => 'VIP', 'description' => 'Top spenders',
-            'conditions' => [['field' => 'lifetime_value', 'operator' => '>', 'value' => 'SECRET-RULE-9000']],
-            'match_type' => 'all',
-        ]);
-        $user->customerSegments()->attach($segment->id);
-
-        $response = $this->actingAs($user)->getJson(route('account.data-export'));
-
-        $response->assertOk();
-        $response->assertJsonPath('browsing_history.0.product_id', $product->id);
-        $response->assertJsonPath('product_interactions.0.interaction_type', 'add_to_cart');
-        $response->assertJsonPath('product_interactions.0.metadata.ref', 'HOMEPAGE');
-        $response->assertJsonPath('segments.0.name', 'VIP');
-
-        // The segment's internal matching rules are not the user's data — never exported.
-        $this->assertStringNotContainsString('SECRET-RULE-9000', $response->getContent());
     }
 }

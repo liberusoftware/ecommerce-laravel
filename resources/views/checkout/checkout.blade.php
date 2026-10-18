@@ -187,7 +187,7 @@
                                                     @endif
                                                 </div>
                                             </div>
-                                            <span class="text-sm font-semibold text-ink">${{ number_format($method->base_rate, 2) }}</span>
+                                            <span class="text-sm font-semibold text-ink">{{ \App\Support\Money::format($method->base_rate) }}</span>
                                         </label>
                                     @endforeach
                                 </div>
@@ -318,8 +318,11 @@
                             </div>
                         </div>
                         <div class="px-6 py-5 space-y-4">
+                            @php($stripeEnabled = in_array('stripe', $paymentGateways, true))
+                            @php($paypalEnabled = in_array('paypal', $paymentGateways, true))
                             <!-- Payment Method Tabs -->
                             <div class="flex rounded-lg border border-hairline p-1 bg-surface gap-1">
+                                @if ($stripeEnabled)
                                 <button
                                     type="button"
                                     id="tab-stripe"
@@ -333,6 +336,8 @@
                                     </svg>
                                     Credit Card
                                 </button>
+                                @endif
+                                @if ($paypalEnabled)
                                 <button
                                     type="button"
                                     id="tab-paypal"
@@ -345,9 +350,14 @@
                                     </svg>
                                     PayPal
                                 </button>
+                                @endif
                             </div>
-                            <input type="hidden" id="payment_method" name="payment_method" value="stripe">
+                            <input type="hidden" id="payment_method" name="payment_method" value="{{ $paymentGateways[0] ?? '' }}">
+                            @if ($paymentGateways === [])
+                                <p class="text-sm text-danger-600">This store is not taking payments online at the moment.</p>
+                            @endif
 
+                            @if ($stripeEnabled)
                             <!-- Stripe Payment Form -->
                             <div id="stripe-payment" class="space-y-3">
                                 <div>
@@ -372,12 +382,15 @@
                                     Your payment information is encrypted and secure
                                 </div>
                             </div>
+                            @endif
 
+                            @if ($paypalEnabled)
                             <!-- PayPal Payment -->
                             <div id="paypal-payment" class="hidden">
                                 <div id="paypal-button-container" class="min-h-12"></div>
                                 <input type="hidden" name="paypal_payment_id" id="paypal_payment_id">
                             </div>
+                            @endif
                         </div>
                     </div>
                     @endif
@@ -430,7 +443,7 @@
                                     <p class="text-xs text-muted mt-0.5">Qty: {{ $item['quantity'] }}</p>
                                 </div>
                                 <span class="text-sm font-semibold text-ink flex-shrink-0">
-                                    ${{ number_format($item['price'] * $item['quantity'], 2) }}
+                                    {{ \App\Support\Money::format($item['price'] * $item['quantity']) }}
                                 </span>
                             </div>
                         @endforeach
@@ -440,19 +453,19 @@
                     <div class="px-6 py-4 border-t border-hairline space-y-3">
                         <div class="flex justify-between text-sm text-muted">
                             <span>Subtotal</span>
-                            <span>${{ number_format($total, 2) }}</span>
+                            <span>{{ \App\Support\Money::format($total) }}</span>
                         </div>
 
                         @if($hasPhysicalProducts)
                             <div class="flex justify-between text-sm text-muted" id="shipping-cost">
                                 <span>Shipping</span>
-                                <span>$0.00</span>
+                                <span>{{ \App\Support\Money::format(0) }}</span>
                             </div>
                         @endif
 
                         <div class="flex justify-between text-base font-bold text-ink pt-3 border-t border-hairline">
                             <span>Total</span>
-                            <span id="total-amount">${{ number_format($total, 2) }}</span>
+                            <span id="total-amount" data-amount="{{ number_format($total, 2, '.', '') }}">{{ \App\Support\Money::format($total) }}</span>
                         </div>
                     </div>
 
@@ -501,17 +514,19 @@
         const totalAmountElement = document.getElementById('total-amount');
         const shippingCostInput = document.getElementById('shipping_cost_input');
         let subtotal = {{ $total }};
+        const money = new Intl.NumberFormat(@json(str_replace('_', '-', app()->getLocale())), { style: 'currency', currency: @json($currency) });
 
         function updateShippingDisplay(rate) {
             if (shippingCostElement) {
-                shippingCostElement.textContent = '$' + rate.toFixed(2);
+                shippingCostElement.textContent = money.format(rate);
             }
             if (shippingCostInput) {
                 shippingCostInput.value = rate.toFixed(2);
             }
             if (totalAmountElement) {
                 const total = subtotal + rate;
-                totalAmountElement.textContent = '$' + total.toFixed(2);
+                totalAmountElement.textContent = money.format(total);
+                totalAmountElement.dataset.amount = total.toFixed(2);
             }
         }
 
@@ -592,7 +607,7 @@
                         left.appendChild(name);
                         const price = document.createElement('span');
                         price.className = 'text-sm font-semibold text-ink';
-                        price.textContent = '$' + Number(rate.amount).toFixed(2);
+                        price.textContent = money.format(Number(rate.amount));
                         label.appendChild(left);
                         label.appendChild(price);
                         liveRatesContainer.appendChild(label);
@@ -625,13 +640,18 @@
     }
 
     // Initialize payment method tabs
-    selectPaymentMethod('stripe');
+    selectPaymentMethod(@json($paymentGateways[0] ?? ''));
 </script>
 
 @if($total > 0)
+@if (in_array('stripe', $paymentGateways, true))
 <script src="https://js.stripe.com/v3/"></script>
-<script src="https://www.paypal.com/sdk/js?client-id={{ config('services.paypal.client_id') }}&currency=USD"></script>
+@endif
+@if (in_array('paypal', $paymentGateways, true))
+<script src="https://www.paypal.com/sdk/js?client-id={{ urlencode((string) config('services.paypal.client_id')) }}&currency={{ $currency }}"></script>
+@endif
 <script>
+@if (in_array('stripe', $paymentGateways, true))
     // Stripe integration
     const stripe = Stripe('{{ config('services.stripe.key') }}');
     const elements = stripe.elements();
@@ -665,6 +685,7 @@
         }
     });
 
+@endif
     const form = document.getElementById('checkout-form');
     const paymentMethodInput = document.getElementById('payment_method');
     const submitButton = document.getElementById('submit-button');
@@ -718,7 +739,7 @@
                 return actions.order.create({
                     purchase_units: [{
                         amount: {
-                            value: document.getElementById('total-amount').textContent.replace('$', '')
+                            value: document.getElementById('total-amount').dataset.amount
                         }
                     }]
                 });

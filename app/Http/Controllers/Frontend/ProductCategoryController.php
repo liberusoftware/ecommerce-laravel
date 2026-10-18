@@ -17,8 +17,8 @@ class ProductCategoryController extends Controller
             ->allowedFilters('name')
             ->allowedSorts('name', 'created_at')
             ->topLevel()
-            ->withCount('products')
-            ->with(['children' => fn ($query) => $query->withCount('products')->orderBy('name')])
+            ->withCount(['products' => fn ($q) => $q->listed()])
+            ->with(['children' => fn ($query) => $query->withCount(['products' => fn ($q) => $q->listed()])->orderBy('name')])
             ->defaultSort('name')
             ->paginate();
 
@@ -29,11 +29,11 @@ class ProductCategoryController extends Controller
     {
         $categoryIds = $category->listingCategoryIds();
 
-        $productCount = Product::query()
+        $productCount = Product::listed()
             ->whereIn('category_id', $categoryIds)
             ->count();
 
-        $featuredProducts = Product::query()
+        $featuredProducts = Product::listed()
             ->whereIn('category_id', $categoryIds)
             ->withCount('review')
             ->withAvg('rating', 'rating')
@@ -41,7 +41,7 @@ class ProductCategoryController extends Controller
             ->take(4)
             ->get();
 
-        $subcategories = $category->children()->withCount('products')->orderBy('name')->get();
+        $subcategories = $category->children()->withCount(['products' => fn ($q) => $q->listed()])->orderBy('name')->get();
 
         return view('categories.show', compact('category', 'productCount', 'featuredProducts', 'subcategories'));
     }
@@ -57,6 +57,7 @@ class ProductCategoryController extends Controller
                 AllowedFilter::scope('price_max'),
             )
             ->whereIn('category_id', $category->listingCategoryIds())
+            ->listed()
             ->withCount('review')
             ->withAvg('rating', 'rating')
             ->allowedSorts('name', 'price', 'created_at')

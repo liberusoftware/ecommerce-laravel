@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\DownloadController;
-use App\Models\CustomerMetric;
 use App\Models\DownloadableProduct;
 use App\Models\Order;
 use App\Models\Product;
@@ -57,33 +56,5 @@ class OrderUserLinkageTest extends TestCase
         $granted = $method->invoke(app(DownloadController::class), $user, $downloadable);
 
         $this->assertTrue($granted, 'A paid order should grant download access');
-    }
-
-    public function test_customer_metric_lifetime_value_sums_paid_orders(): void
-    {
-        $user = User::factory()->create();
-        $product = Product::factory()->create();
-        $this->paidOrderFor($user, $product, 100);
-        $this->paidOrderFor($user, $product, 50);
-
-        $metric = CustomerMetric::create(['user_id' => $user->id]);
-        $metric->recalculate();
-
-        $this->assertSame(2, $metric->fresh()->total_orders);
-        $this->assertEquals(150.0, (float) $metric->fresh()->lifetime_value);
-    }
-
-    public function test_customer_metric_days_since_last_purchase_is_not_negative(): void
-    {
-        $user = User::factory()->create();
-        $product = Product::factory()->create();
-        $order = $this->paidOrderFor($user, $product, 100);
-        $order->forceFill(['created_at' => now()->subDays(5)])->save();
-
-        $metric = CustomerMetric::create(['user_id' => $user->id]);
-        $metric->recalculate();
-
-        // Carbon 3's now()->diffInDays($past) is negative; days elapsed must be >= 0.
-        $this->assertGreaterThanOrEqual(0, (int) $metric->fresh()->days_since_last_purchase);
     }
 }

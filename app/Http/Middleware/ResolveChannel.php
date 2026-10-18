@@ -43,6 +43,10 @@ class ResolveChannel
             abort(404);
         }
 
+        if ($locale = $channel?->store?->locale) {
+            app()->setLocale($locale);
+        }
+
         return $next($request);
     }
 

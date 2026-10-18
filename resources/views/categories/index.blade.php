@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Categories — '.config('app.name'))
+@section('title', 'Categories — '.$storeName)
 
 @section('content')
 <div class="page-container py-10">
@@ -16,6 +16,9 @@
             @foreach ($categories as $category)
                 @php($total = $category->products_count + $category->children->sum('products_count'))
                 <article class="card card-hover flex flex-col p-6">
+                    @if ($category->imageUrl())
+                        <img src="{{ $category->imageUrl() }}" alt="" loading="lazy" class="mb-4 aspect-video w-full rounded object-cover">
+                    @endif
                     <h2 class="text-lead font-semibold text-ink">
                         <a href="{{ route('categories.show', $category) }}" class="rounded hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
                             {{ $category->name }}

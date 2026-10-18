@@ -24,7 +24,7 @@ class DropxlService
         $this->headers = [
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Authorization' => 'Bearer '.$this->apiKey,
         ];
     }
 
@@ -45,7 +45,7 @@ class DropxlService
             }
 
             $response = Http::withHeaders($this->headers)
-                ->get($this->apiUrl . '/v1/products', $params);
+                ->get($this->apiUrl.'/v1/products', $params);
 
             if ($response->successful()) {
                 return ['success' => true, 'data' => $response->json()];
@@ -53,7 +53,7 @@ class DropxlService
 
             return ['success' => false, 'message' => 'Failed to fetch products from DropXL', 'error' => $response->body()];
         } catch (Exception $e) {
-            Log::error('DropXL search products failed: ' . $e->getMessage());
+            Log::error('DropXL search products failed: '.$e->getMessage());
 
             return ['success' => false, 'message' => 'Error fetching products from DropXL', 'error' => $e->getMessage()];
         }
@@ -66,7 +66,7 @@ class DropxlService
     {
         try {
             $response = Http::withHeaders($this->headers)
-                ->get($this->apiUrl . '/v1/categories');
+                ->get($this->apiUrl.'/v1/categories');
 
             if ($response->successful()) {
                 return ['success' => true, 'data' => $response->json()];
@@ -74,19 +74,25 @@ class DropxlService
 
             return ['success' => false, 'message' => 'Failed to fetch categories from DropXL', 'error' => $response->body()];
         } catch (Exception $e) {
-            Log::error('DropXL get categories failed: ' . $e->getMessage());
+            Log::error('DropXL get categories failed: '.$e->getMessage());
 
             return ['success' => false, 'message' => 'Error fetching categories from DropXL', 'error' => $e->getMessage()];
         }
     }
 
     /**
-     * Import a single product from a DropXL product array into the local database.
+     * Import a single product into one store. The store is explicit: the platform
+     * panel spans every store, and a slug match there could be another merchant's.
      */
-    public function importProduct(array $dropxlProduct): array
+    public function importProduct(array $dropxlProduct, int $storeId): array
+    {
+        return StoreContext::writingTo($storeId, fn () => $this->importInto($dropxlProduct, $storeId));
+    }
+
+    private function importInto(array $dropxlProduct, int $storeId): array
     {
         try {
-            $category = $this->resolveCategory($dropxlProduct['category'] ?? null);
+            $category = $this->resolveCategory($dropxlProduct['category'] ?? null, $storeId);
 
             $slug = Str::slug($dropxlProduct['name'] ?? 'product');
 
@@ -105,13 +111,13 @@ class DropxlService
                 'meta_description' => $dropxlProduct['short_description'] ?? substr($dropxlProduct['description'] ?? '', 0, 255),
             ];
 
-            $product = Product::updateOrCreate(['slug' => $slug], $productData);
+            $product = Product::withoutGlobalScope('store')->updateOrCreate(['store_id' => $storeId, 'slug' => $slug], $productData);
 
             return ['success' => true, 'product' => $product];
         } catch (Exception $e) {
-            Log::error('DropXL import product failed: ' . $e->getMessage());
+            Log::error('DropXL import product failed: '.$e->getMessage());
 
-            return ['success' => false, 'message' => 'Error importing product: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Error importing product: '.$e->getMessage()];
         }
     }
 
@@ -119,7 +125,7 @@ class DropxlService
      * Import all products from a specific DropXL category into the local database.
      * Optionally filters by keyword.
      */
-    public function importByCategory(string $categoryId, ?string $keyword = null): array
+    public function importByCategory(int $storeId, string $categoryId, ?string $keyword = null): array
     {
         $imported = 0;
         $failed = 0;
@@ -144,7 +150,7 @@ class DropxlService
             }
 
             foreach ($products as $dropxlProduct) {
-                $importResult = $this->importProduct($dropxlProduct);
+                $importResult = $this->importProduct($dropxlProduct, $storeId);
                 if ($importResult['success']) {
                     $imported++;
                 } else {
@@ -163,7 +169,7 @@ class DropxlService
      * Import all products from DropXL into the local database.
      * Optionally filters by keyword.
      */
-    public function importAll(?string $keyword = null): array
+    public function importAll(int $storeId, ?string $keyword = null): array
     {
         $imported = 0;
         $failed = 0;
@@ -188,7 +194,7 @@ class DropxlService
             }
 
             foreach ($products as $dropxlProduct) {
-                $importResult = $this->importProduct($dropxlProduct);
+                $importResult = $this->importProduct($dropxlProduct, $storeId);
                 if ($importResult['success']) {
                     $imported++;
                 } else {
@@ -206,18 +212,15 @@ class DropxlService
     /**
      * Resolve or create a local ProductCategory from a DropXL category name.
      */
-    protected function resolveCategory(?string $categoryName): ?ProductCategory
+    protected function resolveCategory(?string $categoryName, int $storeId): ?ProductCategory
     {
         if (! $categoryName) {
             return null;
         }
 
-        return ProductCategory::firstOrCreate(
-            ['name' => $categoryName],
-            [
-                'slug' => Str::slug($categoryName),
-                'description' => 'Imported from DropXL',
-            ]
+        return ProductCategory::withoutGlobalScope('store')->firstOrCreate(
+            ['store_id' => $storeId, 'name' => $categoryName],
+            ['description' => 'Imported from DropXL'],
         );
     }
 

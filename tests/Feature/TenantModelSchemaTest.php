@@ -8,25 +8,10 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * Every model that declares tenancy has somewhere to store it. **The list of
- * exceptions is empty**, and this is what keeps it that way.
- *
- * It was 31 of 37, and it closed in three moves for three different reasons.
- *
- * `Discount`, `Menu` and `MenuItem` got the column because a tenant-scoped
- * Filament resource queries them — a live wrong claim rather than a dormant one
- * (#958). Twenty models lost the trait, because their owner is their parent's:
- * `ProductVariant` belongs to a product, `GiftCardTransaction` to a gift card,
- * `InventoryLevel` to an inventory item, and copying `team_id` onto every child
- * table is the blanket migration this plan spent a wave unpicking. The last
- * eight — the roots, with no tenant-owned parent to inherit from — got the
- * column when `IsTenantModel` started *writing* the key, at which point a model
- * that declares tenancy and cannot store it stopped being a dormant claim and
- * became an insert that fails.
- *
- * The ratchet stays because the pairing can break in both directions and both
- * have happened here: a trait added to a model whose table has no column, and a
- * column dropped from under a model that has the trait.
+ * Every model that declares tenancy has somewhere to store it. The list of
+ * exceptions is empty, and this keeps it so: the pairing has broken in both
+ * directions here, a trait on a table with no column and a column dropped from
+ * under a model with the trait.
  */
 class TenantModelSchemaTest extends TestCase
 {

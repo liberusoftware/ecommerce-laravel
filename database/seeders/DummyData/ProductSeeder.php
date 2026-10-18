@@ -24,7 +24,7 @@ class ProductSeeder extends Seeder
     {
         $catalogue = DemoCatalogue::load();
 
-        foreach ($catalogue['products'] as $item) {
+        foreach ($catalogue['products'] as $index => $item) {
             if (Product::where('slug', $item['slug'])->exists()) {
                 continue;
             }
@@ -32,6 +32,7 @@ class ProductSeeder extends Seeder
             Product::create([
                 'name' => $item['name'],
                 'slug' => $item['slug'],
+                'sku' => sprintf('DEMO-%03d', $index + 1),
                 'short_description' => $item['short'],
                 'description' => $item['description'],
                 'price' => $item['price'],

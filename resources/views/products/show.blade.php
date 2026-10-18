@@ -15,7 +15,8 @@
 @php
     $stock = (int) $product->inventory_count;
     $isOut = $stock <= 0;
-    $currency = $product->currency_code ?: 'USD';
+    $currency = \App\Support\Money::currency();
+    $gallery = collect([$product->image_url])->merge($product->images->map(fn ($image) => $image->url))->filter()->unique()->values();
 @endphp
 
 @section('content')
@@ -42,12 +43,26 @@
             {{-- Image. No placeholder.png fallback: that file does not exist, so the
                  old markup guaranteed a broken image for any product without one. --}}
             <div>
-                @if (filled($product->image_url))
+                @if ($gallery->isNotEmpty())
                     <div class="aspect-square overflow-hidden border border-hairline bg-surface">
-                        <img src="{{ $product->image_url }}"
+                        <img src="{{ $gallery->first() }}"
                              alt="{{ $product->name }}"
+                             id="product-main-image"
                              class="size-full object-cover">
                     </div>
+                    @if ($gallery->count() > 1)
+                        <ul class="mt-4 grid grid-cols-5 gap-2" aria-label="Product images">
+                            @foreach ($gallery as $url)
+                                <li>
+                                    <button type="button"
+                                            class="block aspect-square w-full overflow-hidden border border-hairline bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+                                            onclick="document.getElementById('product-main-image').src = this.querySelector('img').src">
+                                        <img src="{{ $url }}" alt="{{ $product->name }} — image {{ $loop->iteration }}" loading="lazy" class="size-full object-cover">
+                                    </button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 @else
                     <div class="flex aspect-square items-center justify-center border border-dashed border-stroke bg-surface">
                         <p class="text-label text-muted">No image available</p>
@@ -61,6 +76,9 @@
                 @if ($product->category)
                     <p class="mt-2 text-label text-muted">{{ $product->category->name }}</p>
                 @endif
+                @if (filled($product->sku))
+                    <p class="mt-1 text-caption text-muted">SKU <span class="data">{{ $product->sku }}</span></p>
+                @endif
 
                 {{-- Price. Number::currency respects the product's own currency_code
                      instead of assuming dollars, and .data sets it in tabular mono. --}}
@@ -69,9 +87,12 @@
                         <p class="data text-headline font-semibold text-ink">Free</p>
                     @else
                         <p class="data text-headline font-semibold text-ink">
-                            {{ \Illuminate\Support\Number::currency($product->displayPrice(), $currency) }}
+                            {{ \App\Support\Money::format($product->displayPrice()) }}
+                            @if ($product->isOnSale())
+                                <s class="ml-2 text-title font-normal text-muted"><span class="sr-only">Was </span>{{ \App\Support\Money::format($product->price) }}</s>
+                            @endif
                         </p>
-                        @if (config('ecommerce.display_prices_with_tax'))
+                        @if (app(\App\Services\TaxCalculator::class)->shouldDisplayPricesWithTax())
                             <p class="mt-1 text-caption text-muted">(inc. tax)</p>
                         @endif
                     @endif
@@ -102,7 +123,7 @@
                             <label for="donation_amount" class="form-label">
                                 Support this product
                                 <span class="text-muted">
-                                    (suggested <span class="data">{{ \Illuminate\Support\Number::currency($product->suggested_price, $currency) }}</span>)
+                                    (suggested <span class="data">{{ \App\Support\Money::format($product->suggested_price) }}</span>)
                                 </span>
                             </label>
                             <input type="number"
@@ -161,11 +182,11 @@
                     @endauth
                 </div>
 
-                @if (filled($product->long_description ?: $product->description))
+                @if (filled($product->description))
                     <div class="mt-10 border-t border-hairline pt-8">
                         <h2 class="heading-3">Description</h2>
                         <p class="prose-measure mt-3 text-muted">
-                            {{ $product->long_description ?: $product->description }}
+                            {{ $product->description }}
                         </p>
                     </div>
                 @endif
@@ -194,25 +215,28 @@
             'description' => strip_tags($product->short_description ?: $product->description ?: ''),
             'brand' => [
                 '@type' => 'Brand',
-                'name' => config('app.name'),
+                'name' => $product->store?->name ?? config('app.name'),
             ],
             'offers' => [
                 '@type' => 'Offer',
                 'url' => route('products.show', $product),
                 'priceCurrency' => $currency,
-                'price' => $product->price,
+                'price' => $product->sellingPrice(),
                 'availability' => $isOut
                     ? 'https://schema.org/OutOfStock'
                     : 'https://schema.org/InStock',
                 'seller' => [
                     '@type' => 'Organization',
-                    'name' => config('app.name'),
+                    'name' => $product->store?->name ?? config('app.name'),
                 ],
             ],
         ];
 
-        if (filled($product->image_url)) {
-            $jsonLd['image'] = $product->image_url;
+        if ($gallery->isNotEmpty()) {
+            $jsonLd['image'] = $gallery->map(fn ($url) => url($url))->all();
+        }
+        if (filled($product->sku)) {
+            $jsonLd['sku'] = $product->sku;
         }
     @endphp
     <script type="application/ld+json">

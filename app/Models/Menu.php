@@ -2,10 +2,7 @@
 
 namespace App\Models;
 
-use App\Traits\IsTenantModel;
 use Biostate\FilamentMenuBuilder\Models\Menu as BaseMenu;
 
-class Menu extends BaseMenu
-{
-    use IsTenantModel;
-}
+/** Platform content: one set of menus, rendered by slug on every storefront. */
+class Menu extends BaseMenu {}

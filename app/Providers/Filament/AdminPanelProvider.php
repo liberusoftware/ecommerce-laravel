@@ -12,12 +12,14 @@ use App\Filament\Admin\Widgets\RecentOrdersWidget;
 use App\Filament\Admin\Widgets\SalesOverviewWidget;
 use App\Filament\Admin\Widgets\SalesTrendsChart;
 use App\Filament\Admin\Widgets\TopProductsWidget;
-use App\Filament\App\Pages;
 use App\Filament\App\Pages\EditProfile;
+use App\Filament\App\Resources\Coupons\CouponResource;
+use App\Filament\App\Resources\Orders\OrderResource;
+use App\Filament\App\Resources\ProductCategories\ProductCategoryResource;
+use App\Filament\App\Resources\Products\ProductResource;
 use App\Http\Middleware\TeamsPermission;
 use App\Models\Menu;
 use App\Models\MenuItem;
-use App\Models\Team;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Biostate\FilamentMenuBuilder\FilamentMenuBuilderPlugin;
 use Filament\Actions\Action;
@@ -39,7 +41,6 @@ use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
-use Laravel\Jetstream\Features;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -49,6 +50,10 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            // The platform panel: no tenancy, every store. Platform staff other
+            // than super_admin can be admitted, so a resource without a policy
+            // must fail loudly rather than fall open.
+            ->strictAuthorization()
             // ->login([AuthenticatedSessionController::class, 'create'])
             // ->passwordReset()
             // ->emailVerification()
@@ -67,6 +72,13 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\\Filament\\Admin\\Widgets')
+            // The merchant panel's store resources, across every store. One class serves both panels.
+            ->resources([
+                ProductResource::class,
+                ProductCategoryResource::class,
+                OrderResource::class,
+                CouponResource::class,
+            ])
             ->pages([
                 FilamentPage\Dashboard::class,
                 EditProfile::class,
@@ -118,21 +130,6 @@ class AdminPanelProvider extends PanelProvider
         //                 : url($panel->getPath())),
         //     ]);
         // }
-
-        if (Features::hasTeamFeatures()) {
-            $panel
-                ->tenant(Team::class, ownershipRelationship: 'team')
-                ->tenantRegistration(Pages\CreateTeam::class)
-                ->tenantProfile(Pages\EditTeam::class);
-            //     ->userMenuItems([
-            //         MenuItem::make()
-            //             ->label('Team Settings')
-            //             ->icon('heroicon-o-cog-6-tooth')
-            //             ->url(fn () => $this->shouldRegisterMenuItem()
-            //                 ? url(Pages\EditTeam::getUrl())
-            //                 : url($panel->getPath())),
-            //     ]);
-        }
 
         return $panel;
     }

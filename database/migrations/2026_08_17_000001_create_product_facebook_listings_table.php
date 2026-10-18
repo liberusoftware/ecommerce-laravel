@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Product;
-use App\Models\ProductVariant;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,10 +11,8 @@ return new class extends Migration
     {
         Schema::create('product_facebook_listings', function (Blueprint $table) {
             $table->id();
-            // No team_id: the Product's tenancy owns this row, the way
-            // ProductVariant's does.
+            // No team_id: the Product's tenancy owns this row.
             $table->foreignIdFor(Product::class)->constrained()->cascadeOnDelete();
-            $table->foreignIdFor(ProductVariant::class)->nullable()->constrained()->cascadeOnDelete();
             $table->string('retailer_id')->unique();       // app-side key sent to Meta as data.id
             $table->string('catalog_item_id')->nullable(); // Meta-generated, filled on reconcile
             $table->string('status')->default('pending');  // pending|active|error|out_of_stock|deleted

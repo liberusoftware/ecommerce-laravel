@@ -40,6 +40,11 @@ return new class extends Migration
             'team_id' => DB::table('teams')->orderBy('id')->value('id'),
             'name' => config('app.name', 'Store'),
             'slug' => 'default',
+            // The deployment's env values are where a single-store install starts from.
+            'currency_code' => strtoupper((string) config('ecommerce.default_currency', 'USD')),
+            'country_code' => config('ecommerce.store_country') ? strtoupper((string) config('ecommerce.store_country')) : null,
+            'region' => config('ecommerce.store_state'),
+            'display_prices_with_tax' => (bool) config('ecommerce.display_prices_with_tax', false),
             'created_at' => $now,
             'updated_at' => $now,
         ]);

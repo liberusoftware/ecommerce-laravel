@@ -8,6 +8,18 @@
             </h3>
 
             <div class="flex flex-wrap gap-4 items-end">
+                <div class="min-w-[200px]">
+                    <label for="import-store" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Import into store
+                    </label>
+                    <select id="import-store" wire:model="storeId" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                        <option value="">Choose a store…</option>
+                        @foreach ($this->getStores() as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 {{-- Keyword --}}
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

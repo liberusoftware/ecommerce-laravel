@@ -34,8 +34,14 @@ return new class extends Migration
      */
     private const TABLES = [
         'product_categories', 'products', 'payment_methods', 'customers', 'wishlists',
-        'orders', 'coupons', 'groups', 'product_reviews', 'downloadable_products',
-        'images', 'cart_items', 'collections', 'invoices', 'product_rating',
+        'orders', 'coupons', 'product_reviews', 'downloadable_products',
+        'cart_items', 'collections', 'invoices', 'product_rating',
+    ];
+
+    /** Columns a store owns as its own namespace: two merchants may both sell `blue-shirt`. */
+    private const UNIQUE_PER_STORE = [
+        'products' => ['slug', 'sku'],
+        'product_categories' => ['slug'],
     ];
 
     public function up(): void
@@ -63,10 +69,33 @@ return new class extends Migration
                     'store_id' => DB::raw('(select min(id) from stores where stores.team_id = '.$table.'.team_id)'),
                 ]);
         }
+
+        $this->uniquePerStore();
+    }
+
+    private function uniquePerStore(): void
+    {
+        foreach (self::UNIQUE_PER_STORE as $table => $columns) {
+            Schema::table($table, function (Blueprint $blueprint) use ($table, $columns) {
+                foreach ($columns as $column) {
+                    if (! Schema::hasIndex($table, ['store_id', $column], 'unique')) {
+                        $blueprint->unique(['store_id', $column]);
+                    }
+                }
+            });
+        }
     }
 
     public function down(): void
     {
+        foreach (self::UNIQUE_PER_STORE as $table => $columns) {
+            Schema::table($table, function (Blueprint $blueprint) use ($columns) {
+                foreach ($columns as $column) {
+                    $blueprint->dropUnique(['store_id', $column]);
+                }
+            });
+        }
+
         foreach (self::TABLES as $table) {
             if (Schema::hasTable($table) && Schema::hasColumn($table, 'store_id')) {
                 Schema::table($table, function (Blueprint $blueprint) {

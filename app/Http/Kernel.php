@@ -66,16 +66,17 @@ class Kernel extends HttpKernel
             StartSession::class,
             ShareErrorsFromSession::class,
             VerifyCsrfToken::class,
+            // Before bindings: a bound model must be looked up in the host's store, not across all of them.
+            ResolveChannel::class,
             SubstituteBindings::class,
             TeamsPermission::class,
-            ResolveChannel::class,
         ],
 
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             ThrottleRequests::class.':api',
-            SubstituteBindings::class,
             ResolveChannel::class,
+            SubstituteBindings::class,
         ],
     ];
 

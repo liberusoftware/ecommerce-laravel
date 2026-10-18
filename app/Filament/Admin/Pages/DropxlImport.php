@@ -2,7 +2,10 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Models\Store;
 use App\Services\DropxlService;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -35,6 +38,31 @@ class DropxlImport extends Page
 
     /** @var bool Whether a search has been performed */
     public bool $hasSearched = false;
+
+    /** The store imported products are filed under: required, the platform spans every store. */
+    public ?int $storeId = null;
+
+    public static function canAccess(): bool
+    {
+        return StoreAccess::allows(auth()->user(), TeamPermission::CATALOGUE_MANAGE, null, 'create_product');
+    }
+
+    /** @return array<int, string> */
+    public function getStores(): array
+    {
+        return Store::query()->orderBy('name')->pluck('name', 'id')->all();
+    }
+
+    private function targetStore(): ?int
+    {
+        if ($this->storeId === null || ! array_key_exists($this->storeId, $this->getStores())) {
+            Notification::make()->title('Choose the store to import into')->danger()->send();
+
+            return null;
+        }
+
+        return $this->storeId;
+    }
 
     public function mount(): void
     {
@@ -100,8 +128,12 @@ class DropxlImport extends Page
             return;
         }
 
+        if (($storeId = $this->targetStore()) === null) {
+            return;
+        }
+
         $service = app(DropxlService::class);
-        $result = $service->importProduct($dropxlProduct);
+        $result = $service->importProduct($dropxlProduct, $storeId);
 
         if ($result['success']) {
             Notification::make()
@@ -123,8 +155,12 @@ class DropxlImport extends Page
      */
     public function importAllProducts(): void
     {
+        if (($storeId = $this->targetStore()) === null) {
+            return;
+        }
+
         $service = app(DropxlService::class);
-        $result = $service->importAll($this->keyword ?: null);
+        $result = $service->importAll($storeId, $this->keyword ?: null);
 
         if ($result['success']) {
             Notification::make()
@@ -157,7 +193,11 @@ class DropxlImport extends Page
         }
 
         $service = app(DropxlService::class);
-        $result = $service->importByCategory($this->categoryId, $this->keyword ?: null);
+        if (($storeId = $this->targetStore()) === null) {
+            return;
+        }
+
+        $result = $service->importByCategory($storeId, $this->categoryId, $this->keyword ?: null);
 
         if ($result['success']) {
             Notification::make()

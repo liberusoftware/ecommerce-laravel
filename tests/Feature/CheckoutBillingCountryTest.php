@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Interfaces\PaymentGatewayInterface;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Store;
 use App\Services\PaymentGateways\StripeGateway;
 use Database\Seeders\EuVatRatesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,7 +69,7 @@ class CheckoutBillingCountryTest extends TestCase
 
     public function test_reverse_charge_zero_rates_a_valid_eu_b2b_order(): void
     {
-        config(['ecommerce.store_country' => 'DE']);   // EU-established store
+        Store::query()->update(['country_code' => 'DE']);   // EU-established store
         $this->seed(EuVatRatesSeeder::class);          // an FR order would otherwise be taxed
         Http::fake(['ec.europa.eu/*' => Http::response(['isValid' => true])]);
         $product = Product::factory()->create(['price' => 100, 'inventory_count' => 5, 'is_downloadable' => true]);

@@ -64,9 +64,9 @@ npm install && npm run build
 php artisan serve
 ```
 
-### ⚠ Seeding twice duplicates data
+### Seeding
 
-Ten of the thirteen writing seeders are non-idempotent — running them twice duplicates rows rather than reconciling them. Seed once, on a fresh database.
+The seeders reconcile rather than append: running `db:seed` again on a seeded database changes nothing (`FreshInstallTest` pins this).
 
 Two related faults have been fixed and are worth knowing about if you are on an older checkout:
 
@@ -116,6 +116,28 @@ For local testing, point `DROPXL_API_URL` at a mock endpoint returning:
 The API URL and key are read through `config('services.dropxl.url')` and `config('services.dropxl.key')`, both fed from `DROPXL_API_URL` and `DROPXL_API_KEY`.
 
 ---
+
+## Where configuration lives
+
+| What | Where | Who changes it |
+| --- | --- | --- |
+| Installation mode (`ECOMMERCE_MODE`: `single`, `saas`, `marketplace`), database, mail, queue, payment and DropXL credentials | `.env` | Whoever deploys |
+| Platform name and contact, currency and language for new stores, whether a merchant may run several stores, which store serves the main site | `/admin` → Platform settings | Platform operator |
+| A store's name, logo, contact details, address, currency, language, tax-inclusive display, accepted gateways, footer | `/app` → Store settings (or `/admin` → Stores) | The store's owner or team admins |
+
+`ECOMMERCE_MULTIPLE_STORES_PER_TEAM`, `DEFAULT_CURRENCY`, `STORE_COUNTRY`, `STORE_STATE` and `TAX_DISPLAY_PRICES_WITH_TAX` are only starting values: they seed the platform settings and the first store when the database is created. After that the screens above are what count.
+
+Payment credentials never appear in either settings screen; the screens show only whether each gateway is configured.
+
+## Rebuilding a development database
+
+The repository is pre-production and edits migrations in place rather than adding corrective ones, so an existing database does not pick up a changed migration. Rebuild it:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+This drops every table. Seeding is safe to repeat on the rebuilt database.
 
 ## After installation
 

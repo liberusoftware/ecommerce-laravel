@@ -12,7 +12,6 @@ class StockNotification extends Model
 
     protected $fillable = [
         'product_id',
-        'product_variant_id',
         'user_id',
         'email',
         'notified',
@@ -28,11 +27,6 @@ class StockNotification extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    public function variant(): BelongsTo
-    {
-        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 
     public function user(): BelongsTo
@@ -54,13 +48,10 @@ class StockNotification extends Model
     /**
      * Get pending notifications for a product
      */
-    public static function getPendingForProduct(int $productId, ?int $variantId = null)
+    public static function getPendingForProduct(int $productId)
     {
         return static::where('product_id', $productId)
             ->where('notified', false)
-            ->when($variantId, function ($query) use ($variantId) {
-                $query->where('product_variant_id', $variantId);
-            })
             ->get();
     }
 }

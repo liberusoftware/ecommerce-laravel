@@ -40,31 +40,14 @@ class AppPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         $panel
-            // No ->default() here: AdminPanelProvider already claims it, and
-            // PanelRegistry::getDefault() takes Arr::first(), so admin won on
-            // registration order alone while this panel also claimed the flag.
-            // That made the fallback panel a function of provider order, and the
-            // fallback is load-bearing — FilamentManager::isAuthorizationStrict()
-            // reads getCurrentOrDefaultPanel(), so outside a panel (queues,
-            // console, policy checks with no request) it reads the default. If
-            // order ever flipped, strictAuthorization() below would have become
-            // the global fallback and thrown on every policy-less Admin resource.
+            // No ->default(): AdminPanelProvider claims it, and Filament falls back to the default panel off-panel.
             ->id('app')
             ->path('app')
             // ->login([AuthenticatedSessionController::class, 'create'])
             // ->registration()
             // ->passwordReset()
             // ->emailVerification()
-            // Without this, a resource with no policy is wide open: Filament's
-            // get_authorization_response() returns allow() when no policy exists.
-            // That is how ArticleResource (since deleted) and CollectionResource
-            // shipped with unguarded CRUD. Strict mode throws instead, so the next policy-less
-            // resource fails loudly in CI rather than silently granting everyone.
-            //
-            // Scoped to this panel deliberately: the Admin panel still has
-            // policy-less resources (ChatConversation, CustomerSegment, Discount,
-            // Menu, MenuItem, Page, TaxClass, User), so turning it on there would
-            // throw across the back-office. Those want policies, not a flag.
+            // A resource with no policy fails loudly instead of falling open. Both panels run strict.
             ->strictAuthorization()
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->colors([

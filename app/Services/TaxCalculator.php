@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\TaxRate;
 
 class TaxCalculator
@@ -188,7 +189,9 @@ class TaxCalculator
      */
     public function shouldDisplayPricesWithTax(): bool
     {
-        return config('ecommerce.display_prices_with_tax', false);
+        $store = Store::current();
+
+        return $store ? (bool) $store->display_prices_with_tax : (bool) config('ecommerce.display_prices_with_tax', false);
     }
 
     /**
@@ -198,7 +201,7 @@ class TaxCalculator
      */
     public function displayPrice(Product $product): float
     {
-        $price = (float) $product->price;
+        $price = $product->sellingPrice();
 
         if (! $this->shouldDisplayPricesWithTax()) {
             return $price;
@@ -209,9 +212,11 @@ class TaxCalculator
 
     private function storeLocation(): array
     {
+        $store = Store::current();
+
         return [
-            'country' => config('ecommerce.store_country', 'US'),
-            'state' => config('ecommerce.store_state'),
+            'country' => $store?->country_code ?: config('ecommerce.store_country', 'US'),
+            'state' => $store?->country_code ? $store->region : config('ecommerce.store_state'),
         ];
     }
 }

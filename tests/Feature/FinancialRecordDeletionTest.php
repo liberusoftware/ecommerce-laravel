@@ -15,7 +15,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
-use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -39,11 +38,8 @@ class FinancialRecordDeletionTest extends TestCase
         $this->team = Team::factory()->create();
         $this->store = Store::factory()->create(['team_id' => $this->team->id]);
         $this->user = User::factory()->create(['current_team_id' => $this->team->id]);
+        // The team role alone authorises them: no platform permission is granted.
         $this->team->users()->attach($this->user, ['role' => 'admin']);
-
-        foreach (['view_any_order', 'view_order', 'delete_order', 'delete_any_order', 'delete_customer', 'delete_any_customer', 'delete_invoice', 'delete_any_invoice'] as $permission) {
-            $this->user->givePermissionTo(Permission::findOrCreate($permission, 'web'));
-        }
 
         $this->actingAs($this->user);
     }

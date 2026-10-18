@@ -8,15 +8,8 @@ return new class extends SettingsMigration
     {
         $this->migrator->add('general.site_name', config('app.name', 'Liberu Ecommerce'));
         $this->migrator->add('general.site_email', 'info@example.com');
-        $this->migrator->add('general.site_phone', '+44 208 050 5865');
-        $this->migrator->add('general.site_address', '123 Ecommerce St, London, UK');
-        $this->migrator->add('general.site_country', 'United Kingdom');
-        $this->migrator->add('general.site_currency', '£');
-        $this->migrator->add('general.site_default_language', 'en');
-        $this->migrator->add('general.facebook_url', null);
-        $this->migrator->add('general.twitter_url', null);
-        $this->migrator->add('general.github_url', 'https://www.github.com/liberu-ecommerce/ecommerce-laravel');
-        $this->migrator->add('general.youtube_url', null);
-        $this->migrator->add('general.footer_copyright', '© ' . date('Y') . ' ' . config('app.name', 'Liberu Ecommerce') . '. All rights reserved.');
+        $this->migrator->add('general.default_currency', strtoupper((string) config('ecommerce.default_currency', 'USD')));
+        $this->migrator->add('general.default_locale', config('app.locale', 'en'));
+        $this->migrator->add('general.allow_multiple_stores_per_team', (bool) config('ecommerce.installation.multiple_stores_per_team', false));
     }
 };

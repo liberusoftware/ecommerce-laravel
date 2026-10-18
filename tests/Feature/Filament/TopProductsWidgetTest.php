@@ -36,7 +36,7 @@ class TopProductsWidgetTest extends TestCase
         }
     }
 
-    public function test_it_lists_only_the_current_tenants_top_products(): void
+    public function test_the_platform_widget_ranks_paid_sales_across_every_store(): void
     {
         Gate::before(fn () => true);
         Role::findOrCreate('super_admin', 'web');
@@ -56,15 +56,12 @@ class TopProductsWidgetTest extends TestCase
         $user->forceFill(['current_team_id' => $team->id])->save();
         $this->actingAs($user);
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Filament::setTenant($team);
-        // Registers Filament's tenancy global scopes, as its tenancy middleware does on a real request.
-        Filament::getPanel('admin')->boot();
 
         Livewire::test(TopProductsWidget::class)
-            ->assertCanSeeTableRecords([$gadget, $widget], inOrder: true)
-            ->assertCanNotSeeTableRecords([$theirs])
-            ->assertTableColumnStateSet('total_quantity', 3, $widget)
-            ->assertTableColumnStateSet('total_revenue', 30, $widget)
+            ->assertCanSeeTableRecords([$theirs, $widget, $gadget], inOrder: true)
+            // 3 + 7 paid across both stores; the 40 on a pending order never count.
+            ->assertTableColumnStateSet('total_quantity', 10, $widget)
+            ->assertTableColumnStateSet('total_revenue', 100, $widget)
             ->assertTableColumnStateSet('total_revenue', 50, $gadget);
     }
 }

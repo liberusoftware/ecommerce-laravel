@@ -36,7 +36,7 @@
                                         <p class="text-xs text-muted mt-0.5">Qty: {{ $item->quantity }}</p>
                                     </div>
                                 </div>
-                                <span class="text-sm font-semibold text-ink flex-shrink-0">${{ number_format($item->price, 2) }}</span>
+                                <span class="text-sm font-semibold text-ink flex-shrink-0">{{ \App\Support\Money::format($item->price, $order->currency_code) }}</span>
                             </div>
                         @endforeach
                     </div>
@@ -50,15 +50,15 @@
                     <div class="px-6 py-4 space-y-3">
                         <div class="flex justify-between text-sm text-muted">
                             <span>Subtotal</span>
-                            <span>${{ number_format($order->items->sum('price'), 2) }}</span>
+                            <span>{{ \App\Support\Money::format($order->items->sum('price'), $order->currency_code) }}</span>
                         </div>
                         <div class="flex justify-between text-sm text-muted">
                             <span>Shipping ({{ $order->shippingMethod->name }})</span>
-                            <span>${{ number_format($order->shippingMethod->price, 2) }}</span>
+                            <span>{{ \App\Support\Money::format($order->shippingMethod->price, $order->currency_code) }}</span>
                         </div>
                         <div class="flex justify-between text-base font-bold text-ink pt-3 border-t border-hairline">
                             <span>Total (USD)</span>
-                            <span>${{ number_format($order->total_amount, 2) }}</span>
+                            <span>{{ \App\Support\Money::format($order->total_amount, $order->currency_code) }}</span>
                         </div>
                     </div>
                 </div>

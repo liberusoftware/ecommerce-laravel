@@ -5,9 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\OwnsTeamResources;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\Store;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 
 class ProductController extends Controller
 {
@@ -21,7 +26,8 @@ class ProductController extends Controller
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100); // Max 100 items per page
 
-        $query = Product::query();
+        // Staff see the whole catalogue; everyone else what the storefront lists.
+        $query = Product::query()->unless($this->isStaff($request), fn ($q) => $q->listed());
 
         // Apply search filter if provided
         if ($request->filled('search')) {
@@ -68,13 +74,15 @@ class ProductController extends Controller
     /**
      * Display the specified product by ID or slug.
      */
-    public function show(string $identifier): JsonResponse
+    public function show(Request $request, string $identifier): JsonResponse
     {
         // Try to find by ID if identifier is numeric, otherwise by slug
         $product = is_numeric($identifier)
-            ? Product::with(['category', 'images', 'variants', 'tags', 'review', 'rating'])
+            ? Product::with(['category', 'images', 'tags', 'review', 'rating'])
+                ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->find($identifier)
-            : Product::with(['category', 'images', 'variants', 'tags', 'review', 'rating'])
+            : Product::with(['category', 'images', 'tags', 'review', 'rating'])
+                ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->where('slug', $identifier)
                 ->first();
 
@@ -96,21 +104,19 @@ class ProductController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product'), 403);
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'short_description' => 'required|string',
-            'long_description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
-            'category_id' => 'required|exists:product_categories,id',
+            'category_id' => ['required', $this->categoryInThisStore()],
             'featured_image' => 'nullable|string',
             'inventory_count' => 'nullable|integer|min:0',
             'low_stock_threshold' => 'nullable|integer|min:0',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'meta_keywords' => 'nullable|string',
             'is_downloadable' => 'nullable|boolean',
             'downloadable_file' => 'nullable|string',
             'download_limit' => 'nullable|integer|min:1',
@@ -127,13 +133,8 @@ class ProductController extends Controller
             ], 422);
         }
 
-        $attributes = $validator->validated();
-
-        if ($teamId = $this->creationTeamId($request)) {
-            $attributes['team_id'] = $teamId;
-        }
-
-        $product = Product::create($attributes);
+        // store_id and team_id come from the storefront the request arrived on.
+        $product = Product::create($validator->validated());
 
         return response()->json([
             'success' => true,
@@ -147,7 +148,7 @@ class ProductController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product'), 403);
 
         $product = Product::find($id);
 
@@ -164,15 +165,13 @@ class ProductController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'short_description' => 'sometimes|required|string',
-            'long_description' => 'nullable|string',
             'price' => 'sometimes|required|numeric|min:0',
-            'category_id' => 'sometimes|required|exists:product_categories,id',
+            'category_id' => ['sometimes', 'required', $this->categoryInThisStore()],
             'featured_image' => 'nullable|string',
             'inventory_count' => 'nullable|integer|min:0',
             'low_stock_threshold' => 'nullable|integer|min:0',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'meta_keywords' => 'nullable|string',
             'is_downloadable' => 'nullable|boolean',
             'downloadable_file' => 'nullable|string',
             'download_limit' => 'nullable|integer|min:1',
@@ -203,7 +202,7 @@ class ProductController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product'), 403);
 
         $product = Product::find($id);
 
@@ -222,5 +221,15 @@ class ProductController extends Controller
             'success' => true,
             'message' => 'Product deleted successfully',
         ]);
+    }
+
+    private function isStaff(Request $request): bool
+    {
+        return StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_VIEW, null, 'view_any_product');
+    }
+
+    private function categoryInThisStore(): Exists
+    {
+        return Rule::exists('product_categories', 'id')->where('store_id', Store::current()?->getKey());
     }
 }

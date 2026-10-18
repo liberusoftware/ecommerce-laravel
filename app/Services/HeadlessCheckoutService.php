@@ -36,6 +36,8 @@ class HeadlessCheckoutService
         }
 
         $paymentMethod = $input['paymentMethod'] ?? 'stripe';
+        $this->checkoutService->assertPurchasable($cart->pluck('product_id'));
+        $this->checkoutService->assertGatewayAccepted($paymentMethod);
         $country = strtoupper((string) ($input['country'] ?? ''));
         $isDropship = (bool) ($input['dropship'] ?? false);
         if ($isDropship && (empty($input['recipientName']) || empty($input['recipientEmail']))) {

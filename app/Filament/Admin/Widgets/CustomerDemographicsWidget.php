@@ -3,13 +3,21 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Services\AnalyticsService;
+use App\Support\StoreAccess;
 use Filament\Widgets\ChartWidget;
 
 class CustomerDemographicsWidget extends ChartWidget
 {
+    public static function canView(): bool
+    {
+        return StoreAccess::platform(auth()->user(), 'view_any_customer');
+    }
+
     protected ?string $heading = 'Customer Segments';
+
     protected static ?int $sort = 4;
-    protected int | string | array $columnSpan = 1;
+
+    protected int|string|array $columnSpan = 1;
 
     protected function getData(): array
     {

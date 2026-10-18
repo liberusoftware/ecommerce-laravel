@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ReviewRequest;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -71,7 +73,7 @@ class ReviewController extends Controller
     public function approve($id)
     {
         // Publishing a review is moderation — staff only (route is already behind auth).
-        abort_unless(Auth::user()->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows(Auth::user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product::review'), 403);
 
         $review = ProductReview::find($id);
         if (! $review) {

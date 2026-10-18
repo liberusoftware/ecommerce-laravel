@@ -83,12 +83,18 @@ Jetstream. Commerce tables scope on `store_id`; everything else on `team_id`.
 `App\Traits\IsTenantModel` carry it. The ways out are deliberate and few:
 `withoutGlobalScope('store')`, or `StoreContext::acrossAllStores()` for work that is about a person
 rather than a shopfront — a GDPR export or erasure narrowed to one store is a wrong answer, not a
-partial one. Filament panels are outside this stack: resources are Team-scoped by Filament tenancy,
-and the store scope covers what that does not reach (relation managers, widgets, bare
-`Model::query()`).
+partial one. In `/app` resources are Team-scoped by Filament tenancy and the store scope covers
+what that does not reach (relation managers, widgets, bare `Model::query()`). `/admin` has no
+tenancy: `StoreContext::isPlatform()` lifts the store scope there, and writes must name a store.
 
-**Two Filament panels**, `app/Providers/Filament/AdminPanelProvider.php` (platform) and
-`AppPanelProvider.php` (merchant, Team tenancy).
+**Two Filament panels**, `app/Providers/Filament/AdminPanelProvider.php` (platform, every store)
+and `AppPanelProvider.php` (merchant, Team tenancy). Store resources (products, categories,
+orders, coupons) are one class registered in both. Both run `strictAuthorization()`.
+
+**Authorization is `App\Support\StoreAccess`.** A team role (Jetstream: `admin`, `catalogue`,
+`orders`, `viewer`; the owner holds all) applies inside its own team; a Spatie permission
+(`update_order`, `view_any_product::category`) is a platform grant and applies to every store.
+Policies, storefront staff routes and the API all ask it; never check a role name at a call site.
 
 **Checkout has two entry points and one money core.** `CheckoutController` (session cart) and
 `StorefrontSchema` → `HeadlessCheckoutService` (GraphQL `CartItem` cart) both call

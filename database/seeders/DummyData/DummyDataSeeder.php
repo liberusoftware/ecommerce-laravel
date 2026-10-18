@@ -2,8 +2,6 @@
 
 namespace Database\Seeders\DummyData;
 
-use App\Models\ProductCategory;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DummyDataSeeder extends Seeder
@@ -19,6 +17,7 @@ class DummyDataSeeder extends Seeder
             ProductCollectionSeeder::class,
             ProductCategorySeeder::class,
             ProductSeeder::class,
+            DemoStoreSeeder::class,
         ]);
     }
 }

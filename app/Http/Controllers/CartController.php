@@ -29,11 +29,24 @@ class CartController extends Controller
         $request->validate(['quantity' => 'nullable|integer|min:1']);
         $quantity = (int) $request->input('quantity', 1);
 
-        if ($product->inventory_count < $quantity) {
+        if (! $product->isActive()) {
+            return redirect()->back()->with('error', 'This product is not available.');
+        }
+
+        // Pay-what-you-want: the shopper names the price, at or above the merchant's minimum.
+        $unitPrice = null;
+        if ($product->isDonationBased()) {
+            $unitPrice = (float) $request->validate([
+                'price' => ['required', 'numeric', 'min:'.max(0, (float) $product->minimum_price), 'max:1000000'],
+            ])['price'];
+        }
+
+        // What is already in the cart counts against the stock too.
+        if ($product->inventory_count < $this->cart->quantityOf($product->id) + $quantity) {
             return redirect()->back()->with('error', 'Not enough inventory available.');
         }
 
-        $this->cart->add($product, $quantity);
+        $this->cart->add($product, $quantity, $unitPrice);
 
         return redirect()->back()->with('success', 'Product added to cart successfully!');
     }

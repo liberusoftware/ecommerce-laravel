@@ -8,7 +8,7 @@ use App\Models\ProductRating;
 use App\Models\ProductReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -29,7 +29,9 @@ class CustomerDeletionPolicyTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->create()->givePermissionTo(Permission::findOrCreate('delete_customer', 'web'));
+        Role::findOrCreate('super_admin', 'web');
+
+        return User::factory()->create()->assignRole('super_admin');
     }
 
     public function test_a_customer_with_a_review_cannot_be_deleted(): void

@@ -46,8 +46,10 @@ class TaxInclusiveDisplayTest extends TestCase
 
     public function test_product_page_shows_tax_inclusive_price(): void
     {
-        config(['ecommerce.display_prices_with_tax' => true, 'ecommerce.store_country' => 'GB']);
+        // On a storefront the store's own settings decide, not the deployment's.
+        config(['ecommerce.display_prices_with_tax' => false, 'ecommerce.store_country' => 'US']);
         $product = $this->taxedProduct(100);
+        $product->store->update(['display_prices_with_tax' => true, 'country_code' => 'GB']);
 
         $this->get(route('products.show', $product))
             ->assertStatus(200)

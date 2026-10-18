@@ -21,8 +21,8 @@ class ChannelsRelationManager extends RelationManager
     public function form(Schema $schema): Schema
     {
         return $schema->components([
+            // `theme` stays at its default until theme packages select per channel.
             TextInput::make('name')->required()->maxLength(255),
-            TextInput::make('theme')->required()->maxLength(255)->default('theme-ecommerce'),
         ]);
     }
 
@@ -32,7 +32,6 @@ class ChannelsRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->columns([
                 TextColumn::make('name'),
-                TextColumn::make('theme'),
                 TextColumn::make('primary_host')
                     ->label('Primary domain')
                     ->state(fn (Channel $record): ?string => $record->primaryDomain()?->host),

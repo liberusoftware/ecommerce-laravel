@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -19,7 +21,7 @@ class InvoiceController extends Controller
         $query = Invoice::query();
 
         // Customers see only their own invoices (via the owning order); staff see all.
-        if (! $request->user()?->hasRole(['super_admin', 'admin'])) {
+        if (! StoreAccess::allows($request->user(), TeamPermission::ORDERS_VIEW, null, 'view_any_invoice')) {
             $query->whereHas('order', fn ($q) => $q->where('user_id', $request->user()->id));
         }
 
@@ -39,7 +41,7 @@ class InvoiceController extends Controller
         $query = Invoice::with(['order', 'order.items']);
 
         // Scope to the owner unless staff — a foreign id 404s instead of leaking PII.
-        if (! $request->user()?->hasRole(['super_admin', 'admin'])) {
+        if (! StoreAccess::allows($request->user(), TeamPermission::ORDERS_VIEW, null, 'view_any_invoice')) {
             $query->whereHas('order', fn ($q) => $q->where('user_id', $request->user()->id));
         }
 

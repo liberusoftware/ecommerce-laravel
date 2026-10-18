@@ -24,7 +24,7 @@ _Avoid_: using it to mean a `Team` record
 A catalogue and its commercial configuration, owned by a `Team`. One `Team` may own several. Commerce tables scope on `store_id`; everything else scopes on `team_id`.
 _Avoid_: shop, site, brand
 
-> The admin panel's "Stores" resource (`app/Filament/Admin/Resources/Stores/StoreResource.php`) manages `Store` records, their channels and domains. Teams have their own "Teams" resource. `TeamPolicy` still checks `*_store` permissions, a name left over from when the Teams resource was labelled "Store".
+> The admin panel's "Stores" resource (`app/Filament/Admin/Resources/Stores/StoreResource.php`) manages `Store` records, their channels and domains. Teams have their own "Teams" resource. `TeamPolicy::create` still accepts a platform `create_store` permission, a name left over from when the Teams resource was labelled "Store".
 
 **Channel**:
 A way customers reach a `Store` — a web storefront, a mobile app, a marketplace. Hostnames are a channel property, which is how a request finds its merchant.

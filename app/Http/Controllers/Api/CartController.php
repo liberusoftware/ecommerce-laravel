@@ -34,7 +34,7 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $product = Product::findOrFail($data['product_id']);
+        $product = Product::active()->findOrFail($data['product_id']);
 
         $item = CartItem::firstOrNew([
             'user_id' => $request->user()->id,
@@ -48,7 +48,7 @@ class CartController extends Controller
 
         $item->fill([
             'quantity' => $quantity,
-            'price' => $product->price,
+            'price' => $product->sellingPrice(),
         ])->save();
 
         return response()->json(['data' => $item->load('product')], 201);

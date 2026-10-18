@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
-@section('title', $category->name.' — '.config('app.name'))
+@section('title', $category->meta_title ?: $category->name.' — '.$storeName)
+@section('meta_description', $category->meta_description ?: Str::limit((string) $category->description, 160))
+@if ($category->imageUrl())
+    @section('og_image', $category->imageUrl())
+@endif
 
 @section('content')
 <div class="page-container py-10">
@@ -17,7 +21,10 @@
     </nav>
 
     <header class="mt-6 flex flex-col gap-6 border-b border-hairline pb-8 md:flex-row md:items-end md:justify-between">
-        <div>
+        @if ($category->imageUrl())
+            <img src="{{ $category->imageUrl() }}" alt="" class="aspect-square w-32 shrink-0 rounded-lg border border-hairline object-cover md:order-first">
+        @endif
+        <div class="grow">
             <h1 class="heading-2">{{ $category->name }}</h1>
             @if ($category->description)
                 <p class="prose-measure mt-3 text-body text-muted">{{ $category->description }}</p>

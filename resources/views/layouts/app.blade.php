@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', config('app.name'))</title>
-    <meta name="description" content="@yield('meta_description', 'Your premier ecommerce destination')">
+    <title>@yield('title', $storeName)</title>
+    <meta name="description" content="@yield('meta_description', $currentStore?->tagline ?? $storeName)">
 
     <!-- Open Graph / Social Media Meta Tags -->
-    <meta property="og:site_name" content="{{ config('app.name') }}">
+    <meta property="og:site_name" content="{{ $storeName }}">
     <meta property="og:type" content="@yield('og_type', 'website')">
-    <meta property="og:title" content="@yield('og_title', config('app.name'))">
-    <meta property="og:description" content="@yield('og_description', 'Your premier ecommerce destination')">
+    <meta property="og:title" content="@yield('og_title', $storeName)">
+    <meta property="og:description" content="@yield('og_description', $currentStore?->tagline ?? $storeName)">
     <meta property="og:url" content="{{ url()->current() }}">
     {{-- Emitted only when a view supplies an image: a 404 og:image is worse than none.
          asset() cannot be used here — config('app.asset_url') defaults to '/', so it
@@ -100,16 +100,10 @@
     @livewire('chat-widget')
 
     @php
-        $settings = app(\App\Settings\GeneralSettings::class);
-
-        // Only render links the merchant has actually configured — an unset setting
-        // would otherwise emit href="" and silently link to the current page.
-        $socialLinks = array_filter([
-            'Facebook' => ['url' => $settings->facebook_url, 'icon' => 'fa-facebook'],
-            'X (Twitter)' => ['url' => $settings->twitter_url, 'icon' => 'fa-twitter'],
-            'YouTube' => ['url' => $settings->youtube_url, 'icon' => 'fa-youtube'],
-            'GitHub' => ['url' => $settings->github_url, 'icon' => 'fa-github'],
-        ], fn ($link) => filled($link['url']));
+        $icons = ['Facebook' => 'fa-facebook', 'Instagram' => 'fa-instagram', 'X (Twitter)' => 'fa-twitter', 'YouTube' => 'fa-youtube', 'TikTok' => 'fa-tiktok'];
+        $socialLinks = collect($currentStore?->socialLinks() ?? [])
+            ->map(fn ($url, $name) => ['url' => $url, 'icon' => $icons[$name] ?? 'fa-link'])
+            ->all();
     @endphp
 
     {{-- The footer is the one dark surface: a moss-tinted near-black, so it reads
@@ -118,8 +112,13 @@
         <div class="page-container">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div>
-                    <h2 class="text-lg font-semibold mb-4">{{ config('app.name') }}</h2>
-                    <p class="text-ink-inverse">Your premier ecommerce destination for quality products.</p>
+                    <h2 class="text-lg font-semibold mb-4">{{ $storeName }}</h2>
+                    @if (filled($currentStore?->tagline))
+                        <p class="text-ink-inverse">{{ $currentStore->tagline }}</p>
+                    @endif
+                    @if ($currentStore && $currentStore->addressLines() !== [])
+                        <address class="mt-3 not-italic text-ink-inverse">{!! collect($currentStore->addressLines())->map(fn ($line) => e($line))->implode('<br>') !!}</address>
+                    @endif
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold mb-4">Quick Links</h2>
@@ -153,7 +152,7 @@
                 @endif
             </div>
             <div class="border-t border-primary-900 mt-8 pt-4 text-center text-muted-inverse">
-                <p>{{ $settings->footer_copyright }}</p>
+                <p>{{ $currentStore?->footer_text ?: '© '.date('Y').' '.$storeName }}</p>
             </div>
         </div>
     </footer>

@@ -47,7 +47,7 @@ class ProductControllerTest extends TestCase
                         'name',
                         'price',
                         'short_description',
-                        'long_description',
+                        'description',
                         'category_id',
                         'featured_image',
                         'created_at',
@@ -220,7 +220,7 @@ class ProductControllerTest extends TestCase
         $productData = [
             'name' => 'New Product',
             'short_description' => 'Short description',
-            'long_description' => 'Long description',
+            'description' => 'Long description',
             'price' => 149.99,
             'category_id' => $category->id,
             'featured_image' => 'https://example.com/image.jpg',

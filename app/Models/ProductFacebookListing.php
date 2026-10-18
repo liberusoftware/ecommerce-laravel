@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * The sync state of one Product (or one Variant) inside a Team's Meta Catalog.
+ * The sync state of one Product inside a Team's Meta Catalog.
  * `status` and `errors` mirror what Meta owns; the application owns the content.
  *
- * No `team_id`: the owner is the Product's, the way ProductVariant's is.
+ * No `team_id`: the owner is the Product's.
  */
 class ProductFacebookListing extends Model
 {
@@ -18,7 +18,6 @@ class ProductFacebookListing extends Model
 
     protected $fillable = [
         'product_id',
-        'product_variant_id',
         'retailer_id',
         'catalog_item_id',
         'status',
@@ -34,10 +33,5 @@ class ProductFacebookListing extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    public function variant(): BelongsTo
-    {
-        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 }

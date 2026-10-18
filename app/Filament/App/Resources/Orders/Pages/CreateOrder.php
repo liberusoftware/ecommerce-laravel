@@ -4,6 +4,7 @@ namespace App\Filament\App\Resources\Orders\Pages;
 
 use App\Exceptions\CheckoutException;
 use App\Filament\App\Resources\Orders\OrderResource;
+use App\Filament\Schemas\StoreField;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -29,12 +30,17 @@ class CreateOrder extends CreateRecord
      */
     protected function handleRecordCreation(array $data): Model
     {
+        return StoreField::createIn($data, fn (array $data) => $this->createOrder($data));
+    }
+
+    private function createOrder(array $data): Order
+    {
         $customer = Customer::findOrFail($data['customer_id']);
 
         $lines = collect($data['items'])->map(function (array $item): array {
             $product = Product::findOrFail($item['product_id']);
 
-            return ['product_id' => $product->id, 'quantity' => (int) $item['quantity'], 'price' => (float) $product->price];
+            return ['product_id' => $product->id, 'quantity' => (int) $item['quantity'], 'price' => $product->sellingPrice()];
         })->all();
 
         try {

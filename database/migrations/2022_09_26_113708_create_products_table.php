@@ -13,24 +13,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable($this->table)) {
+        if (! Schema::hasTable($this->table)) {
             Schema::create($this->table, function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('slug')->nullable()->unique();
+                // Slug and SKU are unique per store, indexed with store_id.
+                $table->string('slug')->nullable();
+                $table->string('sku', 100)->nullable();
                 $table->decimal('price', 10, 2)->nullable();
+                $table->decimal('sale_price', 10, 2)->nullable();
                 $table->text('description')->nullable();
                 $table->text('short_description')->nullable();
-                $table->text('long_description')->nullable();
                 $table->foreignId('category_id')->nullable()->constrained('product_categories')->onUpdate('cascade')->onDelete('set null');
-                $table->boolean('is_variable')->default(0);
-                $table->boolean('is_grouped')->default(0);
-                $table->boolean('is_simple')->default(1);
+                // draft and archived are never shown or sold on a storefront.
+                $table->string('status', 20)->default('active')->index();
+                // hidden: purchasable by direct link, left out of listings and search.
+                $table->string('visibility', 20)->default('visible');
                 $table->boolean('is_featured')->default(0);
                 $table->string('featured_image')->nullable();
                 $table->string('meta_title')->nullable();
                 $table->text('meta_description')->nullable();
-                $table->string('meta_keywords')->nullable();
                 $table->boolean('is_downloadable')->default(0);
                 $table->string('downloadable_file')->nullable();
                 $table->integer('download_limit')->nullable();

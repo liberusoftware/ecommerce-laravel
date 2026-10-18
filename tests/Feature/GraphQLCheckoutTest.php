@@ -9,6 +9,7 @@ use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShippingQuote;
+use App\Models\Store;
 use App\Models\User;
 use App\Services\PaymentGateways\StripeGateway;
 use Closure;
@@ -249,7 +250,7 @@ class GraphQLCheckoutTest extends TestCase
 
     public function test_checkout_zero_rates_a_valid_eu_b2b_order_via_reverse_charge(): void
     {
-        config(['ecommerce.store_country' => 'DE']);   // EU-established store
+        Store::query()->update(['country_code' => 'DE']);   // EU-established store
         $this->seed(EuVatRatesSeeder::class);          // an FR order would otherwise be taxed 20%
         Http::fake(['ec.europa.eu/*' => Http::response(['isValid' => true])]);
         Sanctum::actingAs($user = User::factory()->create());

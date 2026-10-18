@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\Store;
 use App\Models\Team;
 use App\Services\StoreContext;
 use Illuminate\Database\Eloquent\Model;
@@ -44,7 +45,9 @@ trait IsTenantModel
             // panel the tenant the user is looking at is the authority; this is
             // for every path that has no panel — the API, a controller, a
             // seeder, a queued job.
-            $model->team_id ??= StoreContext::teamForWrites();
+            // A row already placed in a store belongs to that store's team.
+            $model->team_id ??= (isset($model->store_id) ? Store::query()->whereKey($model->store_id)->value('team_id') : null)
+                ?? StoreContext::teamForWrites();
         });
     }
 

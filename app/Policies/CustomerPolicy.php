@@ -2,115 +2,33 @@
 
 namespace App\Policies;
 
-use App\Models\Customer;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
 use App\Models\User;
-use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Policies\Concerns\AuthorizesThroughTeam;
+use Illuminate\Database\Eloquent\Model;
 
 class CustomerPolicy
 {
-    use HandlesAuthorization;
+    use AuthorizesThroughTeam;
 
-    /**
-     * Determine whether the user can view any models.
-     */
-    public function viewAny(User $user): bool
+    protected function area(): string
     {
-        return $user->can('view_any_customer');
+        return 'customers';
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
-    public function view(User $user, Customer $customer): bool
+    protected function platformSuffix(): string
     {
-        return $user->can('view_customer');
+        return 'customer';
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
-    public function create(User $user): bool
+    /** A customer's orders, invoices and reviews outlive them; personal data goes through GDPR erasure. */
+    public function delete(User $user, Model $record): bool
     {
-        return $user->can('create_customer');
-    }
-
-    /**
-     * Determine whether the user can update the model.
-     */
-    public function update(User $user, Customer $customer): bool
-    {
-        return $user->can('update_customer');
-    }
-
-    /**
-     * Determine whether the user can delete the model.
-     */
-    public function delete(User $user, Customer $customer): bool
-    {
-        // A customer's orders and invoices outlive them; personal data is
-        // removed through GDPR erasure, which anonymises instead.
-        return $user->can('delete_customer')
-            && ! $customer->orders()->exists()
-            && ! $customer->invoices()->exists()
-            && ! ProductReview::withoutGlobalScopes()->where('customer_id', $customer->id)->exists()
-            && ! ProductRating::withoutGlobalScopes()->where('customer_id', $customer->id)->exists();
-    }
-
-    /**
-     * Determine whether the user can bulk delete.
-     */
-    public function deleteAny(User $user): bool
-    {
-        return $user->can('delete_any_customer');
-    }
-
-    /**
-     * Determine whether the user can permanently delete.
-     */
-    public function forceDelete(User $user, Customer $customer): bool
-    {
-        return $user->can('force_delete_customer');
-    }
-
-    /**
-     * Determine whether the user can permanently bulk delete.
-     */
-    public function forceDeleteAny(User $user): bool
-    {
-        return $user->can('force_delete_any_customer');
-    }
-
-    /**
-     * Determine whether the user can restore.
-     */
-    public function restore(User $user, Customer $customer): bool
-    {
-        return $user->can('restore_customer');
-    }
-
-    /**
-     * Determine whether the user can bulk restore.
-     */
-    public function restoreAny(User $user): bool
-    {
-        return $user->can('restore_any_customer');
-    }
-
-    /**
-     * Determine whether the user can replicate.
-     */
-    public function replicate(User $user, Customer $customer): bool
-    {
-        return $user->can('replicate_customer');
-    }
-
-    /**
-     * Determine whether the user can reorder.
-     */
-    public function reorder(User $user): bool
-    {
-        return $user->can('reorder_customer');
+        return $this->allows($user, $this->manage(), 'delete', $record)
+            && ! $record->orders()->exists()
+            && ! $record->invoices()->exists()
+            && ! ProductReview::withoutGlobalScopes()->where('customer_id', $record->id)->exists()
+            && ! ProductRating::withoutGlobalScopes()->where('customer_id', $record->id)->exists();
     }
 }

@@ -4,7 +4,11 @@ namespace App\Providers;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\Store;
+use BezhanSalleh\FilamentShield\Facades\FilamentShield;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -12,6 +16,17 @@ class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Platform permissions are named `{affix}_{subject}`, compound models with `::`
+        // (`view_any_product::category`): the names the policies check and the seeder ships.
+        FilamentShield::buildPermissionKeyUsing(
+            fn (string $affix, string $subject): string => Str::snake($affix).'_'.str_replace('_', '::', Str::snake($subject)),
+        );
+
+        View::composer(['layouts.app', 'components.home-navbar', 'contact', 'categories.*'], function ($view) {
+            $store = Store::current();
+            $view->with('currentStore', $store)->with('storeName', $store?->name ?? config('app.name'));
+        });
+
         app(PermissionRegistrar::class)
             ->setPermissionClass(Permission::class)
             ->setRoleClass(Role::class);

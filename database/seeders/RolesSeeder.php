@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Team;
+use BezhanSalleh\FilamentShield\Support\Utils;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use BezhanSalleh\FilamentShield\Support\Utils;
 
 class RolesSeeder extends Seeder
 {
@@ -22,10 +22,13 @@ class RolesSeeder extends Seeder
 
         if (Utils::isTenancyEnabled()) {
             $team = Team::firstOrFail();
-            $roleData["team_id"] = $team->id;
+            $roleData['team_id'] = $team->id;
         }
 
         $adminRole = Role::firstOrCreate($roleData);
+
+        // Admits platform staff to /admin; each screen then checks its own permission.
+        Permission::findOrCreate('access_admin_panel', 'web');
 
         $permissions = Permission::where('guard_name', 'web')->pluck('id')->toArray();
         $adminRole->syncPermissions($permissions);

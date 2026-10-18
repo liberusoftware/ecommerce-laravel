@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Store;
 use App\Support\EuVat;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -29,7 +30,7 @@ class ViesService
             return false;
         }
 
-        $storeCountry = strtoupper((string) config('ecommerce.store_country'));
+        $storeCountry = strtoupper((string) (Store::current()?->country_code ?: config('ecommerce.store_country')));
         if (! EuVat::isMemberState($storeCountry)) {
             return false;   // the store isn't in the EU — reverse charge doesn't apply
         }

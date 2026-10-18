@@ -3,24 +3,15 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\BrowsingHistory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StockNotification;
-use App\Services\UserHistoryRecommender;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
 {
-    protected $recommender;
-
-    public function __construct(UserHistoryRecommender $recommender)
-    {
-        $this->recommender = $recommender;
-    }
-
     /**
      * Register interest in an out-of-stock product. Guests supply an email;
      * authenticated users are linked by id. Duplicate pending subscriptions are
@@ -66,6 +57,8 @@ class ProductController extends Controller
             )
             ->allowedSorts('name', 'price', 'created_at');
 
+        $query->listed();
+
         if ($request->filled('keyword') || $request->filled('search')) {
             $keyword = $request->input('keyword') ?? $request->input('search');
             $query->where(function ($q) use ($keyword) {
@@ -90,7 +83,7 @@ class ProductController extends Controller
         $maxPrice = $request->input('max_price');
         $categoryId = $request->input('category');
 
-        $query = Product::query();
+        $query = Product::listed();
 
         if ($keyword) {
             $query->where(function ($q) use ($keyword) {
@@ -125,24 +118,9 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        // // Track browsing history
-        // if (auth()->check()) {
-        //     BrowsingHistory::create([
-        //         'user_id' => auth()->id(),
-        //         'product_id' => $product->id,
-        //     ]);
-        // }
+        abort_unless($product->isActive(), 404);
 
-        // // Get recommendations
-        // $recommendations = [];
-        // if (auth()->check()) {
-        //     $recommendations = $this->recommender->getRecommendations(auth()->user());
-        // }
-
-        // $metaTitle = $product->meta_title ?? $product->name;
-        // $metaDescription = $product->meta_description ?? $product->short_description;
-        // $metaKeywords = $product->meta_keywords;
-        // $canonicalUrl = route('products.show', ['category' => $category, 'product' => $product->slug]);
+        $product->load(['images', 'category']);
 
         return view('products.show', compact('product'));
     }

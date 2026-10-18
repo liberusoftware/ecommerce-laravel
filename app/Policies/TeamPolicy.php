@@ -4,105 +4,95 @@ namespace App\Policies;
 
 use App\Models\Team;
 use App\Models\User;
-use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Support\Installation;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 
+/**
+ * Teams are merchants. The platform operator manages all of them; a team's own
+ * owner and administrators manage its name and members, and nothing else's.
+ */
 class TeamPolicy
 {
-    use HandlesAuthorization;
-
-    /**
-     * Determine whether the user can view any models.
-     */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_store');
+        return $user->hasRole('super_admin');
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, Team $team): bool
     {
-        return $user->can('view_store');
+        return $user->hasRole('super_admin') || $user->belongsToTeam($team);
     }
 
     /**
-     * Determine whether the user can create models.
+     * Self-service sign-up as a merchant is what saas and marketplace installations
+     * are for. A single-merchant installation has no second merchant to sign up.
      */
     public function create(User $user): bool
     {
-        return $user->can('create_store');
+        return $user->hasRole('super_admin')
+            || $user->can('create_store')
+            || Installation::mode() !== Installation::SINGLE;
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, Team $team): bool
     {
-        return $user->can('update_store');
+        return StoreAccess::allows($user, TeamPermission::TEAM_MANAGE, $team);
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
+    public function addTeamMember(User $user, Team $team): bool
+    {
+        return StoreAccess::allows($user, TeamPermission::TEAM_MANAGE, $team);
+    }
+
+    public function updateTeamMember(User $user, Team $team): bool
+    {
+        return StoreAccess::allows($user, TeamPermission::TEAM_MANAGE, $team);
+    }
+
+    public function removeTeamMember(User $user, Team $team): bool
+    {
+        return StoreAccess::allows($user, TeamPermission::TEAM_MANAGE, $team);
+    }
+
+    /** A team with orders or invoices is a merchant's financial history. */
     public function delete(User $user, Team $team): bool
     {
-        return $user->can('delete_store') && ! $team->hasFinancialRecords();
+        return ($user->hasRole('super_admin') || $user->ownsTeam($team)) && ! $team->hasFinancialRecords();
     }
 
-    /**
-     * Determine whether the user can bulk delete.
-     */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_store');
+        return false;
     }
 
-    /**
-     * Determine whether the user can permanently delete.
-     */
     public function forceDelete(User $user, Team $team): bool
     {
-        return $user->can('force_delete_store');
+        return false;
     }
 
-    /**
-     * Determine whether the user can permanently bulk delete.
-     */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_store');
+        return false;
     }
 
-    /**
-     * Determine whether the user can restore.
-     */
     public function restore(User $user, Team $team): bool
     {
-        return $user->can('restore_store');
+        return $user->hasRole('super_admin');
     }
 
-    /**
-     * Determine whether the user can bulk restore.
-     */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_store');
+        return $user->hasRole('super_admin');
     }
 
-    /**
-     * Determine whether the user can replicate.
-     */
     public function replicate(User $user, Team $team): bool
     {
-        return $user->can('replicate_store');
+        return false;
     }
 
-    /**
-     * Determine whether the user can reorder.
-     */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_store');
+        return false;
     }
 }

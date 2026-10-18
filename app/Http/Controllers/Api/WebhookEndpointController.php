@@ -112,6 +112,6 @@ class WebhookEndpointController extends Controller
 
     private function authorizeStaff(Request $request): void
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless($request->user()?->hasRole('super_admin'), 403);
     }
 }
