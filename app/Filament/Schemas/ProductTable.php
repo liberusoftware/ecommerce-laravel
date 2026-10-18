@@ -3,6 +3,7 @@
 namespace App\Filament\Schemas;
 
 use App\Models\Product;
+use App\Services\StoreContext;
 use App\Support\Money;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -19,6 +20,8 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use League\Csv\Writer;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** The product list both panels use. */
 final class ProductTable
@@ -30,6 +33,7 @@ final class ProductTable
                 ImageColumn::make('featured_image')->label('')->disk('public')->square(),
                 TextColumn::make('name')->searchable()->sortable()
                     ->description(fn (Product $record) => $record->sku ? 'SKU '.$record->sku : null),
+                TextColumn::make('store.name')->label('Store')->sortable()->visible(fn () => StoreContext::isPlatform()),
                 TextColumn::make('sku')->label('SKU')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')->badge()->sortable()
                     ->formatStateUsing(fn (string $state) => Product::STATUSES[$state] ?? $state)
@@ -93,9 +97,29 @@ final class ProductTable
                     self::statusAction('publish', 'Make active', Product::STATUS_ACTIVE, 'heroicon-o-eye'),
                     self::statusAction('draft', 'Move to draft', Product::STATUS_DRAFT, 'heroicon-o-pencil'),
                     self::statusAction('archive', 'Archive', Product::STATUS_ARCHIVED, 'heroicon-o-archive-box'),
+                    BulkAction::make('export')
+                        ->label('Export CSV')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->action(fn (Collection $records) => self::export($records)),
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /** Streamed, never written to a disk the web server can serve. */
+    private static function export(Collection $records): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($records): void {
+            $csv = Writer::createFromStream(fopen('php://output', 'w'));
+            $csv->insertOne(['Name', 'SKU', 'Status', 'Category', 'Price', 'Sale price', 'Stock', 'Low-stock alert']);
+
+            foreach ($records as $product) {
+                $csv->insertOne([
+                    $product->name, $product->sku, $product->status, $product->category?->name,
+                    $product->price, $product->sale_price, $product->inventory_count, $product->low_stock_threshold,
+                ]);
+            }
+        }, 'products-'.date('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
     }
 
     private static function statusAction(string $name, string $label, string $status, string $icon): BulkAction

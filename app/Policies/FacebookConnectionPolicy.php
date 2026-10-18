@@ -2,46 +2,20 @@
 
 namespace App\Policies;
 
-use App\Models\FacebookConnection;
-use App\Models\User;
-use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Policies\Concerns\AuthorizesThroughTeam;
 
-/**
- * The App panel runs strictAuthorization, so this has to exist for the resource
- * to be reachable at all. Permission names follow the seeded Shield convention:
- * FacebookConnection => facebook::connection.
- */
+/** A catalogue integration is store configuration. */
 class FacebookConnectionPolicy
 {
-    use HandlesAuthorization;
+    use AuthorizesThroughTeam;
 
-    public function viewAny(User $user): bool
+    protected function area(): string
     {
-        return $user->can('view_any_facebook::connection');
+        return 'store';
     }
 
-    public function view(User $user, FacebookConnection $connection): bool
+    protected function platformSuffix(): string
     {
-        return $user->can('view_facebook::connection');
-    }
-
-    public function create(User $user): bool
-    {
-        return $user->can('create_facebook::connection');
-    }
-
-    public function update(User $user, FacebookConnection $connection): bool
-    {
-        return $user->can('update_facebook::connection');
-    }
-
-    public function delete(User $user, FacebookConnection $connection): bool
-    {
-        return $user->can('delete_facebook::connection');
-    }
-
-    public function deleteAny(User $user): bool
-    {
-        return $user->can('delete_any_facebook::connection');
+        return 'facebook::connection';
     }
 }

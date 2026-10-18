@@ -4,8 +4,8 @@ use App\Http\Controllers\AccountDataExportController;
 use App\Http\Controllers\AccountErasureController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ChatController;
-use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\Frontend\ProductCategoryController;
 use App\Http\Controllers\Frontend\ProductCollectionController;
@@ -20,9 +20,7 @@ use App\Http\Controllers\PaypalPaymentController;
 use App\Http\Controllers\PaypalWebhookController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\ReviewController;
-use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\SitemapController;
-use App\Http\Controllers\SiteSettingController;
 use App\Http\Controllers\StripePaymentController;
 use App\Http\Controllers\StripeWebhookController; // New controller for cart
 use App\Http\Controllers\SubscriptionController;
@@ -91,14 +89,6 @@ Route::post('/checkout/process', [CheckoutController::class, 'processCheckout'])
 // session-scoped quote the buyer then selects by id (server bills the stored amount).
 Route::post('/checkout/shipping-rates', [CheckoutController::class, 'shippingRates'])->name('checkout.shipping-rates');
 Route::get('/checkout/confirmation/{order}', [CheckoutController::class, 'showConfirmation'])->name('checkout.confirmation');
-
-// Shipping routes — store-wide config, admin-only (auth here, role checked in the controller)
-Route::middleware('auth')->group(function () {
-    Route::get('/shipping', [ShippingController::class, 'index'])->name('shipping.index');
-    Route::post('/shipping', [ShippingController::class, 'store'])->name('shipping.store');
-    Route::put('/shipping/{shippingMethod}', [ShippingController::class, 'update'])->name('shipping.update');
-    Route::delete('/shipping/{shippingMethod}', [ShippingController::class, 'destroy'])->name('shipping.destroy');
-});
 
 // Order history routes
 Route::middleware('auth')->group(function () {
@@ -191,13 +181,6 @@ Route::middleware('auth')->group(function () {
     // Invoice routes
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/invoices/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
-});
-
-// Site settings are store-wide config, admin-only (auth here, role checked in the controller)
-Route::middleware('auth')->group(function () {
-    Route::get('/site-settings', [SiteSettingController::class, 'index'])->name('site_settings.index');
-    Route::get('/site-settings/{id}/edit', [SiteSettingController::class, 'edit'])->name('site_settings.edit');
-    Route::post('/site-settings/{id}', [SiteSettingController::class, 'update'])->name('site_settings.update');
 });
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.xml');

@@ -3,24 +3,15 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\BrowsingHistory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\StockNotification;
-use App\Services\UserHistoryRecommender;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 class ProductController extends Controller
 {
-    protected $recommender;
-
-    public function __construct(UserHistoryRecommender $recommender)
-    {
-        $this->recommender = $recommender;
-    }
-
     /**
      * Register interest in an out-of-stock product. Guests supply an email;
      * authenticated users are linked by id. Duplicate pending subscriptions are
@@ -130,25 +121,6 @@ class ProductController extends Controller
         abort_unless($product->isActive(), 404);
 
         $product->load(['images', 'category']);
-
-        // // Track browsing history
-        // if (auth()->check()) {
-        //     BrowsingHistory::create([
-        //         'user_id' => auth()->id(),
-        //         'product_id' => $product->id,
-        //     ]);
-        // }
-
-        // // Get recommendations
-        // $recommendations = [];
-        // if (auth()->check()) {
-        //     $recommendations = $this->recommender->getRecommendations(auth()->user());
-        // }
-
-        // $metaTitle = $product->meta_title ?? $product->name;
-        // $metaDescription = $product->meta_description ?? $product->short_description;
-        // $metaKeywords = $product->meta_keywords;
-        // $canonicalUrl = route('products.show', ['category' => $category, 'product' => $product->slug]);
 
         return view('products.show', compact('product'));
     }

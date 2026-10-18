@@ -2,48 +2,32 @@
 
 namespace App\Filament\App\Pages;
 
-use Filament\Support\Enums\Width;
-use App\Models\User;
-use Filament\Facades\Filament;
+use App\Actions\Jetstream\CreateTeam as CreateTeamAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\RegisterTenant;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 
+/** A merchant signing up: their team, and on saas or marketplace installations its store. */
 class CreateTeam extends RegisterTenant
 {
-    protected string $view = 'filament.pages.create-team';
-
-    public $name = '';
-
-
-
-    protected Width|string|null $maxWidth = '2xl';
-
-    protected function getFormSchema(): array
+    public static function getLabel(): string
     {
-        return [
+        return 'Open your store';
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema->components([
             TextInput::make('name')
-                ->label('Team Name')
+                ->label('Store name')
                 ->required()
                 ->maxLength(255),
-        ];
+        ]);
     }
 
     protected function handleRegistration(array $data): Model
     {
-        return app(\App\Actions\Jetstream\CreateTeam::class)->create(auth()->user(), $data);
-    }
-
-    public function getBreadcrumbs(): array
-    {
-        return [
-            url()->current() => 'Create Team',
-        ];
-    }
-
-    public static function getLabel(): string
-    {
-        return 'Create Store';
+        return app(CreateTeamAction::class)->create(auth()->user(), $data);
     }
 }

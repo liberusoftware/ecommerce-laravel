@@ -75,7 +75,7 @@ class Store extends Model
     /** Tables whose rows belong to a store through store_id. */
     public const COMMERCE_TABLES = [
         'cart_items', 'chat_conversations', 'collections', 'coupons', 'customers', 'downloadable_products',
-        'groups', 'images', 'invoices', 'orders', 'payment_methods', 'product_categories', 'product_rating',
+        'invoices', 'orders', 'payment_methods', 'product_categories', 'product_rating',
         'product_reviews', 'products', 'shipping_methods', 'wishlists',
     ];
 

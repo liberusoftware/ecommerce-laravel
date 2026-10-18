@@ -3,11 +3,17 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Services\AnalyticsService;
+use App\Support\StoreAccess;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class InventoryStatsWidget extends BaseWidget
 {
+    public static function canView(): bool
+    {
+        return StoreAccess::platform(auth()->user(), 'view_any_product');
+    }
+
     protected static ?int $sort = 7;
 
     protected function getStats(): array

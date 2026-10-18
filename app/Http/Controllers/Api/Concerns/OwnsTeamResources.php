@@ -55,23 +55,4 @@ trait OwnsTeamResources
 
         abort_unless(in_array((int) $resource->team_id, $this->actorTeamIds($request), true), 404);
     }
-
-    /**
-     * The team a resource created through this request should belong to.
-     *
-     * The actor's current team, falling back to any team they are in. Null when
-     * they are in none, in which case the caller leaves the column alone and the
-     * database default stands — the same row that would have been written before
-     * this change.
-     */
-    protected function creationTeamId(Request $request): ?int
-    {
-        $user = $request->user();
-
-        if ($user === null) {
-            return null;
-        }
-
-        return $user->current_team_id ?? $this->actorTeamIds($request)[0] ?? null;
-    }
 }

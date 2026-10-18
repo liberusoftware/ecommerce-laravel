@@ -23,6 +23,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /** The product form both panels use, so the two cannot drift. Every field here is read by the storefront, cart or checkout. */
 final class ProductForm
@@ -274,7 +275,7 @@ final class ProductForm
                 Toggle::make('list_on_facebook')
                     ->label('List on Facebook')
                     ->helperText('Pushes this product into your Meta Catalog.')
-                    ->visible(fn () => FacebookConnection::forTeam(Filament::getTenant()?->getKey()) !== null),
+                    ->visible(fn (?Product $record) => FacebookConnection::forTeam($record?->team_id ?? Filament::getTenant()?->getKey()) !== null),
             ]);
     }
 
@@ -284,20 +285,25 @@ final class ProductForm
             ->schema([
                 Select::make('category_id')
                     ->label('Category')
-                    ->relationship('category', 'name')
+                    // Only this product's own store's categories, offered and accepted.
+                    ->relationship('category', 'name', modifyQueryUsing: fn ($query, Get $get, ?Product $record) => $query
+                        ->where('product_categories.store_id', self::storeOf($record, $get))
+                        ->orderBy('name'))
+                    ->getOptionLabelFromRecordUsing(fn (ProductCategory $category) => $category->parent
+                        ? $category->parent->name.' › '.$category->name
+                        : $category->name)
+                    ->rule(fn (Get $get, ?Product $record) => Rule::exists('product_categories', 'id')
+                        ->where('store_id', self::storeOf($record, $get)))
                     ->searchable()
                     ->preload()
                     ->createOptionForm([
                         TextInput::make('name')->required()->maxLength(255),
                     ])
                     ->createOptionUsing(function (array $data, Get $get, ?Product $record): int {
-                        $create = fn () => ProductCategory::create([
-                            'name' => $data['name'],
-                            'slug' => self::uniqueCategorySlug(Str::slug($data['name']) ?: 'category'),
-                        ]);
-                        $storeId = $record?->store_id ?? $get('store_id');
+                        $create = fn () => ProductCategory::create(['name' => $data['name']]);
+                        $storeId = self::storeOf($record, $get);
 
-                        return ($storeId ? StoreContext::writingTo((int) $storeId, $create) : $create())->getKey();
+                        return ($storeId ? StoreContext::writingTo($storeId, $create) : $create())->getKey();
                     }),
                 Select::make('tags')
                     ->multiple()
@@ -306,16 +312,11 @@ final class ProductForm
             ]);
     }
 
-    private static function uniqueCategorySlug(string $base): string
+    private static function storeOf(?Product $record, Get $get): ?int
     {
-        $slug = $base;
-        $n = 2;
+        $storeId = $record?->store_id ?? $get('store_id') ?? StoreContext::forWrites();
 
-        while (ProductCategory::withoutGlobalScopes()->where('slug', $slug)->exists()) {
-            $slug = $base.'-'.$n++;
-        }
-
-        return $slug;
+        return $storeId === null ? null : (int) $storeId;
     }
 
     /** Slugs and SKUs are unique within a store, matching the (store_id, column) indexes. */
@@ -326,7 +327,7 @@ final class ProductForm
                 return;
             }
 
-            $storeId = $record?->store_id ?? $get('store_id') ?? StoreContext::forWrites();
+            $storeId = self::storeOf($record, $get);
 
             $taken = Product::withoutGlobalScopes()
                 ->withTrashed()

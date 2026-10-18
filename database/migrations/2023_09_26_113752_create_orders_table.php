@@ -20,6 +20,8 @@ return new class extends Migration
             $table->integer('total_amount');
             $table->string('payment_status');
             $table->string('shipping_status');
+            // The currency the store charged in, kept if the store's changes later.
+            $table->char('currency_code', 3)->default('USD');
             $table->timestamps();
         });
     }

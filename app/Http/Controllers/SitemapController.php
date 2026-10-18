@@ -46,7 +46,7 @@ class SitemapController extends Controller
             ->get();
 
         foreach ($categories as $category) {
-            $urls[] = ['loc' => $root.'/products?category='.urlencode($category->slug)];
+            $urls[] = ['loc' => $root.route('categories.show', $category, absolute: false)];
         }
 
         $products = Product::listed()

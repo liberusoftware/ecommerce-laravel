@@ -223,9 +223,28 @@ class MerchantSettingsTest extends TestCase
         $this->get("/app/{$team->id}/products/create")->assertOk()->assertSee('SKU');
         $this->get("/app/{$team->id}/products/{$product->slug}/edit")->assertOk()->assertSee('Sale price');
         $this->get("/app/{$team->id}/shipping-methods")->assertOk();
-        $this->get("/admin/{$team->id}/manage-general-settings")->assertOk()->assertSee('Store on the main site');
-        $this->get("/admin/{$team->id}/stores/{$store->id}/edit")->assertOk()->assertSee('Business address');
-        $this->get("/admin/{$team->id}/products")->assertOk()->assertSee($product->name);
+        $this->get('/admin/manage-general-settings')->assertOk()->assertSee('Store on the main site');
+        $this->get("/admin/stores/{$store->id}/edit")->assertOk()->assertSee('Business address');
+        $this->get('/admin/products')->assertOk()->assertSee($product->name);
+    }
+
+    public function test_payment_credentials_are_never_shown_in_settings(): void
+    {
+        config([
+            'services.stripe.key' => 'pk_live_PUBLISHABLE', 'services.stripe.secret' => 'sk_live_TOPSECRET',
+            'services.paypal.client_id' => 'paypal-client', 'services.paypal.secret' => 'paypal_TOPSECRET',
+        ]);
+        Role::findOrCreate('super_admin', 'web');
+        $admin = User::factory()->withPersonalTeam()->create()->assignRole('super_admin');
+        $team = $admin->ownedTeams()->first();
+        Store::factory()->create(['team_id' => $team->id]);
+
+        foreach (["/app/{$team->id}/store-settings", '/admin/manage-general-settings'] as $url) {
+            $this->actingAs($admin)->get($url)->assertOk()
+                ->assertSee('configured')
+                ->assertDontSee('sk_live_TOPSECRET')
+                ->assertDontSee('paypal_TOPSECRET');
+        }
     }
 
     public function test_only_the_platform_operator_reaches_platform_settings(): void

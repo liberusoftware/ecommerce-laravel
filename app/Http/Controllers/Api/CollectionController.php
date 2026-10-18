@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\OwnsTeamResources;
 use App\Http\Controllers\Controller;
 use App\Models\ProductCollection;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -64,7 +66,7 @@ class CollectionController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product::collection'), 403);
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -85,10 +87,6 @@ class CollectionController extends Controller
         // Auto-generate slug if not provided
         if (empty($data['slug'])) {
             $data['slug'] = Str::slug($data['name']);
-        }
-
-        if ($teamId = $this->creationTeamId($request)) {
-            $data['team_id'] = $teamId;
         }
 
         $collection = ProductCollection::create($data);
@@ -128,7 +126,7 @@ class CollectionController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product::collection'), 403);
 
         $collection = ProductCollection::find($id);
 
@@ -176,7 +174,7 @@ class CollectionController extends Controller
      */
     public function addProducts(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product::collection'), 403);
 
         $collection = ProductCollection::find($id);
 
@@ -229,7 +227,7 @@ class CollectionController extends Controller
      */
     public function removeProducts(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product::collection'), 403);
 
         $collection = ProductCollection::find($id);
 
@@ -271,7 +269,7 @@ class CollectionController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product::collection'), 403);
 
         $collection = ProductCollection::find($id);
 

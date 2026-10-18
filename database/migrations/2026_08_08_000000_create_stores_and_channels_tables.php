@@ -32,6 +32,25 @@ return new class extends Migration
                 $table->foreignId('team_id')->nullable()->index();
                 $table->string('name');
                 $table->string('slug')->unique();
+
+                // What the merchant configures; deployment-wide values stay in config.
+                $table->string('logo_path')->nullable();
+                $table->string('tagline')->nullable();
+                $table->string('email')->nullable();
+                $table->string('phone', 50)->nullable();
+                $table->string('address_line1')->nullable();
+                $table->string('address_line2')->nullable();
+                $table->string('city', 100)->nullable();
+                $table->string('region', 100)->nullable();
+                $table->string('postal_code', 20)->nullable();
+                $table->char('country_code', 2)->nullable();
+                $table->char('currency_code', 3)->default('USD');
+                $table->string('locale', 10)->default('en');
+                $table->boolean('display_prices_with_tax')->default(false);
+                // Null means every gateway the deployment has credentials for.
+                $table->json('payment_gateways')->nullable();
+                $table->json('social_links')->nullable();
+                $table->string('footer_text', 500)->nullable();
                 $table->timestamps();
             });
         }

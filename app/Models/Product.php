@@ -64,7 +64,6 @@ class Product extends Model implements Orderable
         'visibility',
         'description',
         'short_description',
-        'long_description',
         'price',
         'sale_price',
         'category_id',
@@ -74,7 +73,6 @@ class Product extends Model implements Orderable
         'weight',
         'meta_title',
         'meta_description',
-        'meta_keywords',
         'is_downloadable',
         'downloadable_file',
         'download_limit',
@@ -178,56 +176,6 @@ class Product extends Model implements Orderable
         return $this->hasOne(DownloadableProduct::class);
     }
 
-    public function variants()
-    {
-        return $this->hasMany(ProductVariant::class);
-    }
-
-    public function options()
-    {
-        return $this->hasMany(ProductOption::class)->orderBy('position');
-    }
-
-    public function inventoryItems()
-    {
-        return $this->hasMany(InventoryItem::class);
-    }
-
-    public function analyticsEvents()
-    {
-        return $this->hasMany(AnalyticsEvent::class);
-    }
-
-    public function crossSells()
-    {
-        return $this->belongsToMany(
-            Product::class,
-            'product_cross_sells',
-            'product_id',
-            'cross_sell_product_id'
-        )->withTimestamps()->orderBy('sort_order');
-    }
-
-    public function upsells()
-    {
-        return $this->belongsToMany(
-            Product::class,
-            'product_upsells',
-            'product_id',
-            'upsell_product_id'
-        )->withTimestamps()->orderBy('sort_order');
-    }
-
-    public function relatedProducts()
-    {
-        return $this->belongsToMany(
-            Product::class,
-            'product_related',
-            'product_id',
-            'related_product_id'
-        )->withTimestamps()->orderBy('sort_order');
-    }
-
     public function taxClass()
     {
         return $this->belongsTo(TaxClass::class);
@@ -283,10 +231,11 @@ class Product extends Model implements Orderable
             }
         });
 
+        // Only an active product is in the Catalog: listing it off, or taking it out of sale, unlists it.
         static::saved(function ($product) {
-            if ($product->list_on_facebook) {
+            if ($product->list_on_facebook && $product->isActive()) {
                 SyncProductToFacebookCatalog::dispatch($product->id);
-            } elseif ($product->wasChanged('list_on_facebook')) {
+            } elseif ($product->wasChanged('list_on_facebook') || $product->wasChanged('status')) {
                 $product->dispatchFacebookUnlist();
             }
         });
@@ -327,7 +276,7 @@ class Product extends Model implements Orderable
             ->where('notification_type', 'back_in_stock');
 
         foreach ($pending as $subscriber) {
-            $notification = new ProductBackInStockNotification($this, $subscriber->variant);
+            $notification = new ProductBackInStockNotification($this);
 
             if ($subscriber->user_id && $subscriber->user) {
                 $subscriber->user->notify($notification);
@@ -425,11 +374,18 @@ class Product extends Model implements Orderable
         return $this->sale_price !== null && (float) $this->sale_price < (float) $this->price;
     }
 
-    /** What a shopper pays per unit before tax and discounts. */
+    /**
+     * What a shopper pays per unit before tax and discounts. Pay-what-you-want is
+     * the suggested price where the shopper did not name one (the web cart lets them).
+     */
     public function sellingPrice(): float
     {
         if ($this->isFree()) {
             return 0.0;
+        }
+
+        if ($this->isDonationBased()) {
+            return max((float) $this->minimum_price, (float) ($this->suggested_price ?? 0));
         }
 
         return $this->isOnSale() ? (float) $this->sale_price : (float) $this->price;
@@ -463,43 +419,6 @@ class Product extends Model implements Orderable
     public function isDonationBased(): bool
     {
         return $this->pricing_type === 'donation';
-    }
-
-    public function hasVariants(): bool
-    {
-        return $this->variants()->exists();
-    }
-
-    public function getDefaultVariant()
-    {
-        return $this->variants()->orderBy('position')->first();
-    }
-
-    public function getTotalInventory(): int
-    {
-        if ($this->hasVariants()) {
-            return $this->variants()->sum('inventory_quantity');
-        }
-
-        return $this->inventory_count;
-    }
-
-    public function getLowestPrice(): float
-    {
-        if ($this->hasVariants()) {
-            return $this->variants()->min('price') ?? $this->price;
-        }
-
-        return $this->price;
-    }
-
-    public function getHighestPrice(): float
-    {
-        if ($this->hasVariants()) {
-            return $this->variants()->max('price') ?? $this->price;
-        }
-
-        return $this->price;
     }
 
     public function getAverageRating(): float

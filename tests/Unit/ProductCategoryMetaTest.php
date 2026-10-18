@@ -18,12 +18,10 @@ class ProductCategoryMetaTest extends TestCase
             'description' => 'd',
             'meta_title' => 'Phones | Store',
             'meta_description' => 'Buy phones',
-            'meta_keywords' => 'phone,mobile',
         ]);
 
         $fresh = $category->fresh();
         $this->assertSame('Phones | Store', $fresh->meta_title);
         $this->assertSame('Buy phones', $fresh->meta_description);
-        $this->assertSame('phone,mobile', $fresh->meta_keywords);
     }
 }

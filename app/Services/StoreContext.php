@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Store;
+use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -18,6 +19,21 @@ class StoreContext
     private static bool $spanningAllStores = false;
 
     private static ?int $writingTo = null;
+
+    /**
+     * The platform panel (/admin), for a user it admits: reads span every store,
+     * and a write lands only in the store the caller names with writingTo().
+     * Guessing one from the operator's own team would file platform edits under
+     * whichever merchant they happen to belong to. What they may see or change is
+     * each resource's policy, against their platform permissions.
+     */
+    public static function isPlatform(): bool
+    {
+        $panel = Filament::getCurrentPanel();
+        $user = auth()->user();
+
+        return $panel?->getId() === 'admin' && $user !== null && $user->canAccessPanel($panel);
+    }
 
     /**
      * Stamp rows created inside the callback with a store the caller chose — a
@@ -96,6 +112,10 @@ class StoreContext
             return self::$writingTo;
         }
 
+        if (self::isPlatform()) {
+            return null;
+        }
+
         if ($storeId = ChannelResolver::current()?->store_id) {
             return (int) $storeId;
         }
@@ -132,6 +152,10 @@ class StoreContext
     public static function teamForWrites(): ?int
     {
         $storeId = self::forWrites();
+
+        if ($storeId === null && self::isPlatform()) {
+            return null;
+        }
 
         if ($storeId !== null) {
             $teamId = Store::query()->whereKey($storeId)->value('team_id');
@@ -170,6 +194,10 @@ class StoreContext
     {
         if ($storeId = ChannelResolver::current()?->store_id) {
             return [(int) $storeId];
+        }
+
+        if (self::isPlatform()) {
+            return null;
         }
 
         $teamId = self::panelTeamId();

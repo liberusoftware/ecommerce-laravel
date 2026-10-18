@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Channel;
 use App\Models\ChannelDomain;
 use App\Models\Coupon;
-use App\Models\Discount;
 use App\Models\Store;
 use App\Models\Team;
 use App\Services\ChannelResolver;
@@ -18,7 +17,7 @@ use Tests\TestCase;
 /**
  * A promo code belongs to the merchant who issued it.
  *
- * `coupons.code` and `discounts.code` were unique across the whole
+ * `coupons.code` was unique across the whole
  * installation, so the first merchant to issue `SUMMER10` took that code from
  * everybody else — enforced by a database error on a form with no way to
  * explain it. Wave 1.5 fixed the *reads*: a code entered on one storefront
@@ -106,25 +105,6 @@ class PromoCodeGrainTest extends TestCase
         $this->assertCount(1, $active, 'My coupon was withdrawn by another merchant\'s order volume.');
     }
 
-    public function test_two_teams_can_issue_the_same_discount_code(): void
-    {
-        $this->discountFor(Team::factory()->create(), 'SPRING');
-        $this->discountFor(Team::factory()->create(), 'SPRING');
-
-        $this->assertSame(2, Discount::query()->where('code', 'SPRING')->count());
-    }
-
-    public function test_one_team_cannot_issue_the_same_discount_code_twice(): void
-    {
-        $team = Team::factory()->create();
-
-        $this->discountFor($team, 'SPRING');
-
-        $this->expectException(QueryException::class);
-
-        $this->discountFor($team, 'SPRING');
-    }
-
     private function store(): Store
     {
         return Store::factory()->create(['team_id' => Team::factory()->create()->id]);
@@ -155,22 +135,6 @@ class PromoCodeGrainTest extends TestCase
         $coupon->save();
 
         return $coupon;
-    }
-
-    private function discountFor(Team $team, string $code): Discount
-    {
-        $discount = new Discount([
-            'title' => 'Spring sale',
-            'code' => $code,
-            'type' => Discount::TYPE_PERCENTAGE,
-            'value' => 10,
-            'target_type' => Discount::TARGET_ORDER,
-        ]);
-
-        $discount->team_id = $team->id;
-        $discount->save();
-
-        return $discount;
     }
 
     /** Orders link to coupons by code, so the linkage is written the way the app writes it. */

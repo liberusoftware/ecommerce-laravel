@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Refund;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,7 +19,7 @@ class OrderRefundController extends Controller
      */
     public function store(Request $request, Order $order): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, $order, 'update_order'), 403);
 
         $remaining = round((float) $order->total_amount - (float) $order->refund_total, 2);
         if ($remaining <= 0) {

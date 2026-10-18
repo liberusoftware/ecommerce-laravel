@@ -9,9 +9,9 @@ use Filament\Forms\Components\Select;
 use Illuminate\Validation\Rule;
 
 /**
- * Which of the team's stores a new record belongs to. Shown only when the team
- * has several; with one, it is that one. Without it, StoreContext cannot pick a
- * store for a team with several and the row would belong to none.
+ * Which store a new record belongs to: one of the team's in /app, any in /admin.
+ * Shown only when there are several to choose from; with one, it is that one.
+ * Without it, a team with several stores, or the platform, files the row under none.
  */
 final class StoreField
 {
@@ -25,6 +25,8 @@ final class StoreField
             ->rule(fn () => Rule::in(array_keys(self::storeOptions())))
             ->hidden(fn () => count(self::storeOptions()) < 2)
             ->dehydratedWhenHidden()
+            // Other fields' options (categories, parents) follow the chosen store.
+            ->live()
             ->visibleOn('create');
     }
 
@@ -49,8 +51,9 @@ final class StoreField
     /** @return array<int, string> */
     private static function storeOptions(): array
     {
+        // The platform panel files a record under any store; a merchant only under their team's.
         return Store::query()
-            ->where('team_id', Filament::getTenant()?->getKey())
+            ->unless(StoreContext::isPlatform(), fn ($query) => $query->where('team_id', Filament::getTenant()?->getKey()))
             ->orderBy('id')
             ->pluck('name', 'id')
             ->all();

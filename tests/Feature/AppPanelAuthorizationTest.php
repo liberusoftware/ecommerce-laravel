@@ -3,115 +3,143 @@
 namespace Tests\Feature;
 
 use App\Filament\App\Resources\Collections\CollectionResource;
+use App\Filament\App\Resources\Customers\CustomerResource;
+use App\Filament\App\Resources\FacebookConnections\FacebookConnectionResource;
+use App\Filament\App\Resources\Invoices\InvoiceResource;
+use App\Filament\App\Resources\Orders\OrderResource;
+use App\Filament\App\Resources\ProductCategories\ProductCategoryResource;
+use App\Filament\App\Resources\ProductRatings\ProductRatingResource;
+use App\Filament\App\Resources\ProductReviews\ProductReviewResource;
+use App\Filament\App\Resources\Products\ProductResource;
+use App\Filament\App\Resources\ShippingMethods\ShippingMethodResource;
+use App\Models\Team;
 use App\Models\User;
-use Database\Seeders\PermissionsTableSeeder;
-use Database\Seeders\RolesSeeder;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * ArticleResource and CollectionResource shipped with no policy. Filament's
- * get_authorization_response() returns allow() when no policy exists, so every
- * member of every team had full CRUD on Articles and ProductCollections —
- * CollectionResource's form includes price.
- *
- * The fix is two-sided and only works as a pair: a policy alone would have denied
- * everyone (including super_admin), because the Shield permission set had no
- * article_* or product::collection_* entries to grant. So these tests pin both
- * halves — the deny, the allow, and that the seeded super_admin still works.
- *
- * Permission suffixes follow the seeded convention: model basename, snake_cased,
- * with '_' replaced by '::' (Product => product, ProductCategory =>
- * product::category). Hence ProductCollection => product::collection.
- *
- * Article is gone — deleted rather than moved to the CMS that owns it, because
- * its table held `id` and `timestamps()` and nothing else (ADR 0012). The
- * paragraph above keeps its name because the fault was a *pair*, and a reader
- * who meets `article_*` in the Shield seeder should find out here why it has no
- * model rather than assume the seeder is wrong.
+ * Merchant-panel access comes from the user's role in the tenant team; the owner
+ * holds everything in their own team. A platform permission is platform-wide by
+ * design (see PlatformPanelTest), so it grants only the ability it names.
  */
 class AppPanelAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @return array<string, array{class-string, string}> */
-    public static function unprotectedResources(): array
+    /** @return array<string, array{class-string, string}> resource => the permission area it needs */
+    public static function resources(): array
     {
         return [
-            'collections' => [CollectionResource::class, 'product::collection'],
+            'products' => [ProductResource::class, 'catalogue'],
+            'categories' => [ProductCategoryResource::class, 'catalogue'],
+            'collections' => [CollectionResource::class, 'catalogue'],
+            'reviews' => [ProductReviewResource::class, 'catalogue'],
+            'ratings' => [ProductRatingResource::class, 'catalogue'],
+            'orders' => [OrderResource::class, 'orders'],
+            'invoices' => [InvoiceResource::class, 'orders'],
+            'customers' => [CustomerResource::class, 'customers'],
+            'shipping' => [ShippingMethodResource::class, 'store'],
+            'facebook' => [FacebookConnectionResource::class, 'store'],
         ];
     }
 
-    /** The gap: no policy meant Filament allowed everything. */
-    #[Test]
-    #[DataProvider('unprotectedResources')]
-    public function a_team_member_without_permissions_is_denied(string $resource, string $suffix): void
-    {
-        $user = User::factory()->withPersonalTeam()->create();
-        $this->actingAs($user);
+    /** Which areas each team role may manage and view. */
+    private const ROLES = [
+        'admin' => ['manage' => ['catalogue', 'orders', 'customers', 'store'], 'view' => ['catalogue', 'orders', 'customers', 'store']],
+        'catalogue' => ['manage' => ['catalogue'], 'view' => ['catalogue', 'orders']],
+        'orders' => ['manage' => ['orders', 'customers'], 'view' => ['orders', 'customers', 'catalogue']],
+        'viewer' => ['manage' => [], 'view' => ['catalogue', 'orders', 'customers']],
+    ];
 
-        $this->assertFalse($resource::canViewAny(), $resource.' must not be viewable without permission.');
-        $this->assertFalse($resource::canCreate(), $resource.' must not be creatable without permission.');
-        $this->assertFalse($resource::canDeleteAny(), $resource.' must not be bulk-deletable without permission.');
+    private function inTeam(Team $team, User $user): void
+    {
+        $this->actingAs($user);
+        Filament::setCurrentPanel(Filament::getPanel('app'));
+        Filament::setTenant($team);
     }
 
-    /** The other half: the policy must actually grant when the permission is held. */
     #[Test]
-    #[DataProvider('unprotectedResources')]
-    public function a_user_holding_the_permissions_is_allowed(string $resource, string $suffix): void
+    #[DataProvider('resources')]
+    public function the_team_owner_manages_everything_in_their_own_team(string $resource, string $area): void
     {
-        $user = User::factory()->withPersonalTeam()->create();
+        $owner = User::factory()->create();
+        $this->inTeam(Team::factory()->create(['user_id' => $owner->id]), $owner);
 
-        foreach (['view_any', 'create', 'delete_any'] as $affix) {
-            $user->givePermissionTo(Permission::findOrCreate($affix.'_'.$suffix, 'web'));
-        }
-
-        $this->actingAs($user);
-
-        $this->assertTrue($resource::canViewAny(), $resource.' must be viewable with view_any_'.$suffix);
-        $this->assertTrue($resource::canCreate(), $resource.' must be creatable with create_'.$suffix);
-        $this->assertTrue($resource::canDeleteAny(), $resource.' must be bulk-deletable with delete_any_'.$suffix);
+        $this->assertTrue($resource::canViewAny());
+        $this->assertTrue($resource::canCreate());
     }
 
-    /** A policy checking a permission nobody seeds would lock out the whole feature. */
     #[Test]
-    #[DataProvider('unprotectedResources')]
-    public function the_seeder_ships_the_permissions_the_policy_checks(string $resource, string $suffix): void
+    #[DataProvider('resources')]
+    public function each_team_role_gets_only_what_it_grants(string $resource, string $area): void
     {
-        $this->seed(PermissionsTableSeeder::class);
+        foreach (self::ROLES as $role => $grants) {
+            $team = Team::factory()->create();
+            $member = User::factory()->create();
+            $team->users()->attach($member, ['role' => $role]);
+            $this->inTeam($team, $member);
 
-        foreach ([
-            'view', 'view_any', 'create', 'update', 'delete', 'delete_any',
-            'force_delete', 'force_delete_any', 'restore', 'restore_any',
-            'replicate', 'reorder',
-        ] as $affix) {
-            $this->assertDatabaseHas('permissions', [
-                'name' => $affix.'_'.$suffix,
-                'guard_name' => 'web',
-            ]);
+            $this->assertSame(in_array($area, $grants['view'], true) && ($area !== 'store' || $role === 'admin'), $resource::canViewAny(), "{$role} viewAny on {$resource}");
+            $this->assertSame(in_array($area, $grants['manage'], true), $resource::canCreate(), "{$role} manage on {$resource}");
         }
     }
 
-    /**
-     * RolesSeeder syncs super_admin to every web permission, so appending to
-     * PermissionsTableSeeder is enough — there is no Gate::before bypass in this
-     * app, super_admin is only ever as powerful as the seeded permission set.
-     */
     #[Test]
-    #[DataProvider('unprotectedResources')]
-    public function the_seeded_super_admin_can_still_manage_the_resource(string $resource, string $suffix): void
+    #[DataProvider('resources')]
+    public function a_member_of_another_team_gets_nothing_here(string $resource, string $area): void
     {
-        $this->seed(PermissionsTableSeeder::class);
-        $this->seed(RolesSeeder::class);
+        $member = User::factory()->create();
+        Team::factory()->create()->users()->attach($member, ['role' => 'admin']);
+        $this->inTeam(Team::factory()->create(), $member);
 
-        $user = User::factory()->withPersonalTeam()->create()->assignRole('super_admin');
-        $this->actingAs($user);
+        $this->assertFalse($resource::canViewAny());
+        $this->assertFalse($resource::canCreate());
+    }
 
-        $this->assertTrue($resource::canViewAny(), 'super_admin must keep access to '.$resource);
-        $this->assertTrue($resource::canCreate(), 'super_admin must keep access to '.$resource);
-        $this->assertTrue($resource::canDeleteAny(), 'super_admin must keep access to '.$resource);
+    #[Test]
+    #[DataProvider('resources')]
+    public function a_platform_permission_for_something_else_grants_nothing_here(string $resource, string $area): void
+    {
+        $user = User::factory()->create();
+        foreach (['create_store', 'view_any_page', 'access_admin_panel'] as $name) {
+            $user->givePermissionTo(Permission::findOrCreate($name, 'web'));
+        }
+        $team = Team::factory()->create();
+        $team->users()->attach($user, ['role' => 'viewer']);
+        $this->inTeam($team, $user);
+
+        $this->assertFalse($resource::canCreate());
+    }
+
+    #[Test]
+    #[DataProvider('resources')]
+    public function the_platform_super_admin_manages_everything(string $resource, string $area): void
+    {
+        Role::findOrCreate('super_admin', 'web');
+        $admin = User::factory()->withPersonalTeam()->create()->assignRole('super_admin');
+        $this->inTeam($admin->ownedTeams()->first(), $admin);
+
+        $this->assertTrue($resource::canViewAny());
+        $this->assertTrue($resource::canCreate());
+    }
+
+    #[Test]
+    public function owning_or_administering_a_team_never_reaches_the_platform_panel(): void
+    {
+        $owner = User::factory()->create();
+        $team = Team::factory()->create(['user_id' => $owner->id]);
+        $admin = User::factory()->create();
+        $team->users()->attach($admin, ['role' => 'admin']);
+
+        foreach ([$owner, $admin] as $user) {
+            $this->assertFalse($user->canAccessPanel(Filament::getPanel('admin')));
+            $this->assertTrue($user->canAccessPanel(Filament::getPanel('app')));
+            $this->actingAs($user)->get('/admin')->assertForbidden();
+        }
     }
 }

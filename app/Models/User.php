@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\StoreAccess;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasDefaultTenant;
 use Filament\Models\Contracts\HasTenants;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Gate;
 use JoelButcher\Socialstream\HasConnectedAccounts;
 use Laravel\Cashier\Billable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -51,40 +53,24 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
      */
     use HasRoles { HasRoles::teams as permissionTeams; }
     use HasTeams { HasTeams::teams insteadof HasRoles; }
-
     use Notifiable;
 
     // use SetsProfilePhotoFromUrl;
     use TwoFactorAuthenticatable;
 
     /**
-     * Panel access.
-     *
-     * `admin` is the back-office for the whole store: super_admin only.
-     *
-     * `app` is a team's back-office — Products, Orders, Invoices, Customers,
-     * Collections — scoped by Filament to the current tenant. So the
-     * question it answers is "do you belong to a team?", and teams are handed out
-     * through TeamPolicy::create, which requires the `create_store` permission.
-     * That keeps the decision in one place instead of duplicating a role check here.
-     *
-     * This previously ended `return true; // TODO: Check panel and role`, so any
-     * authenticated user — no roles, no teams — was waved into /app. Only a
-     * separate bug in registration kept strangers from arriving; fixing that
-     * without this would have opened the door.
-     *
-     * Shoppers are not refused anything by this: their account area lives on the
-     * storefront (/orders, /wishlist, /invoices, /payment_methods).
-     *
-     * Note $this, not auth()->user(): Filament passes the user to authorize, and
-     * reading the session instead silently authorized the wrong person under
-     * impersonation or in queued contexts.
+     * Panel access. `admin` is the platform back-office: super_admin, or platform
+     * staff granted `access_admin_panel` (each screen then checks its own platform
+     * permission). Owning or administering a team never reaches it. `app` is a
+     * team's back-office, for its members, and for anyone TeamPolicy::create lets
+     * sign up as a merchant so they can reach store registration. What a member may do inside is their
+     * team role's business (StoreAccess), not this method's.
      */
     public function canAccessPanel(Panel $panel): bool
     {
         return match ($panel->getId()) {
-            'admin' => $this->hasRole('super_admin'),
-            'app' => $this->allTeams()->isNotEmpty(),
+            'admin' => $this->hasRole('super_admin') || StoreAccess::holdsPlatformPermission($this, 'access_admin_panel'),
+            'app' => $this->allTeams()->isNotEmpty() || Gate::forUser($this)->allows('create', Team::class),
             default => false,
         };
     }
@@ -181,11 +167,6 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->belongsTo(Team::class, 'current_team_id');
     }
 
-    public function browsingHistory(): HasMany
-    {
-        return $this->hasMany(BrowsingHistory::class);
-    }
-
     // A user's ratings are reached through their Customer since ADR 0008 —
     // `$user->customer->rating`. The relation that hung off `User` belonged to
     // the retired stack and pointed at a table that no longer exists.
@@ -203,20 +184,6 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     public function paymentMethods(): HasMany
     {
         return $this->hasMany(PaymentMethod::class);
-    }
-
-    public function customerSegments(): BelongsToMany
-    {
-        // The pivot tracks membership with its own `added_at` column and has no
-        // created_at/updated_at — so withPivot('added_at'), NOT withTimestamps()
-        // (which would select/write pivot timestamp columns that don't exist and error).
-        return $this->belongsToMany(CustomerSegment::class, 'customer_segment_members', 'user_id', 'segment_id')
-            ->withPivot('added_at');
-    }
-
-    public function customerMetric(): HasOne
-    {
-        return $this->hasOne(CustomerMetric::class);
     }
 
     /**
@@ -240,15 +207,5 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
             'last_name' => $parts[1] ?? '',
             'email' => $this->email,
         ]);
-    }
-
-    public function giftRegistries(): HasMany
-    {
-        return $this->hasMany(GiftRegistry::class);
-    }
-
-    public function productInteractions(): HasMany
-    {
-        return $this->hasMany(ProductInteraction::class);
     }
 }

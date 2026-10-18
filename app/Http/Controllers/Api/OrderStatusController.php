@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Exceptions\InvalidOrderTransitionException;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +20,7 @@ class OrderStatusController extends Controller
      */
     public function update(Request $request, Order $order): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, $order, 'update_order'), 403);
 
         $validated = $request->validate([
             'status' => 'required|in:processing,supplier_queued,supplier_failed,completed,cancelled',

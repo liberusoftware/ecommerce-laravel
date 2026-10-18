@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\InventoryLog;
 use App\Models\Product;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,7 @@ class InventoryController extends Controller
     public function adjustInventory(Request $request)
     {
         // Stock is store-wide config that the oversell guard depends on — staff only.
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, null, 'update_product'), 403);
 
         $validatedData = $request->validate([
             'product_id' => 'required|integer|exists:products,id',

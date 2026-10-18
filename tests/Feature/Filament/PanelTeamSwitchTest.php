@@ -50,15 +50,6 @@ class PanelTeamSwitchTest extends TestCase
         $this->assertSame($beta->id, (int) $user->fresh()->current_team_id);
     }
 
-    public function test_opening_a_team_in_the_admin_panel_switches_to_it(): void
-    {
-        [$user, , $beta] = $this->memberOfTwoTeams();
-
-        $this->get("/admin/{$beta->id}/products")->assertOk()->assertSee('Beta Lamp')->assertDontSee('Alpha Lamp');
-
-        $this->assertSame($beta->id, (int) $user->fresh()->current_team_id);
-    }
-
     public function test_a_team_the_user_does_not_belong_to_is_refused_and_not_switched_to(): void
     {
         [$user, $alpha] = $this->memberOfTwoTeams();

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\ReturnRequest;
+use App\Support\StoreAccess;
+use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,8 +23,9 @@ class ReturnRequestController extends Controller
     {
         $query = ReturnRequest::with(['items', 'order'])->latest();
 
-        if ($request->user()->hasRole(['super_admin', 'admin'])) {
-            $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
+        if (StoreAccess::allows($request->user(), TeamPermission::ORDERS_VIEW, null, 'view_any_order')) {
+            // Returns carry no store of their own; the order's store scope narrows them.
+            $query->whereHas('order')->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
         } else {
             $query->where('customer_id', $request->user()->id);
         }
@@ -36,7 +39,7 @@ class ReturnRequestController extends Controller
      */
     public function show(Request $request, ReturnRequest $returnRequest): JsonResponse
     {
-        $isStaff = $request->user()->hasRole(['super_admin', 'admin']);
+        $isStaff = StoreAccess::allows($request->user(), TeamPermission::ORDERS_VIEW, $returnRequest->order, 'view_any_order');
         abort_unless($isStaff || (int) $returnRequest->customer_id === (int) $request->user()->id, 404);
 
         return response()->json($returnRequest->load(['items', 'order']));
@@ -47,7 +50,7 @@ class ReturnRequestController extends Controller
      */
     public function markReceived(Request $request, ReturnRequest $returnRequest): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, $returnRequest->order, 'update_order'), 403);
 
         $returnRequest->markAsReceived();
 
@@ -113,7 +116,7 @@ class ReturnRequestController extends Controller
      */
     public function approve(Request $request, ReturnRequest $returnRequest): JsonResponse
     {
-        abort_unless($request->user()?->hasRole(['super_admin', 'admin']), 403);
+        abort_unless(StoreAccess::allows($request->user(), TeamPermission::ORDERS_MANAGE, $returnRequest->order, 'update_order'), 403);
 
         $refund = $returnRequest->approve($request->user()->id);
 

@@ -182,11 +182,11 @@
                     @endauth
                 </div>
 
-                @if (filled($product->description ?: $product->long_description))
+                @if (filled($product->description))
                     <div class="mt-10 border-t border-hairline pt-8">
                         <h2 class="heading-3">Description</h2>
                         <p class="prose-measure mt-3 text-muted">
-                            {{ $product->description ?: $product->long_description }}
+                            {{ $product->description }}
                         </p>
                     </div>
                 @endif

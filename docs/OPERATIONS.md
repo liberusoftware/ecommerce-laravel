@@ -10,9 +10,6 @@ Every command registered by the application, taken from `app/Console/Commands/`.
 
 | Command | Does |
 | --- | --- |
-| `segments:calculate` | Recomputes customer segment membership. `--segment=*` limits it to specific segment ids |
-| `metrics:update-customers` | Recomputes customer LTV, retention and related metrics. `--user=*` limits it to specific user ids |
-| `recommendations:generate` | Regenerates product recommendations. This is the *generator* half of the recommendation system; the read path is served inline |
 | `inventory:check-low-stock` | Scans inventory and raises low-stock notifications |
 | `webhooks:retry-failed` | Re-dispatches webhook deliveries that failed |
 | `shipping:prune-quotes` | Deletes expired shipping quotes. `--days=1` sets how far past expiry to prune |
@@ -63,28 +60,25 @@ The whole directory is deleted in wave 0 of the [migration plan](./MIGRATION_PLA
 
 ## The admin panels
 
-Two Filament panels are registered.
+| Panel | Path | Who | Scope |
+| --- | --- | --- | --- |
+| Platform | `/admin` | `super_admin`, or platform staff granted `access_admin_panel` | Every store; no tenancy |
+| Merchant | `/app` | Members of a team | The tenant team's stores |
 
-| Panel | Path | Tenancy |
-| --- | --- | --- |
-| Admin | `/admin` | `->tenant(Team::class, ownershipRelationship: 'team')` — the default panel |
-| App | `/app` | Same, plus `strictAuthorization()` |
+Both panels run `strictAuthorization()`: a resource without a policy throws rather than allowing.
 
-Resources cover catalogue and orders, customers and segments, discounts and coupons, gift registries, A/B tests, cart-recovery campaigns, menus and pages, chat, and the DropXL import.
+### Who may do what
 
-### What panel access actually gates
+Access is decided in one place, `App\Support\StoreAccess`, which every policy, storefront staff route and API controller uses.
 
-`canAccessPanel` gates the App panel on `$this->allTeams()->isNotEmpty()` — **panel access is team membership**, not a role.
+- **Platform layer.** `super_admin` may do anything. Other platform staff hold Spatie permissions named `{ability}_{model}` (`view_any_order`, `update_product::category`), granted through roles in the Shield role editor. A platform permission applies to every store; that is what makes it a platform permission. Users, roles, teams, stores, channels and domains are `super_admin` only.
+- **Merchant layer.** A team's owner holds every permission in that team. Other members hold the permissions of their team role (Jetstream roles, defined in `JetstreamServiceProvider`): `admin` (everything, including settings and members), `catalogue`, `orders` and `viewer`. A role in one team grants nothing in another, and owning or administering a team never reaches `/admin`.
 
-Beyond that, it gates very little. There are no `can*` overrides and no `Gate::` calls across any of the 105 Filament classes, and 17 of 99 model files have a policy. Several privileged operations are reachable by any panel user: inventory adjustment, supplier bulk import, and segment recompute among them.
+Products, categories, orders and coupons are one resource class each, registered in both panels. In `/admin` a new record must name its store; `/admin` never guesses one.
 
-**Treat panel access as full access** until the authorization work in [`CONFORMANCE.md` §3.1](./CONFORMANCE.md#31-critical) lands. That is a statement about the current build, not a design intent.
+### Merchant sign-up
 
-### Two resources may be broken
-
-`DiscountResource` and `MenuResource` are registered in a tenant-scoped panel while `discounts` and `menus` carry no `team_id` column. Opening `/admin/discounts` either raises an unknown-column error or lists every tenant's rows; **which one has not been established**, because it cannot be determined without a running instance.
-
-If you have one: open the page and record what happens on [#958](https://github.com/liberusoftware/ecommerce-laravel/issues/958). Both outcomes need fixing; only one is urgent.
+On `saas` and `marketplace` installations any signed-in user can open a store from `/app`; the team and its store are created together, and the owner can manage it immediately. A store has no domain until the platform maps one under Stores. On a `single` installation there is no self-service sign-up.
 
 ---
 
@@ -135,11 +129,7 @@ Check for `env()` outside `config/`. Under `config:cache`, `env()` returns `null
 
 ### A widget or resource does not appear
 
-One known cause remains, and it is wiring rather than permissions.
-
-`app/Filament/Resources/CustomerSegmentResource` is discovered by **neither** panel — both discover only `Filament/Admin/Resources` and `Filament/App/Resources`, and this sits directly under `Filament/Resources`.
-
-**Moving it is not the fix.** Both panels are tenant-scoped on `Team`, and `customer_segments` carries no `team_id` — so relocating the resource reproduces [#958](https://github.com/liberusoftware/ecommerce-laravel/issues/958) exactly, on a third table. It lands after the tenant scope does, in [wave 1.5](./MIGRATION_PLAN.md#wave-15--stores-channels-and-the-tenant-scope).
+Check the user's team role (merchant panel) or platform permissions (platform panel): navigation hides what the policy refuses. Platform pages and dashboard widgets each check their own permission (`view_any_order`, `view_any_product`, `view_any_customer`).
 
 Two entries previously listed here have been resolved:
 
@@ -148,12 +138,8 @@ Two entries previously listed here have been resolved:
 
 ---
 
-## Security notes for anyone running this today
+## Security notes
 
-Recorded here rather than only in the findings document, because they change how an instance should be deployed.
-
-**Every merchant's catalogue is currently readable across tenant boundaries** on three surfaces: the authenticated REST API, the anonymous GraphQL endpoint, and the anonymous Blade storefront and sitemap. The root cause is a tenant trait that declares a relation but no global scope. Full detail in [`CONFORMANCE.md` §6](./CONFORMANCE.md#6-security-findings); the fix ships in [wave 1.5](./MIGRATION_PLAN.md#wave-15--stores-channels-and-the-tenant-scope).
-
-**The sitemap is the one to act on first if you cannot wait for the fix.** It publishes every merchant's product URLs to search engines, and unlike the other two the harm persists after the fix until the index is re-crawled.
-
-**`admin` and `super_admin` are global roles, not per-team ones** — `config/permission.php:125` sets `'teams' => false`. An admin of one merchant is an admin of all of them.
+- A store's data is reachable only through its own hostname on the storefront and API (`ResolveChannel` runs before route-model binding), through its team's tenant in `/app`, or through `/admin` with a platform permission.
+- Global Spatie roles and permissions are platform-wide by definition. Grant them only to platform staff; merchant staff get team roles.
+- Webhook endpoints receive every store's order events and are `super_admin` only.

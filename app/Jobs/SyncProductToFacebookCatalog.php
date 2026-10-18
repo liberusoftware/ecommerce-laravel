@@ -38,7 +38,7 @@ class SyncProductToFacebookCatalog implements ShouldQueue
     {
         $product = Product::find($this->productId);
 
-        if (! $product || ! $product->list_on_facebook) {
+        if (! $product || ! $product->list_on_facebook || ! $product->isActive()) {
             return;
         }
 
@@ -48,9 +48,7 @@ class SyncProductToFacebookCatalog implements ShouldQueue
             return;
         }
 
-        [$requests, $listings] = $product->hasVariants()
-            ? $this->variantRequests($product)
-            : $this->simpleRequest($product);
+        [$requests, $listings] = $this->request($product);
 
         $result = $connection->catalog()->itemsBatch($requests);
 
@@ -76,43 +74,17 @@ class SyncProductToFacebookCatalog implements ShouldQueue
     }
 
     /** @return array{0: array<int, array>, 1: array<string, ProductFacebookListing>} */
-    private function simpleRequest(Product $product): array
+    private function request(Product $product): array
     {
         $listing = $product->facebookListings()->firstOrCreate(
-            ['product_variant_id' => null],
-            [
-                'retailer_id' => CatalogItemMapper::retailerIdForProduct($product),
-                'status' => 'pending',
-            ],
+            ['retailer_id' => CatalogItemMapper::retailerIdForProduct($product)],
+            ['status' => 'pending'],
         );
 
         return [
             [CatalogItemMapper::forProduct($product, $listing->retailer_id)],
             [$listing->retailer_id => $listing],
         ];
-    }
-
-    /** @return array{0: array<int, array>, 1: array<string, ProductFacebookListing>} */
-    private function variantRequests(Product $product): array
-    {
-        $groupId = CatalogItemMapper::itemGroupId($product);
-        $requests = [];
-        $listings = [];
-
-        foreach ($product->variants as $variant) {
-            $listing = $product->facebookListings()->firstOrCreate(
-                ['product_variant_id' => $variant->id],
-                [
-                    'retailer_id' => CatalogItemMapper::retailerIdForVariant($variant),
-                    'status' => 'pending',
-                ],
-            );
-
-            $requests[] = CatalogItemMapper::forVariant($product, $variant, $listing->retailer_id, $groupId);
-            $listings[$listing->retailer_id] = $listing;
-        }
-
-        return [$requests, $listings];
     }
 
     /** Per-item validation errors Meta returns inline for our retailer id. */

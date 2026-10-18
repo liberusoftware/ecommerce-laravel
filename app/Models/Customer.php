@@ -52,40 +52,6 @@ class Customer extends Model
         return $this->hasMany(ProductRating::class);
     }
 
-    public function groups()
-    {
-        return $this->belongsToMany(CustomerGroup::class, 'customer_group_memberships')
-            ->withPivot(['joined_at', 'expires_at'])
-            ->withTimestamps();
-    }
-
-    public function abandonedCarts()
-    {
-        return $this->hasMany(AbandonedCart::class);
-    }
-
-    public function giftCards()
-    {
-        return $this->hasMany(GiftCard::class);
-    }
-
-    public function analyticsEvents()
-    {
-        return $this->hasMany(AnalyticsEvent::class);
-    }
-
-    /**
-     * The groups this customer is currently in.
-     *
-     * The live-membership predicate lives on `CustomerGroup` — see the docblock
-     * on `constrainToLiveMemberships()` for what the ungrouped `or` here used
-     * to return, which was other people's groups.
-     */
-    public function getActiveGroupsAttribute()
-    {
-        return CustomerGroup::constrainToLiveMemberships($this->groups())->get();
-    }
-
     public function getTotalSpentAttribute(): float
     {
         return $this->orders()->where('payment_status', 'paid')->sum('total_amount');

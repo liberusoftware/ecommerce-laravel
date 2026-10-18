@@ -3,20 +3,27 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Models\Customer;
+use App\Support\StoreAccess;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 
 class CustomerGrowthWidget extends ChartWidget
 {
+    public static function canView(): bool
+    {
+        return StoreAccess::platform(auth()->user(), 'view_any_customer');
+    }
+
     protected ?string $heading = 'Customer Growth';
+
     protected static ?int $sort = 8;
 
     protected function getData(): array
     {
         $data = Customer::select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('COUNT(*) as count')
-            )
+            DB::raw('DATE(created_at) as date'),
+            DB::raw('COUNT(*) as count')
+        )
             ->where('created_at', '>=', now()->subDays(30))
             ->groupBy('date')
             ->orderBy('date')

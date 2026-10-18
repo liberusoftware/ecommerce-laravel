@@ -5,9 +5,12 @@ namespace App\Filament\App\Resources\Orders;
 use App\Filament\App\Resources\Orders\Pages\CreateOrder;
 use App\Filament\App\Resources\Orders\Pages\EditOrder;
 use App\Filament\App\Resources\Orders\Pages\ListOrders;
+use App\Filament\Schemas\StoreField;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\StoreContext;
+use App\Support\Money;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -15,8 +18,10 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class OrderResource extends Resource
@@ -33,10 +38,20 @@ class OrderResource extends Resource
         // line items, and status changes are header actions on EditOrder that
         // go through Order::transitionTo().
         return $schema->components([
+            StoreField::make(),
+
+            // The order's customer and products come from the order's own store.
             Select::make('customer_id')
                 ->label('Customer')
                 ->required()
-                ->options(fn () => Customer::pluck('first_name', 'id')->toArray())
+                ->searchable()
+                ->options(fn (Get $get, ?Order $record) => Customer::withoutGlobalScope('store')
+                    ->where('store_id', $record?->store_id ?? $get('store_id'))
+                    ->get()
+                    ->mapWithKeys(fn (Customer $c) => [$c->id => trim("{$c->first_name} {$c->last_name} <{$c->email}>")])
+                    ->all())
+                ->in(fn (Get $get, ?Order $record) => Customer::withoutGlobalScope('store')
+                    ->where('store_id', $record?->store_id ?? $get('store_id'))->pluck('id')->all())
                 ->disabledOn('edit'),
 
             DatePicker::make('order_date')
@@ -67,7 +82,8 @@ class OrderResource extends Resource
                         ->label('Product')
                         ->required()
                         ->searchable()
-                        ->options(fn () => Product::orderBy('name')->pluck('name', 'id')->toArray()),
+                        ->options(fn (Get $get) => self::sellableProducts($get('../../store_id')))
+                        ->in(fn (Get $get) => array_keys(self::sellableProducts($get('../../store_id')))),
                     TextInput::make('quantity')
                         ->required()
                         ->integer()
@@ -94,23 +110,50 @@ class OrderResource extends Resource
         ]);
     }
 
+    /** @return array<int, string> active products of one store */
+    private static function sellableProducts(mixed $storeId): array
+    {
+        return Product::withoutGlobalScope('store')
+            ->where('store_id', $storeId)
+            ->active()
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
     public static function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('customer.first_name')
-                ->label('Customer'),
-            TextColumn::make('order_date')
-                ->label('Order Date'),
+            TextColumn::make('id')->label('#')->sortable(),
+            TextColumn::make('store.name')
+                ->label('Store')
+                ->visible(fn () => StoreContext::isPlatform()),
+            TextColumn::make('customer_email')
+                ->label('Customer')
+                ->searchable()
+                ->description(fn (Order $record) => $record->customer ? trim($record->customer->first_name.' '.$record->customer->last_name) : null),
+            TextColumn::make('created_at')
+                ->label('Placed')
+                ->dateTime()
+                ->sortable(),
             TextColumn::make('total_amount')
-                ->label('Total Amount'),
+                ->label('Total')
+                ->money(fn (Order $record) => $record->currency_code ?: Money::currency())
+                ->sortable(),
             TextColumn::make('status')
-                ->label('Status'),
+                ->badge()
+                ->sortable(),
             TextColumn::make('payment_status')
-                ->label('Payment Status'),
+                ->label('Payment')
+                ->badge(),
             TextColumn::make('shipping_status')
-                ->label('Shipping Status'),
+                ->label('Shipping')
+                ->badge(),
         ])
-            ->filters([])
+            ->defaultSort('id', 'desc')
+            ->filters([
+                SelectFilter::make('status')->options(array_combine(array_keys(Order::TRANSITIONS), array_map('ucfirst', str_replace('_', ' ', array_keys(Order::TRANSITIONS))))),
+            ])
             ->recordActions([
                 EditAction::make(),
             ])

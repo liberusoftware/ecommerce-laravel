@@ -3,11 +3,18 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Services\AnalyticsService;
+use App\Support\StoreAccess;
 use Filament\Widgets\ChartWidget;
 
 class SalesTrendsChart extends ChartWidget
 {
+    public static function canView(): bool
+    {
+        return StoreAccess::platform(auth()->user(), 'view_any_order');
+    }
+
     protected ?string $heading = 'Sales Trends';
+
     protected static ?int $sort = 2;
 
     protected function getData(): array

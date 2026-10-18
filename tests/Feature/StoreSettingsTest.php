@@ -79,6 +79,15 @@ class StoreSettingsTest extends TestCase
             ->assertDontSee('hi@rival.test');
     }
 
+    public function test_another_stores_product_is_not_found_on_this_host(): void
+    {
+        $this->storefront('a.test');
+        $theirs = $this->productAt(Store::factory()->create(), ['name' => 'Their Thing']);
+
+        $this->get('http://a.test/products/'.$theirs->slug)->assertNotFound();
+        $this->post('http://a.test/cart/add/'.$theirs->slug)->assertNotFound();
+    }
+
     public function test_prices_use_the_stores_currency_and_locale(): void
     {
         $store = $this->storefront('euro.test', ['currency_code' => 'EUR', 'locale' => 'de_DE']);

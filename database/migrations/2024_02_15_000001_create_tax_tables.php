@@ -38,38 +38,26 @@ return new class extends Migration
         });
 
         // Add tax_class_id to products table
-        if (!Schema::hasColumn('products', 'tax_class_id')) {
+        if (! Schema::hasColumn('products', 'tax_class_id')) {
             Schema::table('products', function (Blueprint $table) {
                 $table->foreignId('tax_class_id')->nullable()->constrained()->nullOnDelete();
                 $table->boolean('tax_status')->default(true); // taxable or not
             });
         }
 
-        // Add tax fields to orders table
-        if (!Schema::hasColumn('orders', 'tax_total')) {
+        // The order's total tax is orders.tax_amount; this is its breakdown.
+        if (! Schema::hasColumn('orders', 'tax_lines')) {
             Schema::table('orders', function (Blueprint $table) {
-                $table->decimal('tax_total', 10, 2)->default(0);
-                $table->json('tax_lines')->nullable(); // detailed tax breakdown
+                $table->json('tax_lines')->nullable();
             });
         }
 
-        // Add tax to order items
-        if (!Schema::hasColumn('order_items', 'tax_amount')) {
-            Schema::table('order_items', function (Blueprint $table) {
-                $table->decimal('tax_amount', 10, 2)->default(0);
-                $table->decimal('tax_rate', 8, 4)->default(0);
-            });
-        }
     }
 
     public function down(): void
     {
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->dropColumn(['tax_amount', 'tax_rate']);
-        });
-
         Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn(['tax_total', 'tax_lines']);
+            $table->dropColumn('tax_lines');
         });
 
         Schema::table('products', function (Blueprint $table) {

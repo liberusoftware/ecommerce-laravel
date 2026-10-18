@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Store;
 use App\Services\DropxlService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +12,7 @@ use Tests\TestCase;
 class DropxlServiceTest extends TestCase
 {
     use RefreshDatabase;
+
     protected DropxlService $service;
 
     protected function setUp(): void
@@ -25,7 +27,7 @@ class DropxlServiceTest extends TestCase
             'services.dropxl.key' => 'test-key',
         ]);
 
-        $this->service = new DropxlService();
+        $this->service = new DropxlService;
     }
 
     // ──────────────────────────────────────────
@@ -147,7 +149,7 @@ class DropxlServiceTest extends TestCase
             'image_url' => null,
         ];
 
-        $result = $this->service->importProduct($dropxlProduct);
+        $result = $this->service->importProduct($dropxlProduct, Store::query()->value('id'));
 
         $this->assertTrue($result['success']);
         $this->assertNotNull($result['product']);
@@ -166,7 +168,7 @@ class DropxlServiceTest extends TestCase
             'category' => 'Gadgets',
         ];
 
-        $result = $this->service->importProduct($dropxlProduct);
+        $result = $this->service->importProduct($dropxlProduct, Store::query()->value('id'));
 
         $this->assertTrue($result['success']);
         $this->assertDatabaseHas('product_categories', ['name' => 'Gadgets']);
@@ -189,7 +191,7 @@ class DropxlServiceTest extends TestCase
             ], 200),
         ]);
 
-        $result = $this->service->importAll();
+        $result = $this->service->importAll(Store::query()->value('id'));
 
         $this->assertTrue($result['success']);
         $this->assertEquals(2, $result['imported']);
@@ -202,7 +204,7 @@ class DropxlServiceTest extends TestCase
             'https://api.dropxl.example/v1/products*' => Http::response('Bad Request', 400),
         ]);
 
-        $result = $this->service->importAll();
+        $result = $this->service->importAll(Store::query()->value('id'));
 
         $this->assertFalse($result['success']);
     }
@@ -222,7 +224,7 @@ class DropxlServiceTest extends TestCase
             ], 200),
         ]);
 
-        $result = $this->service->importByCategory('cat-99', 'widget');
+        $result = $this->service->importByCategory(Store::query()->value('id'), 'cat-99', 'widget');
 
         $this->assertTrue($result['success']);
         $this->assertEquals(1, $result['imported']);
@@ -242,7 +244,7 @@ class DropxlServiceTest extends TestCase
             'https://api.dropxl.example/v1/products*' => Http::response('Not Found', 404),
         ]);
 
-        $result = $this->service->importByCategory('cat-99');
+        $result = $this->service->importByCategory(Store::query()->value('id'), 'cat-99');
 
         $this->assertFalse($result['success']);
     }

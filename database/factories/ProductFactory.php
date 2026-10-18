@@ -29,7 +29,7 @@ class ProductFactory extends Factory
         return [
             'name' => $this->faker->unique()->words(3, true),
             'short_description' => $this->faker->paragraph(),
-            'long_description' => $this->faker->paragraph(),
+            'description' => $this->faker->paragraph(),
             'category_id' => ProductCategory::factory(),
             // No image: the storefront shows its local placeholder rather than
             // fetching a random external one.

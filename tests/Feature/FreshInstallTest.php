@@ -49,10 +49,13 @@ class FreshInstallTest extends TestCase
         $this->assertSame($team->id, (int) $admin->current_team_id);
         $this->assertTrue($admin->belongsToTeam($team));
 
-        foreach (['products', 'product_categories', 'collections', 'menus', 'menu_items'] as $table) {
+        foreach (['products', 'product_categories', 'collections'] as $table) {
             $this->assertGreaterThan(0, DB::table($table)->count(), "$table was not seeded.");
             $this->assertSame(0, DB::table($table)->where(fn ($q) => $q->whereNull('team_id')->orWhere('team_id', '!=', $team->id))->count(), "$table has rows outside the default team.");
         }
+
+        // Menus are platform content, rendered by slug on every storefront.
+        $this->assertGreaterThan(0, DB::table('menu_items')->count(), 'menu_items was not seeded.');
     }
 
     public function test_the_admin_panel_lists_the_seeded_catalogue(): void
@@ -60,9 +63,9 @@ class FreshInstallTest extends TestCase
         $team = $this->install()->currentTeam;
         $this->actingAs(User::where('email', 'admin@example.com')->first());
 
-        $this->get("/admin/{$team->id}/products")->assertOk()->assertSee($this->firstName('products'));
-        $this->get("/admin/{$team->id}/categories")->assertOk()->assertSee($this->firstName('product_categories'));
-        $this->get("/admin/{$team->id}/menus")->assertOk()->assertSee($this->firstName('menus'));
+        $this->get('/admin/products')->assertOk()->assertSee($this->firstName('products'));
+        $this->get('/admin/categories')->assertOk()->assertSee($this->firstName('product_categories'));
+        $this->get('/admin/menus')->assertOk()->assertSee($this->firstName('menus'));
     }
 
     public function test_the_app_panel_lists_the_seeded_catalogue(): void
