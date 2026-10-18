@@ -4,6 +4,8 @@ namespace App\Actions\Jetstream;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Installation;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Jetstream\Contracts\CreatesTeams;
@@ -15,7 +17,7 @@ class CreateTeam implements CreatesTeams
     /**
      * Validate and create a new team for the given user.
      *
-     * @param array<string, string> $input
+     * @param  array<string, string>  $input
      */
     public function create(User $user, array $input): Team
     {
@@ -27,10 +29,18 @@ class CreateTeam implements CreatesTeams
 
         AddingTeam::dispatch($user);
 
-        $user->switchTeam($team = $user->ownedTeams()->create([
-            'name'          => $input['name'],
-            'personal_team' => true,
-        ]));
+        $team = DB::transaction(function () use ($user, $input) {
+            $team = $user->ownedTeams()->create([
+                'name' => $input['name'],
+                'personal_team' => true,
+            ]);
+
+            Installation::provisionStoreFor($team);
+
+            return $team;
+        });
+
+        $user->switchTeam($team);
 
         return $team;
     }

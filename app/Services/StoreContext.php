@@ -44,7 +44,8 @@ class StoreContext
     }
 
     /**
-     * Narrow a query to the stores in scope, or leave it alone when none are.
+     * Narrow a query to the stores in scope, or leave it alone when there is
+     * nobody to scope by.
      *
      * Leaving it alone is the right answer off a storefront and off a panel —
      * a console command, a queued job — where scoping to nothing would mean an
@@ -58,7 +59,8 @@ class StoreContext
 
         $storeIds = self::inScope();
 
-        if ($storeIds !== []) {
+        // An empty list matches nothing: a panel user with no store to read.
+        if ($storeIds !== null) {
             $query->whereIn($column, $storeIds);
         }
     }
@@ -79,15 +81,13 @@ class StoreContext
         // deployment it is the only thing that can, and it is right even when
         // the shortcut below would also have produced an answer.
         //
-        // Falling through when their team owns none is not the same as
-        // borrowing another team's store. The shortcut only answers when the
-        // whole deployment has exactly one store — a single-tenant install,
-        // where there is no other merchant to borrow from and the alternative
-        // is a row invisible to the one storefront there is.
+        // A team that owns none falls back only to a store no team owns: the
+        // single store of a single-tenant install. One owned by another team
+        // is that merchant's, not a shared default.
         $teamId = self::panelTeamId();
 
-        if ($teamId !== null && ($storeId = self::theOnlyStoreOf($teamId)) !== null) {
-            return $storeId;
+        if ($teamId !== null) {
+            return self::theOnlyStoreOf($teamId) ?? self::theOnlyUnownedStore();
         }
 
         return self::theOnlyStoreOf(null);
@@ -136,9 +136,14 @@ class StoreContext
      * scoping does not reach — relation managers, widgets, custom pages, and
      * any bare `Model::query()` written in a panel.
      *
-     * @return list<int>
+     * A panel user whose team owns no store reads the store `forWrites()` would
+     * stamp — the only store on the deployment if no team owns it — and
+     * otherwise none.
+     * Null means nobody to scope by: off a storefront and off a panel.
+     *
+     * @return list<int>|null
      */
-    private static function inScope(): array
+    private static function inScope(): ?array
     {
         if ($storeId = ChannelResolver::current()?->store_id) {
             return [(int) $storeId];
@@ -146,7 +151,19 @@ class StoreContext
 
         $teamId = self::panelTeamId();
 
-        return $teamId === null ? [] : self::storeIdsOf($teamId);
+        if ($teamId === null) {
+            return null;
+        }
+
+        $storeIds = self::storeIdsOf($teamId);
+
+        if ($storeIds !== []) {
+            return $storeIds;
+        }
+
+        $onlyStore = self::theOnlyUnownedStore();
+
+        return $onlyStore === null ? [] : [$onlyStore];
     }
 
     /**
@@ -206,5 +223,17 @@ class StoreContext
             ->pluck('id');
 
         return $storeIds->count() === 1 ? (int) $storeIds->first() : null;
+    }
+
+    /**
+     * The deployment's single store when no team owns it, otherwise null.
+     */
+    private static function theOnlyUnownedStore(): ?int
+    {
+        $stores = Store::query()->orderBy('id')->limit(2)->get(['id', 'team_id']);
+
+        return $stores->count() === 1 && $stores->first()->team_id === null
+            ? (int) $stores->first()->id
+            : null;
     }
 }

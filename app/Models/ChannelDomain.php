@@ -28,7 +28,14 @@ class ChannelDomain extends Model
      */
     protected static function booted(): void
     {
-        static::saved(fn () => Cache::forget(TrustHosts::CACHE_KEY));
+        static::saved(function (ChannelDomain $domain) {
+            // A channel has one primary domain, used for canonical URLs.
+            if ($domain->is_primary) {
+                static::where('channel_id', $domain->channel_id)->whereKeyNot($domain->id)->update(['is_primary' => false]);
+            }
+
+            Cache::forget(TrustHosts::CACHE_KEY);
+        });
         static::deleted(fn () => Cache::forget(TrustHosts::CACHE_KEY));
     }
 

@@ -2,10 +2,10 @@
 
 namespace App\Services\PaymentGateways;
 
-use Exception;
 use App\Interfaces\PaymentGatewayInterface;
-use Stripe\StripeClient;
+use Exception;
 use Illuminate\Support\Facades\Config;
+use Stripe\StripeClient;
 
 class StripeGateway implements PaymentGatewayInterface
 {
@@ -38,9 +38,8 @@ class StripeGateway implements PaymentGatewayInterface
 
     public function processSubscription(string $planId, array $subscriptionDetails): array
     {
-        // Implement Stripe subscription logic here
-        // This is a placeholder implementation
-        return ['success' => true, 'subscription_id' => 'stripe_sub_' . uniqid()];
+        // Not wired to Stripe. Fail rather than report a subscription that was never created.
+        return ['success' => false, 'error' => 'Stripe subscriptions are not implemented through this gateway.'];
     }
 
     public function refundPayment(string $transactionId, float $amount): array

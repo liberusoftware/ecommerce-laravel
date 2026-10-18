@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Role;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +15,14 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        $existing = User::where('email', 'admin@example.com')->first();
+
+        if ($existing) {
+            $existing->assignRole(Role::where('name', 'super_admin')->firstOrFail());
+
+            return;
+        }
+
         $configured = config('seeding.admin_password');
 
         // A generated password is only usable if it is printed, and printing it
@@ -39,9 +46,6 @@ class UserSeeder extends Seeder
             'password' => Hash::make($adminPassword),
             'email_verified_at' => now(),
         ]);
-
-        $team = Team::firstOrFail();
-        $adminUser->teams()->syncWithoutDetaching([$team->id]);
 
         $role = Role::where('name', 'super_admin')->firstOrFail();
         $adminUser->assignRole($role);

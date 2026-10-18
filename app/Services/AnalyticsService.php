@@ -95,11 +95,12 @@ class AnalyticsService
         $startDate = $startDate ?? now()->subDays(30);
         $endDate = $endDate ?? now();
 
-        $topProducts = DB::table('order_items')
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->whereBetween('orders.order_date', [$startDate, $endDate])
-            ->where('orders.payment_status', 'paid')
+        $topProducts = Product::query()
+            ->join('order_items', 'order_items.product_id', '=', 'products.id')
+            ->whereIn('order_items.order_id', Order::query()
+                ->select('orders.id')
+                ->whereBetween('orders.order_date', [$startDate, $endDate])
+                ->where('orders.payment_status', 'paid'))
             ->select(
                 'products.id',
                 'products.name',
@@ -109,6 +110,7 @@ class AnalyticsService
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('total_revenue')
             ->limit($limit)
+            ->toBase()
             ->get();
 
         return $topProducts->toArray();
@@ -142,14 +144,17 @@ class AnalyticsService
         // Customer segmentation by order count
         $customerSegments = DB::query()
             ->fromSub(
-                DB::table('customers')
+                Customer::query()
                     // Count only paid orders — pending/failed/cancelled orders would
                     // otherwise inflate a customer into a higher segment. Keep it in the
                     // JOIN (not a WHERE) so customers with no paid orders still show as 'No Orders'.
-                    ->leftJoin('orders', function ($join) {
-                        $join->on('customers.id', '=', 'orders.customer_id')
-                            ->where('orders.payment_status', '=', 'paid');
-                    })
+                    ->leftJoinSub(
+                        Order::query()->select('orders.id', 'orders.customer_id')->where('orders.payment_status', 'paid'),
+                        'orders',
+                        'customers.id',
+                        '=',
+                        'orders.customer_id'
+                    )
                     ->select(
                         'customers.id',
                         DB::raw("
@@ -179,8 +184,13 @@ class AnalyticsService
             // Net of refunds — refunded orders stay payment_status='paid'.
             DB::raw('SUM(orders.total_amount - COALESCE(orders.refund_total, 0)) as lifetime_value')
         )
-            ->join('orders', 'customers.id', '=', 'orders.customer_id')
-            ->where('orders.payment_status', 'paid')
+            ->joinSub(
+                Order::query()->select('orders.id', 'orders.customer_id', 'orders.total_amount', 'orders.refund_total')->where('orders.payment_status', 'paid'),
+                'orders',
+                'customers.id',
+                '=',
+                'orders.customer_id'
+            )
             ->groupBy('customers.id', 'customers.first_name', 'customers.last_name', 'customers.email')
             ->orderByDesc('lifetime_value')
             ->limit(10)

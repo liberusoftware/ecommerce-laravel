@@ -2,8 +2,10 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Customer;
+use App\Models\ProductRating;
+use App\Models\ProductReview;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class CustomerPolicy
@@ -47,7 +49,13 @@ class CustomerPolicy
      */
     public function delete(User $user, Customer $customer): bool
     {
-        return $user->can('delete_customer');
+        // A customer's orders and invoices outlive them; personal data is
+        // removed through GDPR erasure, which anonymises instead.
+        return $user->can('delete_customer')
+            && ! $customer->orders()->exists()
+            && ! $customer->invoices()->exists()
+            && ! ProductReview::withoutGlobalScopes()->where('customer_id', $customer->id)->exists()
+            && ! ProductRating::withoutGlobalScopes()->where('customer_id', $customer->id)->exists();
     }
 
     /**

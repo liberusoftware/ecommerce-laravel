@@ -20,17 +20,17 @@ class HomeController extends Controller
      */
     public function index(): View
     {
-        // A category with nothing in it is a dead end, so it is never offered as a
-        // way into the catalogue. The count is real data and gets rendered.
-        //
-        // whereHas, not having('products_count', '>', 0): withCount builds a
-        // correlated subquery rather than an aggregate, so SQLite rejects HAVING
-        // outright while MySQL would quietly accept it. EXISTS is portable.
+        // Top-level categories, each counting its subcategories' products too. An
+        // empty category is a dead end, so it is never offered.
         $categories = ProductCategory::query()
+            ->topLevel()
             ->withCount('products')
-            ->whereHas('products')
+            ->with(['children' => fn ($query) => $query->withCount('products')])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->each(fn (ProductCategory $category) => $category->products_count += $category->children->sum('products_count'))
+            ->filter(fn (ProductCategory $category) => $category->products_count > 0)
+            ->values();
 
         // withCount/withAvg keep the card's rating block from firing two queries
         // per product across the grid.

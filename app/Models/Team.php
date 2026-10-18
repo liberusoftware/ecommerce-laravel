@@ -46,6 +46,18 @@ class Team extends JetstreamTeam
         ];
     }
 
+    /** Orders and invoices cascade with the team, so a team that has any must not be deleted. */
+    public function hasFinancialRecords(): bool
+    {
+        return Order::withoutGlobalScopes()->where('team_id', $this->id)->exists()
+            || Invoice::withoutGlobalScopes()->where('team_id', $this->id)->exists();
+    }
+
+    public function stores(): HasMany
+    {
+        return $this->hasMany(Store::class);
+    }
+
     public function customers(): HasMany
     {
         return $this->hasMany(Customer::class);

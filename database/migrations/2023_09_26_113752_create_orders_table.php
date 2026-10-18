@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create($this->table, function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained()->onUpdate('cascade')->onDelete('cascade');
+            $table->foreignId('customer_id')->constrained()->onUpdate('cascade')->restrictOnDelete();
             $table->string('order_date');
             $table->integer('total_amount');
             $table->string('payment_status');

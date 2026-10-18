@@ -2,10 +2,10 @@
 
 namespace App\Filament\Admin\Resources\Stores\Pages;
 
-use Filament\Actions\DeleteAction;
 use App\Filament\Admin\Resources\Stores\StoreResource;
-use Filament\Actions;
+use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Arr;
 
 class EditStore extends EditRecord
 {
@@ -16,5 +16,10 @@ class EditStore extends EditRecord
         return [
             DeleteAction::make(),
         ];
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return Arr::except($data, ['team_id']);
     }
 }

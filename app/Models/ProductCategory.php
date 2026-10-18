@@ -37,6 +37,27 @@ class ProductCategory extends Model
         return $this->belongsTo(static::class, 'parent_category_id');
     }
 
+    public function children()
+    {
+        return $this->hasMany(static::class, 'parent_category_id');
+    }
+
+    public function scopeTopLevel($query)
+    {
+        return $query->whereNull('parent_category_id');
+    }
+
+    /**
+     * This category and its direct subcategories: a category page lists the
+     * products of both. The storefront hierarchy is two levels deep.
+     *
+     * @return list<int>
+     */
+    public function listingCategoryIds(): array
+    {
+        return [$this->id, ...$this->children()->pluck('id')->all()];
+    }
+
     public function getRouteKeyName()
     {
         return 'slug';

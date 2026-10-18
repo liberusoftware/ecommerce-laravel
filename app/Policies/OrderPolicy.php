@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class OrderPolicy
@@ -47,7 +47,11 @@ class OrderPolicy
      */
     public function delete(User $user, Order $order): bool
     {
-        return $user->can('delete_order');
+        // Only an order that never took payment: a paid order is a financial
+        // record, and a pending one still holds reserved stock (cancel it first).
+        return $user->can('delete_order')
+            && in_array($order->status, [Order::STATUS_FAILED, Order::STATUS_CANCELLED], true)
+            && $order->payment_status !== 'paid';
     }
 
     /**

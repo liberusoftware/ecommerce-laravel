@@ -1,6 +1,24 @@
 <?php
 
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Installation
+    |--------------------------------------------------------------------------
+    |
+    | How this installation operates, chosen once by whoever deploys it:
+    | 'single' (one store), 'saas' (merchants run their own stores) or
+    | 'marketplace' (sellers share a marketplace). Each team has one store
+    | unless multiple stores per team are enabled; a single-store
+    | installation has one store in total.
+    |
+    */
+
+    'installation' => [
+        'mode' => env('ECOMMERCE_MODE', 'single'),
+        'multiple_stores_per_team' => (bool) env('ECOMMERCE_MULTIPLE_STORES_PER_TEAM', false),
+    ],
     /*
     |--------------------------------------------------------------------------
     | Tax Settings

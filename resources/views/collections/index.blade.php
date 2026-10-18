@@ -1,30 +1,34 @@
 @extends('layouts.app')
 
+@section('title', 'Collections — '.config('app.name'))
+
 @section('content')
-<div class="container">
-    <div class="row">
-        @if($collections->count() > 0)
-            @foreach($collections as $collection)
-                <div class="col-md-4 mb-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ $collection->name }}</h5>
-                            <p class="card-text">{{ $collection->description }}</p>
-                            <p class="text-muted">Products: {{ number_format($collection->product_count) }}</p>
-                        </div>
-                    </div>
-                </div>
+<div class="page-container py-10">
+    <header class="border-b border-hairline pb-8">
+        <h1 class="heading-2">Collections</h1>
+        <p class="mt-2 text-label text-muted">Curated selections from across the catalogue.</p>
+    </header>
+
+    @if ($collections->isEmpty())
+        <x-empty-state class="mt-10" title="No collections yet" />
+    @else
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($collections as $collection)
+                <a href="{{ route('collections.show', $collection) }}" class="card card-hover block p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+                    <h2 class="text-lead font-semibold text-ink">{{ $collection->name }}</h2>
+                    @if ($collection->description)
+                        <p class="mt-2 text-label text-muted">{{ $collection->description }}</p>
+                    @endif
+                    <p class="mt-4 text-caption text-muted">
+                        <span class="data">{{ $collection->products_count }}</span> {{ Str::plural('product', $collection->products_count) }}
+                    </p>
+                </a>
             @endforeach
-        @else
-            <div class="col-12">
-                <p>No collections available.</p>
-            </div>
-        @endif
-    </div>
-    <div class="row">
-        <div class="col-12 d-flex justify-content-center">
-            {{ $collections->links() }}
         </div>
-    </div>
+
+        @if ($collections->hasPages())
+            <div class="mt-12">{{ $collections->links() }}</div>
+        @endif
+    @endif
 </div>
 @endsection
