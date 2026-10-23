@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use App\Traits\IsStoreScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
@@ -32,8 +34,6 @@ class Invoice extends Model
      */
     public static function generateForOrder(Order $order): self
     {
-        $order->loadMissing('items');
-
         $invoice = static::firstOrNew(['order_id' => $order->id]);
 
         if (! $invoice->exists) {
@@ -47,15 +47,6 @@ class Invoice extends Model
                 'team_id' => $order->team_id,
                 'store_id' => $order->store_id,
             ])->save();
-        }
-
-        if ($invoice->wasRecentlyCreated) {
-            foreach ($order->items as $item) {
-                $invoice->products()->attach($item->product_id, [
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
-                ]);
-            }
         }
 
         return $invoice;
@@ -94,9 +85,18 @@ class Invoice extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function products()
+    /**
+     * What was invoiced: the order's own lines, which are a frozen snapshot of
+     * name, choices and price, never the live catalogue.
+     */
+    public function lines(): HasMany
     {
-        return $this->belongsToMany(Product::class)->withPivot('quantity', 'price');
+        return $this->hasMany(OrderItem::class, 'order_id', 'order_id')->orderBy('id');
+    }
+
+    public function currency(): string
+    {
+        return $this->order?->currency_code ?? Money::currency();
     }
 
     public function team()
