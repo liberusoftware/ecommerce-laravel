@@ -131,13 +131,15 @@ Payment credentials never appear in either settings screen; the screens show onl
 
 ## Rebuilding a development database
 
-The repository is pre-production and edits migrations in place rather than adding corrective ones, so an existing database does not pick up a changed migration. Rebuild it:
+The repository is pre-production and edits migrations in place rather than adding corrective ones, so an existing database does not pick up a changed migration. The supported installation path for the first release is a **fresh database**: `php artisan migrate` on an empty schema, which is what `setup.sh`, the Docker install and the `Install` CI workflow do.
+
+A database migrated before the consolidation cannot be upgraded in place. `php artisan migrate` on one stops at `2026_10_23_000000_refuse_a_pre_release_schema` with an error naming the missing columns, before anything is written, rather than carrying on against a schema that, among other things, deletes order lines along with their product. Rebuild it:
 
 ```bash
 php artisan migrate:fresh --seed
 ```
 
-This drops every table. Seeding is safe to repeat on the rebuilt database.
+This drops every table, data included. There is no upgrade path for data in such a database; export anything worth keeping first. Seeding is safe to repeat on the rebuilt database.
 
 ## After installation
 

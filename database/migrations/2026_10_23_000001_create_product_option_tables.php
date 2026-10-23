@@ -35,7 +35,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_option_group_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('position')->default(0);
-            $table->unique(['product_id', 'product_option_group_id']);
+            $table->unique(['product_id', 'product_option_group_id'], 'product_option_group_product_unique');
         });
     }
 
