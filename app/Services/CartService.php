@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -102,18 +103,16 @@ class CartService
     }
 
     /**
-     * Add to the cart, or add to what is already there.
-     *
-     * The price is taken from the product now and kept, which is what the
-     * session cart did: a price change between adding and checking out is not
-     * something to spring on somebody at the payment step.
+     * Add to the cart, or add to what is already there. The whole line takes
+     * the current price; checkout refuses a line whose price has since moved.
      */
     public function add(Product $product, int $quantity, ?float $unitPrice = null): void
     {
+        $price = $unitPrice ?? $product->sellingPrice();
         $item = $this->query()->where('product_id', $product->id)->first();
 
         if ($item !== null) {
-            $item->increment('quantity', $quantity);
+            $item->increment('quantity', $quantity, ['price' => $price]);
 
             return;
         }
@@ -121,8 +120,14 @@ class CartService
         CartItem::create($this->owner() + [
             'product_id' => $product->id,
             'quantity' => $quantity,
-            'price' => $unitPrice ?? $product->sellingPrice(),
+            'price' => $price,
         ]);
+    }
+
+    /** @return Collection<int, CartItem> */
+    public function items(): Collection
+    {
+        return $this->query()->with('product')->get();
     }
 
     public function setQuantity(int $productId, int $quantity): void

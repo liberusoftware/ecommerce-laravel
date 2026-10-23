@@ -171,6 +171,12 @@ class CheckoutController extends Controller
             }
         }
 
+        try {
+            $this->checkoutService->assertCartPricesCurrent($this->cart->items());
+        } catch (CheckoutException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
         // Calculate total amount
         $subtotal = collect($cart)->sum(function ($item) {
             return $item['price'] * $item['quantity'];

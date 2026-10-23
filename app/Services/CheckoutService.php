@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\CheckoutException;
 use App\Factories\PaymentGatewayFactory;
 use App\Jobs\DispatchDropshippingOrder;
+use App\Models\CartItem;
 use App\Models\Coupon;
 use App\Models\InventoryLog;
 use App\Models\Order;
@@ -46,6 +47,45 @@ class CheckoutService
         if (Product::active()->whereKey($productIds)->count() !== $productIds->count()) {
             throw new CheckoutException('Some items in your cart are no longer available.');
         }
+    }
+
+    /**
+     * Brings every line to the catalogue's current price. If any line moved, the
+     * cart is left corrected and checkout refuses, so the shopper sees the new
+     * total before anything is charged.
+     *
+     * @param  iterable<CartItem>  $items
+     */
+    public function assertCartPricesCurrent(iterable $items): void
+    {
+        $changed = false;
+
+        foreach ($items as $item) {
+            if ($item->product === null) {
+                continue;
+            }
+
+            $current = $this->currentUnitPrice($item->product, (float) $item->price);
+
+            if (abs($current - (float) $item->price) >= 0.005) {
+                $item->update(['price' => $current]);
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            throw new CheckoutException('Prices in your cart have changed. Please review your cart and check out again.');
+        }
+    }
+
+    /** A pay-what-you-want line keeps the shopper's amount unless the minimum has risen past it. */
+    private function currentUnitPrice(Product $product, float $linePrice): float
+    {
+        if ($product->isDonationBased()) {
+            return max($linePrice, (float) $product->minimum_price);
+        }
+
+        return round($product->sellingPrice(), 2);
     }
 
     /** The store must accept the gateway the shopper chose. */
