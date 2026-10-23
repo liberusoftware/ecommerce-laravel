@@ -53,7 +53,6 @@ class Product extends Model implements Orderable
     protected $attributes = [
         'status' => self::STATUS_ACTIVE,
         'visibility' => self::VISIBILITY_VISIBLE,
-        'track_inventory' => true,
         'inventory_count' => 0,
         'low_stock_threshold' => 0,
     ];
@@ -212,6 +211,13 @@ class Product extends Model implements Orderable
 
     protected static function booted(): void
     {
+        // A new product's stock follows its kind unless the caller says otherwise:
+        // physical goods are counted, downloads are not. Once stored, the choice
+        // is the merchant's and nothing changes it behind their back.
+        static::creating(function (Product $product) {
+            $product->track_inventory ??= ! $product->is_downloadable;
+        });
+
         // Only on create: a product's URL does not change because it was renamed.
         static::creating(function (Product $product) {
             if (empty($product->slug)) {
@@ -406,7 +412,7 @@ class Product extends Model implements Orderable
 
     public function tracksInventory(): bool
     {
-        return (bool) $this->track_inventory;
+        return (bool) ($this->track_inventory ?? ! $this->is_downloadable);
     }
 
     public function isInStock(): bool

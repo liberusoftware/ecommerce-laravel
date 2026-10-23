@@ -104,7 +104,7 @@ class StockTrackingTest extends TestCase
     public function test_web_checkout_reserves_and_logs_nothing_for_an_untracked_product(): void
     {
         $cod = $this->untracked();
-        $tracked = Product::factory()->create(['price' => 1.10, 'inventory_count' => 4, 'is_downloadable' => true]);
+        $tracked = Product::factory()->create(['price' => 1.10, 'inventory_count' => 4, 'is_downloadable' => true, 'track_inventory' => true]);
         $this->post(route('cart.add', $cod), ['quantity' => 3]);
         $this->post(route('cart.add', $tracked), ['quantity' => 2]);
 
@@ -145,7 +145,7 @@ class StockTrackingTest extends TestCase
 
     public function test_a_tracked_product_still_refuses_more_than_its_stock(): void
     {
-        $tracked = Product::factory()->create(['inventory_count' => 2, 'is_downloadable' => true]);
+        $tracked = Product::factory()->create(['inventory_count' => 2, 'is_downloadable' => true, 'track_inventory' => true]);
 
         $this->post(route('cart.add', $tracked), ['quantity' => 3])->assertSessionHas('error', 'Not enough inventory available.');
         $page = $this->get(route('products.show', $tracked))->assertSee('</span> available', false);

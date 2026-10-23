@@ -23,6 +23,10 @@ class InventoryController extends Controller
         // Stock is store-wide config that the oversell guard depends on — staff only.
         abort_unless(StoreAccess::allows($request->user(), TeamPermission::CATALOGUE_MANAGE, $product, 'update_product'), 403);
 
+        if (! $product->tracksInventory()) {
+            return response()->json(['message' => 'This product\'s stock is not tracked.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         if (! $product->adjustInventory((int) $validatedData['quantity_change'], $validatedData['reason'])) {
             return response()->json(['message' => 'Invalid quantity change. Inventory count cannot be negative.'], Response::HTTP_BAD_REQUEST);
         }

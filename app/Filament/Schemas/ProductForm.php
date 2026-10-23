@@ -190,9 +190,9 @@ final class ProductForm
             ->schema([
                 Toggle::make('track_inventory')
                     ->label('Track stock')
-                    ->default(true)
+                    ->default(fn (Get $get) => ! $get('is_downloadable'))
                     ->live()
-                    ->helperText('Turn off for made-to-order or digital products: any quantity can be sold.')
+                    ->helperText('Off sells any quantity: for made-to-order goods. Downloads start untracked.')
                     ->columnSpanFull(),
                 TextInput::make('inventory_count')
                     ->label('Stock')
@@ -229,8 +229,9 @@ final class ProductForm
             ->schema([
                 Toggle::make('is_downloadable')
                     ->label('This is a downloadable product')
-                    ->helperText('Downloadable products need no shipping.')
+                    ->helperText('Downloadable products need no shipping, and their stock is not tracked unless you turn tracking back on.')
                     ->live()
+                    ->afterStateUpdated(fn (Set $set, ?bool $state) => $set('track_inventory', ! $state))
                     ->columnSpanFull(),
                 FileUpload::make('downloadable_file')
                     ->label('File')

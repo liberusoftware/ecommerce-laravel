@@ -63,7 +63,7 @@ class ProductOptionCheckoutTest extends TestCase
         };
         $this->app->instance(StripeGateway::class, $this->gateway);
 
-        $this->chips = Product::factory()->create(['name' => 'Chips', 'price' => 2.90, 'inventory_count' => 10, 'is_downloadable' => true]);
+        $this->chips = Product::factory()->create(['name' => 'Chips', 'price' => 2.90, 'inventory_count' => 10, 'is_downloadable' => true, 'track_inventory' => true]);
         $this->size = $this->optionGroup('Size', 1, 1, ['Small' => 0, 'Regular' => 0.10, 'Large' => 0.20], [$this->chips]);
         $this->type = $this->optionGroup('Type', 1, 1, ['Plain' => 0, 'Battered' => 0.20], [$this->chips]);
     }
