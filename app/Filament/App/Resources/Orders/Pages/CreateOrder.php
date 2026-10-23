@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\CheckoutService;
+use App\Services\ProductOptionResolver;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -37,13 +38,15 @@ class CreateOrder extends CreateRecord
     {
         $customer = Customer::findOrFail($data['customer_id']);
 
-        $lines = collect($data['items'])->map(function (array $item): array {
-            $product = Product::findOrFail($item['product_id']);
-
-            return ['product_id' => $product->id, 'quantity' => (int) $item['quantity'], 'price' => $product->sellingPrice()];
-        })->all();
-
         try {
+            // No options are chosen here, so a product whose options are required is refused.
+            $lines = collect($data['items'])->map(function (array $item): array {
+                $product = Product::findOrFail($item['product_id']);
+                $configuration = app(ProductOptionResolver::class)->resolve($product, []);
+
+                return ['product_id' => $product->id, 'product_name' => $product->name, 'quantity' => (int) $item['quantity'], 'price' => $configuration->unitPrice];
+            })->all();
+
             return DB::transaction(function () use ($data, $customer, $lines): Order {
                 $order = Order::create([
                     'customer_id' => $customer->id,

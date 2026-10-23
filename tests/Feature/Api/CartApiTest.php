@@ -83,9 +83,9 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product(stock: 10);
-        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        $line = CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
-        $this->actingAs($user)->putJson("/api/cart/{$product->id}", ['quantity' => 6])
+        $this->actingAs($user)->putJson("/api/cart/{$line->id}", ['quantity' => 6])
             ->assertOk();
 
         $this->assertDatabaseHas('cart_items', ['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 6]);
@@ -95,18 +95,18 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product(stock: 2);
-        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        $line = CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
-        $this->actingAs($user)->putJson("/api/cart/{$product->id}", ['quantity' => 9])
+        $this->actingAs($user)->putJson("/api/cart/{$line->id}", ['quantity' => 9])
             ->assertStatus(422);
     }
 
     public function test_update_404s_for_an_item_not_in_the_users_cart(): void
     {
         $user = User::factory()->create();
-        $product = $this->product();
+        $other = CartItem::create(['user_id' => User::factory()->create()->id, 'product_id' => $this->product()->id, 'quantity' => 1, 'price' => 25]);
 
-        $this->actingAs($user)->putJson("/api/cart/{$product->id}", ['quantity' => 2])
+        $this->actingAs($user)->putJson("/api/cart/{$other->id}", ['quantity' => 2])
             ->assertNotFound();
     }
 
@@ -114,9 +114,9 @@ class CartApiTest extends TestCase
     {
         $user = User::factory()->create();
         $product = $this->product();
-        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        $line = CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
-        $this->actingAs($user)->deleteJson("/api/cart/{$product->id}")->assertOk();
+        $this->actingAs($user)->deleteJson("/api/cart/{$line->id}")->assertOk();
 
         $this->assertDatabaseCount('cart_items', 0);
     }
@@ -126,9 +126,9 @@ class CartApiTest extends TestCase
         $user = User::factory()->create();
         $other = User::factory()->create();
         $product = $this->product();
-        CartItem::create(['user_id' => $other->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
+        $line = CartItem::create(['user_id' => $other->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 25]);
 
-        $this->actingAs($user)->deleteJson("/api/cart/{$product->id}")->assertOk();
+        $this->actingAs($user)->deleteJson("/api/cart/{$line->id}")->assertOk();
 
         // The other user's line is untouched — scoping prevents cross-user deletes.
         $this->assertDatabaseHas('cart_items', ['user_id' => $other->id, 'product_id' => $product->id]);

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Exceptions\InsufficientStockException;
+use App\Exceptions\InvalidProductConfigurationException;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Models\User;
@@ -31,9 +33,10 @@ use Illuminate\Support\Str;
  * `CONFORMANCE.md` §D3 prescribes — *the session path becomes a guest
  * identifier on the same store.*
  *
- * `contents()` returns the array shape the storefront and checkout already
- * spoke, keyed by product id, so the callers changed where their cart comes
- * from and not what it looks like.
+ * A line is a product plus the choices made for it (its configuration key),
+ * so the same burger with and without cheese is two lines. Every door — web,
+ * Livewire, REST and GraphQL — adds through here, so identity, pricing and
+ * the stock rule are decided once.
  */
 class CartService
 {
@@ -45,25 +48,39 @@ class CartService
      */
     private const GUEST_TOKEN = 'cart_token';
 
+    private ?User $user = null;
+
+    public function __construct(private ProductOptionResolver $resolver) {}
+
+    /** The cart of a user authenticated by some other guard than the session (a Sanctum token). */
+    public function for(User $user): static
+    {
+        $cart = clone $this;
+        $cart->user = $user;
+
+        return $cart;
+    }
+
     /**
-     * The cart as the storefront reads it — keyed by product id.
+     * The cart as the storefront reads it, keyed by cart line id.
      *
      * `name`, `is_downloadable` and `weight` come from the product rather than
-     * from the row, because they are the product's facts and a cart that
-     * remembers a stale name is a cart that lies. `price` is the row's, because
-     * that is what the shopper was shown when they added it.
+     * from the row, because they are the product's facts. `price` and `options`
+     * are the row's: what the shopper was shown when they added it.
      *
-     * @return array<int, array{name: ?string, price: float, quantity: int, is_downloadable: bool, weight: float}>
+     * @return array<int, array{product_id: int, name: ?string, options: array, price: float, quantity: int, is_downloadable: bool, weight: float}>
      */
     public function contents(): array
     {
         $contents = [];
 
-        foreach ($this->query()->with('product.store')->get() as $item) {
+        foreach ($this->query()->with('product.store')->orderBy('id')->get() as $item) {
             $product = $item->product;
 
-            $contents[$item->product_id] = [
+            $contents[$item->id] = [
+                'product_id' => (int) $item->product_id,
                 'name' => $product?->name,
+                'options' => $item->options ?? [],
                 'price' => (float) $item->price,
                 'quantity' => (int) $item->quantity,
                 'is_downloadable' => (bool) $product?->is_downloadable,
@@ -92,33 +109,51 @@ class CartService
         return (int) $this->query()->sum('quantity');
     }
 
-    public function quantityOf(int $productId): int
+    /** Every line of the product counts against its stock, whatever was chosen for it. */
+    public function quantityOfProduct(int $productId): int
     {
-        return (int) $this->query()->where('product_id', $productId)->value('quantity');
+        return (int) $this->query()->where('product_id', $productId)->sum('quantity');
     }
 
-    public function has(int $productId): bool
+    public function line(int $lineId): ?CartItem
     {
-        return $this->query()->where('product_id', $productId)->exists();
+        return $this->query()->with('product')->find($lineId);
     }
 
     /**
-     * Add to the cart, or add to what is already there. The whole line takes
+     * Add to the cart, or to the line with the same choices. The line takes
      * the current price; checkout refuses a line whose price has since moved.
+     * `$unitPrice` is a pay-what-you-want amount the caller has validated.
+     *
+     * @param  array<int|string>  $choiceIds
+     *
+     * @throws InvalidProductConfigurationException
+     * @throws InsufficientStockException
      */
-    public function add(Product $product, int $quantity, ?float $unitPrice = null): void
+    public function add(Product $product, int $quantity, array $choiceIds = [], ?float $unitPrice = null): CartItem
     {
-        $price = $unitPrice ?? $product->sellingPrice();
-        $item = $this->query()->where('product_id', $product->id)->first();
+        $configuration = $this->resolver->resolve($product, $choiceIds);
 
-        if ($item !== null) {
-            $item->increment('quantity', $quantity, ['price' => $price]);
-
-            return;
+        if ($product->inventory_count < $this->quantityOfProduct($product->id) + $quantity) {
+            throw InsufficientStockException::make();
         }
 
-        CartItem::create($this->owner() + [
+        $price = $unitPrice ?? $configuration->unitPrice;
+        $item = $this->query()
+            ->where('product_id', $product->id)
+            ->where('configuration_key', $configuration->key)
+            ->first();
+
+        if ($item !== null) {
+            $item->increment('quantity', $quantity, ['price' => $price, 'options' => $configuration->options]);
+
+            return $item->refresh();
+        }
+
+        return CartItem::create($this->owner() + [
             'product_id' => $product->id,
+            'configuration_key' => $configuration->key,
+            'options' => $configuration->options,
             'quantity' => $quantity,
             'price' => $price,
         ]);
@@ -127,17 +162,26 @@ class CartService
     /** @return Collection<int, CartItem> */
     public function items(): Collection
     {
-        return $this->query()->with('product')->get();
+        return $this->query()->with('product')->orderBy('id')->get();
     }
 
-    public function setQuantity(int $productId, int $quantity): void
+    /** @throws InsufficientStockException */
+    public function setQuantity(CartItem $line, int $quantity): CartItem
     {
-        $this->query()->where('product_id', $productId)->update(['quantity' => $quantity]);
+        $others = $this->quantityOfProduct($line->product_id) - $line->quantity;
+
+        if ($line->product !== null && $line->product->inventory_count < $others + $quantity) {
+            throw InsufficientStockException::make();
+        }
+
+        $line->update(['quantity' => $quantity]);
+
+        return $line;
     }
 
-    public function remove(int $productId): void
+    public function remove(int $lineId): bool
     {
-        $this->query()->where('product_id', $productId)->delete();
+        return $this->query()->whereKey($lineId)->delete() > 0;
     }
 
     public function clear(): void
@@ -150,7 +194,8 @@ class CartService
      *
      * Quantities are combined rather than replaced — a shopper who added two
      * of something while signed out and one while signed in wanted three, and
-     * either cart winning outright loses something they chose.
+     * either cart winning outright loses something they chose. Only lines with
+     * the same choices combine.
      *
      * The token is dropped afterwards, so the next guest on this browser starts
      * a cart of their own rather than inheriting somebody's.
@@ -167,6 +212,7 @@ class CartService
             foreach (CartItem::where('guest_token', $token)->get() as $guestItem) {
                 $existing = CartItem::where('user_id', $user->id)
                     ->where('product_id', $guestItem->product_id)
+                    ->where('configuration_key', $guestItem->configuration_key)
                     ->first();
 
                 if ($existing !== null) {
@@ -197,7 +243,7 @@ class CartService
      */
     private function owner(): array
     {
-        $user = Auth::user();
+        $user = $this->user ?? Auth::user();
 
         return $user !== null
             ? ['user_id' => $user->id]

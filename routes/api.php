@@ -89,8 +89,8 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']);
     Route::post('/', [CartController::class, 'store']);
-    Route::put('/{product}', [CartController::class, 'update']);
-    Route::delete('/{product}', [CartController::class, 'destroy']);
+    Route::put('/{item}', [CartController::class, 'update'])->whereNumber('item');
+    Route::delete('/{item}', [CartController::class, 'destroy'])->whereNumber('item');
     Route::delete('/', [CartController::class, 'clear']);
 });
 

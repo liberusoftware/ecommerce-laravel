@@ -78,10 +78,10 @@ class ProductController extends Controller
     {
         // Try to find by ID if identifier is numeric, otherwise by slug
         $product = is_numeric($identifier)
-            ? Product::with(['category', 'images', 'tags', 'review', 'rating'])
+            ? Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices'])
                 ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->find($identifier)
-            : Product::with(['category', 'images', 'tags', 'review', 'rating'])
+            : Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices'])
                 ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->where('slug', $identifier)
                 ->first();

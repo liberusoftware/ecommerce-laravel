@@ -155,8 +155,8 @@ Route::middleware('auth')->group(function () {
 // Cart routes
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart/add/{product}', [CartController::class, 'add'])->name('cart.add');
-Route::put('/cart/update/{productId}', [CartController::class, 'update'])->name('cart.update');
-Route::delete('/cart/remove/{productId}', [CartController::class, 'remove'])->name('cart.remove');
+Route::put('/cart/update/{line}', [CartController::class, 'update'])->whereNumber('line')->name('cart.update');
+Route::delete('/cart/remove/{line}', [CartController::class, 'remove'])->whereNumber('line')->name('cart.remove');
 Route::delete('/cart/clear', [CartController::class, 'clear'])->name('cart.clear');
 // Throttled: distinguishable valid/invalid responses make this brute-forceable to
 // enumerate discount codes; cap attempts per IP.

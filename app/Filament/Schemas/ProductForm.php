@@ -5,6 +5,7 @@ namespace App\Filament\Schemas;
 use App\Models\FacebookConnection;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductOptionGroup;
 use App\Models\TaxClass;
 use App\Services\StoreContext;
 use App\Support\Money;
@@ -309,6 +310,22 @@ final class ProductForm
                     ->multiple()
                     ->relationship('tags', 'name')
                     ->preload(),
+                // Only this product's own store's groups, offered and accepted.
+                Select::make('optionGroups')
+                    ->label('Option groups')
+                    ->multiple()
+                    ->relationship('optionGroups', 'name', modifyQueryUsing: fn ($query, Get $get, ?Product $record) => $query
+                        ->where('product_option_groups.store_id', self::storeOf($record, $get)))
+                    ->rule(fn (Get $get, ?Product $record) => function (string $attribute, $value, Closure $fail) use ($get, $record): void {
+                        $ids = array_map('intval', (array) $value);
+                        $own = ProductOptionGroup::withoutGlobalScopes()->whereKey($ids)->where('store_id', self::storeOf($record, $get))->count();
+                        if ($own !== count($ids)) {
+                            $fail('Option groups must belong to this product\'s store.');
+                        }
+                    })
+                    ->preload()
+                    ->hidden(fn (Get $get) => $get('pricing_type') === 'donation')
+                    ->helperText('Choices shoppers make when adding this product, such as size or extras.'),
             ]);
     }
 

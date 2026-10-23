@@ -157,9 +157,9 @@ class GraphQLStorefrontTest extends TestCase
     {
         Sanctum::actingAs($user = User::factory()->create());
         $product = $this->product(['inventory_count' => 10]);
-        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 10]);
+        $line = CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 10]);
 
-        $this->gql('mutation($p: Int!) { updateCartItem(productId: $p, quantity: 4) { quantity } }', ['p' => $product->id]);
+        $this->gql('mutation($id: Int!) { updateCartItem(id: $id, quantity: 4) { quantity } }', ['id' => $line->id]);
 
         $this->assertDatabaseHas('cart_items', ['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 4]);
     }
@@ -168,11 +168,12 @@ class GraphQLStorefrontTest extends TestCase
     {
         $owner = User::factory()->create();
         $product = $this->product(['inventory_count' => 10]);
-        CartItem::create(['user_id' => $owner->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 10]);
+        $line = CartItem::create(['user_id' => $owner->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 10]);
 
         // A different user cannot touch the owner's line item.
         Sanctum::actingAs(User::factory()->create());
-        $data = $this->gql('mutation($p: Int!) { updateCartItem(productId: $p, quantity: 9) { id } }', ['p' => $product->id]);
+        $data = $this->gql('mutation($id: Int!) { updateCartItem(id: $id, quantity: 9) { id } }', ['id' => $line->id]);
+        $this->assertFalse($this->gql('mutation($id: Int!) { removeCartItem(id: $id) }', ['id' => $line->id])['data']['removeCartItem']);
 
         $this->assertStringContainsString('not in your cart', $data['errors'][0]['message']);
         $this->assertDatabaseHas('cart_items', ['user_id' => $owner->id, 'product_id' => $product->id, 'quantity' => 1]);
@@ -182,9 +183,9 @@ class GraphQLStorefrontTest extends TestCase
     {
         Sanctum::actingAs($user = User::factory()->create());
         $product = $this->product();
-        CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 10]);
+        $line = CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1, 'price' => 10]);
 
-        $data = $this->gql('mutation($p: Int!) { removeCartItem(productId: $p) }', ['p' => $product->id]);
+        $data = $this->gql('mutation($id: Int!) { removeCartItem(id: $id) }', ['id' => $line->id]);
 
         $this->assertTrue($data['data']['removeCartItem']);
         $this->assertDatabaseCount('cart_items', 0);

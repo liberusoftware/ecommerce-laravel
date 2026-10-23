@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\CheckoutException;
+use App\Exceptions\InvalidProductConfigurationException;
 use App\Factories\PaymentGatewayFactory;
 use App\Jobs\DispatchDropshippingOrder;
 use App\Models\CartItem;
@@ -28,11 +29,34 @@ use Throwable;
  * presentation) and calls these primitives; they do not encode any web- or
  * GraphQL-specific behaviour.
  *
- * @phpstan-type LineItem array{product_id: int, quantity: int, price: float|string}
+ * @phpstan-type LineItem array{product_id: int, quantity: int, price: float|string, product_name?: ?string, options?: ?array}
  */
 class CheckoutService
 {
-    public function __construct(private CouponService $couponService) {}
+    public function __construct(private CouponService $couponService, private ProductOptionResolver $resolver) {}
+
+    /**
+     * The order lines for a cart, as both checkout paths write them: the name
+     * and choices are frozen here, so the order never reads the catalogue again.
+     *
+     * @param  iterable<CartItem>  $items
+     * @return list<LineItem>
+     */
+    public function orderLines(iterable $items): array
+    {
+        $lines = [];
+        foreach ($items as $item) {
+            $lines[] = [
+                'product_id' => (int) $item->product_id,
+                'product_name' => $item->product?->name,
+                'options' => $item->options ?: null,
+                'quantity' => (int) $item->quantity,
+                'price' => $item->price,
+            ];
+        }
+
+        return $lines;
+    }
 
     /**
      * Every line must still be an active product: a product taken down after it
@@ -50,42 +74,53 @@ class CheckoutService
     }
 
     /**
-     * Brings every line to the catalogue's current price. If any line moved, the
-     * cart is left corrected and checkout refuses, so the shopper sees the new
-     * total before anything is charged.
+     * Brings every line to the catalogue's current price and choices. If any
+     * price moved, the cart is left corrected and checkout refuses, so the
+     * shopper sees the new total before anything is charged. A line whose
+     * choices are no longer valid is refused outright: there is no price to
+     * correct it to.
      *
      * @param  iterable<CartItem>  $items
      */
     public function assertCartPricesCurrent(iterable $items): void
     {
         $changed = false;
+        $invalid = [];
 
         foreach ($items as $item) {
             if ($item->product === null) {
                 continue;
             }
 
-            $current = $this->currentUnitPrice($item->product, (float) $item->price);
+            if ($item->product->isDonationBased()) {
+                $current = max((float) $item->price, (float) $item->product->minimum_price);
+                $options = $item->options;
+            } else {
+                try {
+                    $configuration = $this->resolver->resolve($item->product, $item->choiceIds());
+                } catch (InvalidProductConfigurationException) {
+                    $invalid[] = $item->product->name;
 
-            if (abs($current - (float) $item->price) >= 0.005) {
-                $item->update(['price' => $current]);
-                $changed = true;
+                    continue;
+                }
+                $current = $configuration->unitPrice;
+                $options = $configuration->options ?: null;
             }
+
+            $moved = abs($current - (float) $item->price) >= 0.005;
+            if ($moved || $options != $item->options) {
+                $item->update(['price' => $current, 'options' => $options]);
+            }
+            $changed = $changed || $moved;
+        }
+
+        if ($invalid !== []) {
+            throw new InvalidProductConfigurationException('Some options chosen for '.implode(', ', array_unique($invalid)).' are no longer available. Remove the item and add it again.');
         }
 
         if ($changed) {
             throw new CheckoutException('Prices in your cart have changed. Please review your cart and check out again.');
         }
-    }
-
-    /** A pay-what-you-want line keeps the shopper's amount unless the minimum has risen past it. */
-    private function currentUnitPrice(Product $product, float $linePrice): float
-    {
-        if ($product->isDonationBased()) {
-            return max($linePrice, (float) $product->minimum_price);
-        }
-
-        return round($product->sellingPrice(), 2);
     }
 
     /** The store must accept the gateway the shopper chose. */
@@ -199,6 +234,8 @@ class CheckoutService
         foreach ($lineItems as $line) {
             $order->items()->create([
                 'product_id' => $line['product_id'],
+                'product_name' => $line['product_name'] ?? Product::withTrashed()->whereKey($line['product_id'])->value('name'),
+                'options' => $line['options'] ?? null,
                 'quantity' => $line['quantity'],
                 'price' => $line['price'],
             ]);

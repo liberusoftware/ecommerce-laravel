@@ -12,6 +12,7 @@ use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -149,6 +150,14 @@ class Product extends Model implements Orderable
         $appUrl = rtrim((string) config('app.url'), '/').'/';
 
         return str_starts_with($url, $appUrl) ? '/'.ltrim((string) parse_url($url, PHP_URL_PATH), '/') : $url;
+    }
+
+    public function optionGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductOptionGroup::class, 'product_option_group_product')
+            ->withPivot('position')
+            ->orderByPivot('position')
+            ->orderBy('product_option_groups.id');
     }
 
     public function cartItems()

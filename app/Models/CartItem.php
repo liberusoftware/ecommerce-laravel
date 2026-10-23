@@ -19,8 +19,14 @@ class CartItem extends Model
         'user_id',
         'guest_token',
         'product_id',
+        'configuration_key',
+        'options',
         'quantity',
         'price',
+    ];
+
+    protected $casts = [
+        'options' => 'array',
     ];
 
     /**
@@ -29,5 +35,11 @@ class CartItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** @return list<int> */
+    public function choiceIds(): array
+    {
+        return array_map('intval', array_column($this->options ?? [], 'choice_id'));
     }
 }

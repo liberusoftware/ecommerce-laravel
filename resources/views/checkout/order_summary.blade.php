@@ -32,7 +32,10 @@
                                         </svg>
                                     </div>
                                     <div>
-                                        <p class="text-sm font-medium text-ink">{{ $item->product->name }}</p>
+                                        <p class="text-sm font-medium text-ink">{{ $item->displayName() }}</p>
+                                        @foreach($item->optionLabels($order->currency_code) as $label)
+                                            <p class="text-xs text-muted mt-0.5">{{ $label }}</p>
+                                        @endforeach
                                         <p class="text-xs text-muted mt-0.5">Qty: {{ $item->quantity }}</p>
                                     </div>
                                 </div>

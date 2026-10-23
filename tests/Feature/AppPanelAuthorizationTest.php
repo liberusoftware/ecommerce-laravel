@@ -8,6 +8,7 @@ use App\Filament\App\Resources\FacebookConnections\FacebookConnectionResource;
 use App\Filament\App\Resources\Invoices\InvoiceResource;
 use App\Filament\App\Resources\Orders\OrderResource;
 use App\Filament\App\Resources\ProductCategories\ProductCategoryResource;
+use App\Filament\App\Resources\ProductOptionGroups\ProductOptionGroupResource;
 use App\Filament\App\Resources\ProductRatings\ProductRatingResource;
 use App\Filament\App\Resources\ProductReviews\ProductReviewResource;
 use App\Filament\App\Resources\Products\ProductResource;
@@ -37,6 +38,7 @@ class AppPanelAuthorizationTest extends TestCase
         return [
             'products' => [ProductResource::class, 'catalogue'],
             'categories' => [ProductCategoryResource::class, 'catalogue'],
+            'option groups' => [ProductOptionGroupResource::class, 'catalogue'],
             'collections' => [CollectionResource::class, 'catalogue'],
             'reviews' => [ProductReviewResource::class, 'catalogue'],
             'ratings' => [ProductRatingResource::class, 'catalogue'],

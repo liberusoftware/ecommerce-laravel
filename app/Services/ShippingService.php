@@ -148,9 +148,8 @@ class ShippingService
 
     private function calculateTotalWeight($cart)
     {
-        // The session cart is keyed by product_id and carries no weight, so look the
-        // product weights up (one batched query). An item-carried 'weight', if a
-        // future path adds one, still wins.
+        // The storefront cart carries each line's weight. A cart without it must be
+        // keyed by product id, and the weights are looked up in one query.
         $lookupIds = [];
         foreach ($cart as $productId => $item) {
             if (! isset($item['weight'])) {

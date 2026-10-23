@@ -120,7 +120,7 @@ class ProductController extends Controller
     {
         abort_unless($product->isActive(), 404);
 
-        $product->load(['images', 'category']);
+        $product->load(['images', 'category', 'optionGroups.choices']);
 
         return view('products.show', compact('product'));
     }

@@ -50,6 +50,20 @@ _Avoid_: buyer, shopper, account, client
 An authenticated identity. Platform-wide and not tenant-scoped, which is why a `User` arriving on one merchant's domain while holding a `Customer` record at another is legitimate traffic rather than an attack.
 _Avoid_: customer, member, account
 
+## Product options
+
+**Option group**:
+A set of choices a shopper makes when adding a product — "Size", "Extras" — with a minimum and maximum number of picks. Owned by a `Store` and attached to any of its products.
+_Avoid_: modifier, add-on, attribute, variant
+
+**Choice**:
+One entry in an option group, carrying a price adjustment to the product's price.
+_Avoid_: option value, topping
+
+**Configuration**:
+The set of choices made for one cart line. A product with two configurations is two lines; an order line keeps its configuration as a snapshot.
+_Avoid_: variant — a variant is a separately stocked item, which a configuration is not
+
 ## Where the rest lives
 
 | Vocabulary | Source |

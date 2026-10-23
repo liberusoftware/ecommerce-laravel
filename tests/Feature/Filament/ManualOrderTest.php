@@ -11,15 +11,18 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\StoreContext;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Repeater;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
+use Tests\Feature\Concerns\BuildsOptionGroups;
 use Tests\TestCase;
 
 class ManualOrderTest extends TestCase
 {
+    use BuildsOptionGroups;
     use RefreshDatabase;
 
     private Store $store;
@@ -175,5 +178,55 @@ class ManualOrderTest extends TestCase
             ->assertActionVisible('cancel')
             ->assertActionHidden('startProcessing')
             ->assertActionHidden('complete');
+    }
+
+    public function test_a_product_whose_options_are_required_cannot_be_ordered_without_them(): void
+    {
+        $chips = $this->product(2.90, 5);
+        StoreContext::writingTo($this->store->id, fn () => $this->optionGroup('Size', 1, 1, ['Small' => 0, 'Large' => 0.20], [$chips]));
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $this->customer->id,
+                'order_date' => now()->toDateString(),
+                'items' => [['product_id' => $chips->id, 'quantity' => 1]],
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['items']);
+
+        $this->assertSame(0, Order::count());
+        $this->assertSame(5, $chips->fresh()->inventory_count);
+    }
+
+    public function test_a_manual_order_line_is_a_snapshot_shown_on_the_order(): void
+    {
+        $lamp = $this->product(20.00, 5);
+        StoreContext::writingTo($this->store->id, fn () => $this->optionGroup('Gift wrap', 0, 1, ['Wrapped' => 3], [$lamp]));
+
+        $soldAs = $lamp->name;
+        $order = $this->pendingOrder($lamp, 2);
+        $lamp->update(['name' => 'Renamed lamp']);
+
+        $line = $order->items()->sole();
+        $this->assertSame($soldAs, $line->product_name);
+        $this->assertNull($line->options);
+        $this->assertEquals(20.00, $line->price);
+
+        Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+            ->assertSee('2 × '.$soldAs)
+            ->assertDontSee('Renamed lamp');
+    }
+
+    public function test_the_order_screen_lists_each_lines_choices(): void
+    {
+        $order = $this->pendingOrder($this->product(20.00, 5), 1);
+        $order->items()->sole()->update([
+            'product_name' => 'Chips',
+            'options' => [['choice_id' => 1, 'group' => 'Size', 'name' => 'Large', 'price_adjustment' => 0.2]],
+        ]);
+
+        Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+            ->assertSee('1 × Chips')
+            ->assertSee('Size: Large');
     }
 }
