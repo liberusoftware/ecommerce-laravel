@@ -3,6 +3,7 @@
 namespace Tests\Feature\Filament;
 
 use App\Filament\App\Resources\ProductOptionGroups\Pages\CreateProductOptionGroup;
+use App\Filament\App\Resources\ProductOptionGroups\Pages\ListProductOptionGroups;
 use App\Filament\App\Resources\Products\Pages\CreateProduct;
 use App\Filament\App\Resources\Products\Pages\EditProduct;
 use App\Models\Product;
@@ -112,5 +113,15 @@ class ProductOptionGroupManagementTest extends TestCase
 
         Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
             ->assertFormFieldHidden('optionGroups');
+    }
+
+    public function test_a_merchant_lists_only_their_own_teams_groups(): void
+    {
+        $ours = $this->groupIn($this->store, 'Gift wrap');
+        $theirs = $this->groupIn(Store::factory()->create(['team_id' => Team::factory()->create()->id]), 'Engraving');
+
+        Livewire::test(ListProductOptionGroups::class)
+            ->assertCanSeeTableRecords([$ours])
+            ->assertCanNotSeeTableRecords([$theirs]);
     }
 }

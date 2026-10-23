@@ -17,7 +17,7 @@ class CheckLowStockItems extends Command
 
     public function handle()
     {
-        $lowStockProducts = Product::where('inventory_count', '<=', DB::raw('low_stock_threshold'))->get();
+        $lowStockProducts = Product::tracked()->where('inventory_count', '<=', DB::raw('low_stock_threshold'))->get();
 
         if ($lowStockProducts->isNotEmpty()) {
             // Admins are identified by role (there is no users.is_admin column).

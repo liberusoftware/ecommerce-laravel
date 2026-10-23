@@ -188,8 +188,15 @@ final class ProductForm
         return Section::make('Inventory and shipping')
             ->columns(3)
             ->schema([
+                Toggle::make('track_inventory')
+                    ->label('Track stock')
+                    ->default(true)
+                    ->live()
+                    ->helperText('Turn off for made-to-order or digital products: any quantity can be sold.')
+                    ->columnSpanFull(),
                 TextInput::make('inventory_count')
                     ->label('Stock')
+                    ->visible(fn (Get $get) => (bool) $get('track_inventory'))
                     ->required()
                     ->integer()
                     ->minValue(0)
@@ -199,6 +206,7 @@ final class ProductForm
                     ->helperText(fn (string $operation) => $operation === 'edit' ? 'Use “Adjust stock” on the product list; adjustments are logged.' : null),
                 TextInput::make('low_stock_threshold')
                     ->label('Low-stock alert at')
+                    ->visible(fn (Get $get) => (bool) $get('track_inventory'))
                     ->required()
                     ->integer()
                     ->minValue(0)

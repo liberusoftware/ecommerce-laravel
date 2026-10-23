@@ -134,7 +134,7 @@ class CartService
     {
         $configuration = $this->resolver->resolve($product, $choiceIds);
 
-        if ($product->inventory_count < $this->quantityOfProduct($product->id) + $quantity) {
+        if (! $product->canSupply($this->quantityOfProduct($product->id) + $quantity)) {
             throw InsufficientStockException::make();
         }
 
@@ -170,7 +170,7 @@ class CartService
     {
         $others = $this->quantityOfProduct($line->product_id) - $line->quantity;
 
-        if ($line->product !== null && $line->product->inventory_count < $others + $quantity) {
+        if ($line->product !== null && ! $line->product->canSupply($others + $quantity)) {
             throw InsufficientStockException::make();
         }
 

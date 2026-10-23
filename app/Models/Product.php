@@ -53,6 +53,7 @@ class Product extends Model implements Orderable
     protected $attributes = [
         'status' => self::STATUS_ACTIVE,
         'visibility' => self::VISIBILITY_VISIBLE,
+        'track_inventory' => true,
         'inventory_count' => 0,
         'low_stock_threshold' => 0,
     ];
@@ -69,6 +70,7 @@ class Product extends Model implements Orderable
         'sale_price',
         'category_id',
         'featured_image',
+        'track_inventory',
         'inventory_count',
         'low_stock_threshold',
         'weight',
@@ -94,6 +96,7 @@ class Product extends Model implements Orderable
 
     protected $casts = [
         'is_downloadable' => 'boolean',
+        'track_inventory' => 'boolean',
         'list_on_facebook' => 'boolean',
         'price' => 'decimal:2',
         'sale_price' => 'decimal:2',
@@ -233,7 +236,8 @@ class Product extends Model implements Orderable
         // `updated` (not `saved`) so increment()/decrement() — the admin & refund
         // restock paths — are caught alongside plain save()/update().
         static::updated(function ($product) {
-            if ($product->wasChanged('inventory_count')
+            if ($product->tracksInventory()
+                && $product->wasChanged('inventory_count')
                 && (int) $product->getOriginal('inventory_count') <= 0
                 && $product->inventory_count > 0) {
                 $product->notifyBackInStockSubscribers();
@@ -400,14 +404,31 @@ class Product extends Model implements Orderable
         return $this->isOnSale() ? (float) $this->sale_price : (float) $this->price;
     }
 
-    public function isInStock(): bool
+    public function tracksInventory(): bool
     {
-        return (int) $this->inventory_count > 0;
+        return (bool) $this->track_inventory;
     }
 
-    public function isLowStock()
+    public function isInStock(): bool
     {
-        return $this->inventory_count <= $this->low_stock_threshold;
+        return ! $this->tracksInventory() || (int) $this->inventory_count > 0;
+    }
+
+    /** Whether the stock rule allows selling this many in total. */
+    public function canSupply(int $quantity): bool
+    {
+        return ! $this->tracksInventory() || (int) $this->inventory_count >= $quantity;
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->tracksInventory() && $this->inventory_count <= $this->low_stock_threshold;
+    }
+
+    /** Products whose stock is counted; the rest have no stock to run low or out of. */
+    public function scopeTracked(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('track_inventory'), true);
     }
 
     public function getPrice(): float

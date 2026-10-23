@@ -14,7 +14,7 @@
 
 @php
     $stock = (int) $product->inventory_count;
-    $isOut = $stock <= 0;
+    $isOut = ! $product->isInStock();
     $currency = \App\Support\Money::currency();
     $gallery = collect([$product->image_url])->merge($product->images->map(fn ($image) => $image->url))->filter()->unique()->values();
 @endphp
@@ -107,8 +107,10 @@
                         <span class="font-medium text-danger-700">Out of stock</span>
                     @else
                         <span class="font-medium text-primary-700">In stock</span>
-                        <span class="text-muted">&middot;</span>
-                        <span class="text-muted"><span class="data">{{ $stock }}</span> available</span>
+                        @if ($product->tracksInventory())
+                            <span class="text-muted">&middot;</span>
+                            <span class="text-muted"><span class="data">{{ $stock }}</span> available</span>
+                        @endif
                     @endif
                 </p>
 
@@ -184,7 +186,7 @@
                                            class="form-input data w-24"
                                            value="1"
                                            min="1"
-                                           max="{{ $stock }}">
+                                           @if ($product->tracksInventory()) max="{{ $stock }}" @endif>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-lg">Add to cart</button>
                             </div>

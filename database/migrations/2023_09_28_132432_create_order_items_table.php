@@ -22,6 +22,9 @@ return new class extends Migration
             $table->json('options')->nullable();
             $table->integer('quantity');
             $table->decimal('price', 10, 2);
+            $table->string('download_link')->nullable();
+            $table->timestamp('download_expires_at')->nullable();
+            $table->integer('download_count')->default(0);
             $table->timestamps();
         });
     }

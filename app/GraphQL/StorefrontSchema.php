@@ -146,7 +146,9 @@ class StorefrontSchema
                 'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => $p->sellingPrice()],
                 'regularPrice' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => (float) $p->price],
                 'onSale' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isOnSale()],
-                'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (Product $p) => $p->inventory_count],
+                // Null when the product's stock is not counted.
+                'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (Product $p) => $p->tracksInventory() ? $p->inventory_count : null],
+                'inStock' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isInStock()],
                 'isDownloadable' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_downloadable],
                 'isFeatured' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_featured],
                 'featuredImage' => ['type' => Type::string(), 'resolve' => fn (Product $p) => $p->featured_image],

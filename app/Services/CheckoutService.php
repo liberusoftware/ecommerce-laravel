@@ -241,10 +241,16 @@ class CheckoutService
             ]);
 
             $affected = Product::where('id', $line['product_id'])
+                ->where('track_inventory', true)
                 ->where('inventory_count', '>=', $line['quantity'])
                 ->decrement('inventory_count', $line['quantity']);
 
             if ($affected === 0) {
+                // An untracked product has nothing to reserve.
+                if (Product::where('id', $line['product_id'])->where('track_inventory', false)->exists()) {
+                    continue;
+                }
+
                 throw new CheckoutException('Some items in your cart are no longer available in the requested quantity.');
             }
 
@@ -274,7 +280,7 @@ class CheckoutService
     {
         foreach ($lineItems as $line) {
             DB::transaction(function () use ($order, $line) {
-                if (Product::where('id', $line['product_id'])->increment('inventory_count', $line['quantity']) === 0) {
+                if (Product::where('id', $line['product_id'])->where('track_inventory', true)->increment('inventory_count', $line['quantity']) === 0) {
                     return;
                 }
 

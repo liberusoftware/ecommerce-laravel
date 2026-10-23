@@ -167,7 +167,7 @@ class CheckoutController extends Controller
         // A product may be several lines, so its stock is checked against their sum.
         foreach (collect($cart)->groupBy('product_id') as $productId => $lines) {
             $product = Product::active()->find($productId);
-            if (! $product || $product->inventory_count < $lines->sum('quantity')) {
+            if (! $product || ! $product->canSupply((int) $lines->sum('quantity'))) {
                 return redirect()->back()->with('error', 'Some items in your cart are no longer available in the requested quantity.');
             }
         }
