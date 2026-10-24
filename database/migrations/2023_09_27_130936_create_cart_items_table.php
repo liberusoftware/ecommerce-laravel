@@ -33,6 +33,9 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade')->onUpdate('cascade');
             $table->string('guest_token')->nullable()->index();
             $table->foreignId('product_id')->constrained()->onDelete('cascade')->onUpdate('cascade');
+            // A line is a product plus the choices made for it; '' when none.
+            $table->string('configuration_key', 40)->default('');
+            $table->json('options')->nullable();
             $table->integer('quantity');
             $table->decimal('price', 10, 2);
             $table->timestamps();

@@ -14,7 +14,7 @@
 
 @php
     $stock = (int) $product->inventory_count;
-    $isOut = $stock <= 0;
+    $isOut = ! $product->isInStock();
     $currency = \App\Support\Money::currency();
     $gallery = collect([$product->image_url])->merge($product->images->map(fn ($image) => $image->url))->filter()->unique()->values();
 @endphp
@@ -107,8 +107,10 @@
                         <span class="font-medium text-danger-700">Out of stock</span>
                     @else
                         <span class="font-medium text-primary-700">In stock</span>
-                        <span class="text-muted">&middot;</span>
-                        <span class="text-muted"><span class="data">{{ $stock }}</span> available</span>
+                        @if ($product->tracksInventory())
+                            <span class="text-muted">&middot;</span>
+                            <span class="text-muted"><span class="data">{{ $stock }}</span> available</span>
+                        @endif
                     @endif
                 </p>
 
@@ -143,6 +145,38 @@
                     @elseif (! $isOut)
                         <form action="{{ route('cart.add', $product) }}" method="POST">
                             @csrf
+                            {{-- Prices shown here are a guide; the server prices the choices. --}}
+                            @foreach ($product->optionGroups as $group)
+                                <fieldset class="mb-6">
+                                    <legend class="form-label">
+                                        {{ $group->name }}
+                                        @if ($group->isRequired())
+                                            <span class="text-muted">(required)</span>
+                                        @elseif ($group->max_select !== null && ! $group->allowsOne())
+                                            <span class="text-muted">(up to {{ $group->max_select }})</span>
+                                        @endif
+                                    </legend>
+                                    <div class="mt-2 flex flex-col gap-2">
+                                        @foreach ($group->choices as $choice)
+                                            <label class="inline-flex items-center gap-2 @unless ($choice->is_available) text-muted @endunless">
+                                                <input type="{{ $group->allowsOne() ? 'radio' : 'checkbox' }}"
+                                                       name="options[]"
+                                                       value="{{ $choice->id }}"
+                                                       @if ($group->allowsOne() && $group->isRequired()) required @endif
+                                                       @checked(in_array($choice->id, old('options', $product->optionGroups->flatMap->choices->where('is_default', true)->where('is_available', true)->pluck('id')->all())))
+                                                       @disabled(! $choice->is_available)>
+                                                <span>{{ $choice->name }}</span>
+                                                @if ((float) $choice->price_adjustment != 0)
+                                                    <span class="data text-muted">{{ (float) $choice->price_adjustment > 0 ? '+' : '−' }}{{ \App\Support\Money::format(abs((float) $choice->price_adjustment)) }}</span>
+                                                @endif
+                                                @unless ($choice->is_available)
+                                                    <span class="text-muted">(unavailable)</span>
+                                                @endunless
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </fieldset>
+                            @endforeach
                             <div class="flex flex-wrap items-end gap-4">
                                 <div>
                                     <label for="quantity" class="form-label">Quantity</label>
@@ -152,7 +186,7 @@
                                            class="form-input data w-24"
                                            value="1"
                                            min="1"
-                                           max="{{ $stock }}">
+                                           @if ($product->tracksInventory()) max="{{ $stock }}" @endif>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-lg">Add to cart</button>
                             </div>

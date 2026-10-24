@@ -42,8 +42,8 @@ class InvoiceGenerationTest extends TestCase
         $this->assertEquals(100, (float) $invoice->total_amount);
         $this->assertEquals('paid', $invoice->payment_status);
         $this->assertEquals($user->getOrCreateCustomer()->id, $invoice->customer_id);
-        $this->assertCount(1, $invoice->products);
-        $this->assertEquals(2, $invoice->products->first()->pivot->quantity);
+        $this->assertCount(1, $invoice->lines);
+        $this->assertEquals(2, $invoice->lines->first()->quantity);
     }
 
     public function test_guest_order_invoice_creates_a_customer_from_the_email(): void

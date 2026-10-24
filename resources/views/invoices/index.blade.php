@@ -22,7 +22,7 @@
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink">#{{ $invoice->id }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">{{ $invoice->invoice_date?->format('Y-m-d') }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-ink">{{ \App\Support\Money::format($invoice->total_amount) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-ink">{{ \App\Support\Money::format($invoice->total_amount, $invoice->currency()) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs rounded-full {{ $invoice->payment_status === 'paid' ? 'bg-primary-100 text-primary-800' : 'bg-warning-50 text-warning-700' }}">
                                 {{ ucfirst($invoice->payment_status ?? 'pending') }}

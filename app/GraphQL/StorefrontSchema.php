@@ -7,6 +7,9 @@ use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCollection;
+use App\Models\ProductOptionChoice;
+use App\Models\ProductOptionGroup;
+use App\Services\CartService;
 use App\Services\HeadlessCheckoutService;
 use App\Services\ShippingService;
 use GraphQL\Error\Error;
@@ -33,6 +36,8 @@ class StorefrontSchema
      * cost, so nothing else bounded these.
      */
     private const MAX_LIST = 100;
+
+    private ?ObjectType $selectedOption = null;
 
     public function build(): Schema
     {
@@ -91,20 +96,22 @@ class StorefrontSchema
                     'args' => [
                         'productId' => Type::nonNull(Type::int()),
                         'quantity' => Type::nonNull(Type::int()),
+                        // Choice ids from Product.optionGroups. Never a price.
+                        'options' => Type::listOf(Type::nonNull(Type::int())),
                     ],
                     'resolve' => fn ($root, array $args, array $context) => $this->addToCart($args, $context),
                 ],
                 'updateCartItem' => [
                     'type' => Type::nonNull($cartItem),
                     'args' => [
-                        'productId' => Type::nonNull(Type::int()),
+                        'id' => Type::nonNull(Type::int()),
                         'quantity' => Type::nonNull(Type::int()),
                     ],
                     'resolve' => fn ($root, array $args, array $context) => $this->updateCartItem($args, $context),
                 ],
                 'removeCartItem' => [
                     'type' => Type::nonNull(Type::boolean()),
-                    'args' => ['productId' => Type::nonNull(Type::int())],
+                    'args' => ['id' => Type::nonNull(Type::int())],
                     'resolve' => fn ($root, array $args, array $context) => $this->removeCartItem($args, $context),
                 ],
                 'checkout' => [
@@ -139,10 +146,16 @@ class StorefrontSchema
                 'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => $p->sellingPrice()],
                 'regularPrice' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => (float) $p->price],
                 'onSale' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isOnSale()],
-                'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (Product $p) => $p->inventory_count],
+                // Null when the product's stock is not counted.
+                'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (Product $p) => $p->tracksInventory() ? $p->inventory_count : null],
+                'inStock' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isInStock()],
                 'isDownloadable' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_downloadable],
                 'isFeatured' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_featured],
                 'featuredImage' => ['type' => Type::string(), 'resolve' => fn (Product $p) => $p->featured_image],
+                'optionGroups' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->optionGroupType()))),
+                    'resolve' => fn (Product $p) => $p->isDonationBased() ? [] : $p->optionGroups()->with('choices')->get(),
+                ],
             ],
         ]);
     }
@@ -189,6 +202,10 @@ class StorefrontSchema
                 'id' => Type::nonNull(Type::int()),
                 'productId' => ['type' => Type::nonNull(Type::int()), 'resolve' => fn (CartItem $i) => $i->product_id],
                 'quantity' => Type::nonNull(Type::int()),
+                'options' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->selectedOptionType()))),
+                    'resolve' => fn (CartItem $i) => $i->options ?? [],
+                ],
                 'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (CartItem $i) => (float) $i->price],
                 'lineTotal' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (CartItem $i) => round((float) $i->price * $i->quantity, 2)],
                 'product' => ['type' => $product, 'resolve' => fn (CartItem $i) => $i->product],
@@ -265,17 +282,12 @@ class StorefrontSchema
         $this->assertPositive($args['quantity']);
 
         $product = $this->findProduct($args['productId']);
-        $item = CartItem::firstOrNew(['user_id' => $user->id, 'product_id' => $product->id]);
-        $quantity = ($item->quantity ?? 0) + $args['quantity'];
 
-        $this->assertStock($product, $quantity);
-
-        $item->fill([
-            'quantity' => $quantity,
-            'price' => $product->sellingPrice(),
-        ])->save();
-
-        return $item;
+        try {
+            return app(CartService::class)->for($user)->add($product, $args['quantity'], $args['options'] ?? []);
+        } catch (CheckoutException $e) {
+            throw new Error($e->getMessage());
+        }
     }
 
     private function updateCartItem(array $args, array $context): CartItem
@@ -283,25 +295,19 @@ class StorefrontSchema
         $user = $this->requireUser($context);
         $this->assertPositive($args['quantity']);
 
-        $product = $this->findProduct($args['productId']);
-        $this->assertStock($product, $args['quantity']);
+        $cart = app(CartService::class)->for($user);
+        $line = $cart->line($args['id']) ?? throw new Error('That item is not in your cart.');
 
-        $item = CartItem::where('user_id', $user->id)->where('product_id', $product->id)->first();
-        if ($item === null) {
-            throw new Error('That product is not in your cart.');
+        try {
+            return $cart->setQuantity($line, $args['quantity']);
+        } catch (CheckoutException $e) {
+            throw new Error($e->getMessage());
         }
-
-        $item->update(['quantity' => $args['quantity']]);
-
-        return $item;
     }
 
     private function removeCartItem(array $args, array $context): bool
     {
-        $user = $this->requireUser($context);
-        CartItem::where('user_id', $user->id)->where('product_id', $args['productId'])->delete();
-
-        return true;
+        return app(CartService::class)->for($this->requireUser($context))->remove($args['id']);
     }
 
     private function checkoutInputType(): InputObjectType
@@ -377,9 +383,10 @@ class StorefrontSchema
             return [];
         }
 
+        // Weight is per product, and one product may be several lines.
         $cartByProduct = [];
         foreach ($cart as $item) {
-            $cartByProduct[$item->product_id] = ['quantity' => $item->quantity];
+            $cartByProduct[$item->product_id]['quantity'] = ($cartByProduct[$item->product_id]['quantity'] ?? 0) + $item->quantity;
         }
 
         $to = [
@@ -413,10 +420,41 @@ class StorefrontSchema
         }
     }
 
-    private function assertStock(Product $product, int $quantity): void
+    private function selectedOptionType(): ObjectType
     {
-        if ($product->inventory_count < $quantity) {
-            throw new Error('Requested quantity exceeds available stock.');
-        }
+        return $this->selectedOption ??= new ObjectType([
+            'name' => 'SelectedOption',
+            'fields' => [
+                'choiceId' => ['type' => Type::nonNull(Type::int()), 'resolve' => fn (array $o) => $o['choice_id']],
+                'group' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (array $o) => $o['group']],
+                'name' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (array $o) => $o['name']],
+                'priceAdjustment' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (array $o) => (float) $o['price_adjustment']],
+            ],
+        ]);
+    }
+
+    private function optionGroupType(): ObjectType
+    {
+        $choice = new ObjectType([
+            'name' => 'OptionChoice',
+            'fields' => [
+                'id' => Type::nonNull(Type::int()),
+                'name' => Type::nonNull(Type::string()),
+                'priceAdjustment' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (ProductOptionChoice $c) => (float) $c->price_adjustment],
+                'isDefault' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (ProductOptionChoice $c) => $c->is_default],
+                'isAvailable' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (ProductOptionChoice $c) => $c->is_available],
+            ],
+        ]);
+
+        return new ObjectType([
+            'name' => 'OptionGroup',
+            'fields' => [
+                'id' => Type::nonNull(Type::int()),
+                'name' => Type::nonNull(Type::string()),
+                'minSelect' => ['type' => Type::nonNull(Type::int()), 'resolve' => fn (ProductOptionGroup $g) => $g->min_select],
+                'maxSelect' => ['type' => Type::int(), 'resolve' => fn (ProductOptionGroup $g) => $g->max_select],
+                'choices' => ['type' => Type::nonNull(Type::listOf(Type::nonNull($choice))), 'resolve' => fn (ProductOptionGroup $g) => $g->choices],
+            ],
+        ]);
     }
 }

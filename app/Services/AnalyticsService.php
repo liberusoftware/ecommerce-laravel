@@ -213,7 +213,7 @@ class AnalyticsService
     {
         // Low stock products — the list is capped for display; low_stock_count is the
         // true total so the dashboard stat doesn't silently plateau at the cap.
-        $lowStockQuery = Product::whereNotNull('low_stock_threshold')
+        $lowStockQuery = Product::tracked()->whereNotNull('low_stock_threshold')
             ->whereColumn('inventory_count', '<=', 'low_stock_threshold');
         $lowStockCount = (clone $lowStockQuery)->count();
         $lowStockProducts = $lowStockQuery
@@ -224,25 +224,25 @@ class AnalyticsService
             ->toArray();
 
         // Out of stock products
-        $outOfStockCount = Product::where('inventory_count', '<=', 0)->count();
+        $outOfStockCount = Product::tracked()->where('inventory_count', '<=', 0)->count();
 
         // Inventory value
-        $inventoryValue = Product::where('inventory_count', '>', 0)
+        $inventoryValue = Product::tracked()->where('inventory_count', '>', 0)
             ->select(DB::raw('SUM(inventory_count * price) as total_value'))
             ->value('total_value') ?? 0;
 
         // Products by stock status
         $stockStatus = [
-            'out_of_stock' => Product::where('inventory_count', '<=', 0)->count(),
-            'low_stock' => Product::whereNotNull('low_stock_threshold')
+            'out_of_stock' => Product::tracked()->where('inventory_count', '<=', 0)->count(),
+            'low_stock' => Product::tracked()->whereNotNull('low_stock_threshold')
                 ->whereColumn('inventory_count', '<=', 'low_stock_threshold')
                 ->where('inventory_count', '>', 0)
                 ->count(),
-            'in_stock' => Product::where('inventory_count', '>', 0)
-                ->where(function ($q) {
-                    $q->whereNull('low_stock_threshold')
-                        ->orWhereColumn('inventory_count', '>', 'low_stock_threshold');
-                })
+            // An untracked product never runs out.
+            'in_stock' => Product::where(fn ($q) => $q->where('track_inventory', false)
+                ->orWhere(fn ($q) => $q->where('inventory_count', '>', 0)
+                    ->where(fn ($q) => $q->whereNull('low_stock_threshold')
+                        ->orWhereColumn('inventory_count', '>', 'low_stock_threshold'))))
                 ->count(),
         ];
 

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
-use App\Models\Order;
 use App\Support\StoreAccess;
 use App\Support\TeamPermission;
 use Illuminate\Http\Request;
@@ -11,14 +10,9 @@ use Illuminate\View\View;
 
 class InvoiceController extends Controller
 {
-    public function createInvoiceForOrder(int $orderId): Invoice
-    {
-        return Invoice::generateForOrder(Order::findOrFail($orderId));
-    }
-
     public function index(Request $request): View
     {
-        $query = Invoice::query();
+        $query = Invoice::with('order');
 
         // Customers see only their own invoices (via the owning order); staff see all.
         if (! StoreAccess::allows($request->user(), TeamPermission::ORDERS_VIEW, null, 'view_any_invoice')) {
@@ -38,7 +32,7 @@ class InvoiceController extends Controller
 
     public function show(Request $request, int $id): View
     {
-        $query = Invoice::with(['order', 'order.items']);
+        $query = Invoice::with(['order', 'lines', 'customer']);
 
         // Scope to the owner unless staff — a foreign id 404s instead of leaking PII.
         if (! StoreAccess::allows($request->user(), TeamPermission::ORDERS_VIEW, null, 'view_any_invoice')) {

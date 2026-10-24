@@ -57,12 +57,13 @@ class OrderConfirmationNotification extends Notification implements ShouldQueue
         // Add order items
         $mailMessage->line('**Order Items:**');
         foreach ($order->items as $item) {
-            $mailMessage->line('- '.$item->product->name.' (Qty: '.$item->quantity.') - '.Money::format($item->price * $item->quantity, $order->currency_code));
+            $options = $item->optionLabels($order->currency_code);
+            $mailMessage->line('- '.$item->displayName().($options ? ' ['.implode('; ', $options).']' : '').' (Qty: '.$item->quantity.') - '.Money::format($item->price * $item->quantity, $order->currency_code));
         }
 
         // Check for downloadable products
         $hasDownloadable = $order->items->contains(function ($item) {
-            return $item->product->is_downloadable ?? false;
+            return $item->product?->is_downloadable ?? false;
         });
 
         if ($hasDownloadable) {

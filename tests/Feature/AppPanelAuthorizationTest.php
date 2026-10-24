@@ -8,6 +8,7 @@ use App\Filament\App\Resources\FacebookConnections\FacebookConnectionResource;
 use App\Filament\App\Resources\Invoices\InvoiceResource;
 use App\Filament\App\Resources\Orders\OrderResource;
 use App\Filament\App\Resources\ProductCategories\ProductCategoryResource;
+use App\Filament\App\Resources\ProductOptionGroups\ProductOptionGroupResource;
 use App\Filament\App\Resources\ProductRatings\ProductRatingResource;
 use App\Filament\App\Resources\ProductReviews\ProductReviewResource;
 use App\Filament\App\Resources\Products\ProductResource;
@@ -37,11 +38,11 @@ class AppPanelAuthorizationTest extends TestCase
         return [
             'products' => [ProductResource::class, 'catalogue'],
             'categories' => [ProductCategoryResource::class, 'catalogue'],
+            'option groups' => [ProductOptionGroupResource::class, 'catalogue'],
             'collections' => [CollectionResource::class, 'catalogue'],
             'reviews' => [ProductReviewResource::class, 'catalogue'],
             'ratings' => [ProductRatingResource::class, 'catalogue'],
             'orders' => [OrderResource::class, 'orders'],
-            'invoices' => [InvoiceResource::class, 'orders'],
             'customers' => [CustomerResource::class, 'customers'],
             'shipping' => [ShippingMethodResource::class, 'store'],
             'facebook' => [FacebookConnectionResource::class, 'store'],
@@ -86,6 +87,25 @@ class AppPanelAuthorizationTest extends TestCase
 
             $this->assertSame(in_array($area, $grants['view'], true) && ($area !== 'store' || $role === 'admin'), $resource::canViewAny(), "{$role} viewAny on {$resource}");
             $this->assertSame(in_array($area, $grants['manage'], true), $resource::canCreate(), "{$role} manage on {$resource}");
+        }
+    }
+
+    #[Test]
+    public function invoices_are_seen_by_whoever_sees_orders_and_written_by_nobody(): void
+    {
+        $owner = User::factory()->create();
+        $this->inTeam(Team::factory()->create(['user_id' => $owner->id]), $owner);
+        $this->assertTrue(InvoiceResource::canViewAny());
+        $this->assertFalse(InvoiceResource::canCreate());
+
+        foreach (self::ROLES as $role => $grants) {
+            $team = Team::factory()->create();
+            $member = User::factory()->create();
+            $team->users()->attach($member, ['role' => $role]);
+            $this->inTeam($team, $member);
+
+            $this->assertSame(in_array('orders', $grants['view'], true), InvoiceResource::canViewAny(), "{$role} viewAny on invoices");
+            $this->assertFalse(InvoiceResource::canCreate(), "{$role} create on invoices");
         }
     }
 

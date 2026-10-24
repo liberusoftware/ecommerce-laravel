@@ -5,6 +5,7 @@ namespace App\Filament\Schemas;
 use App\Models\FacebookConnection;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductOptionGroup;
 use App\Models\TaxClass;
 use App\Services\StoreContext;
 use App\Support\Money;
@@ -187,8 +188,15 @@ final class ProductForm
         return Section::make('Inventory and shipping')
             ->columns(3)
             ->schema([
+                Toggle::make('track_inventory')
+                    ->label('Track stock')
+                    ->default(fn (Get $get) => ! $get('is_downloadable'))
+                    ->live()
+                    ->helperText('Off sells any quantity: for made-to-order goods. Downloads start untracked.')
+                    ->columnSpanFull(),
                 TextInput::make('inventory_count')
                     ->label('Stock')
+                    ->visible(fn (Get $get) => (bool) $get('track_inventory'))
                     ->required()
                     ->integer()
                     ->minValue(0)
@@ -198,6 +206,7 @@ final class ProductForm
                     ->helperText(fn (string $operation) => $operation === 'edit' ? 'Use “Adjust stock” on the product list; adjustments are logged.' : null),
                 TextInput::make('low_stock_threshold')
                     ->label('Low-stock alert at')
+                    ->visible(fn (Get $get) => (bool) $get('track_inventory'))
                     ->required()
                     ->integer()
                     ->minValue(0)
@@ -220,8 +229,9 @@ final class ProductForm
             ->schema([
                 Toggle::make('is_downloadable')
                     ->label('This is a downloadable product')
-                    ->helperText('Downloadable products need no shipping.')
+                    ->helperText('Downloadable products need no shipping, and their stock is not tracked unless you turn tracking back on.')
                     ->live()
+                    ->afterStateUpdated(fn (Set $set, ?bool $state) => $set('track_inventory', ! $state))
                     ->columnSpanFull(),
                 FileUpload::make('downloadable_file')
                     ->label('File')
@@ -309,6 +319,22 @@ final class ProductForm
                     ->multiple()
                     ->relationship('tags', 'name')
                     ->preload(),
+                // Only this product's own store's groups, offered and accepted.
+                Select::make('optionGroups')
+                    ->label('Option groups')
+                    ->multiple()
+                    ->relationship('optionGroups', 'name', modifyQueryUsing: fn ($query, Get $get, ?Product $record) => $query
+                        ->where('product_option_groups.store_id', self::storeOf($record, $get)))
+                    ->rule(fn (Get $get, ?Product $record) => function (string $attribute, $value, Closure $fail) use ($get, $record): void {
+                        $ids = array_map('intval', (array) $value);
+                        $own = ProductOptionGroup::withoutGlobalScopes()->whereKey($ids)->where('store_id', self::storeOf($record, $get))->count();
+                        if ($own !== count($ids)) {
+                            $fail('Option groups must belong to this product\'s store.');
+                        }
+                    })
+                    ->preload()
+                    ->hidden(fn (Get $get) => $get('pricing_type') === 'donation')
+                    ->helperText('Choices shoppers make when adding this product, such as size or extras.'),
             ]);
     }
 

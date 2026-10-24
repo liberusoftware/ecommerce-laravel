@@ -8,6 +8,7 @@ use App\Filament\App\Resources\Orders\Pages\ListOrders;
 use App\Filament\Schemas\StoreField;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Services\StoreContext;
 use App\Support\Money;
@@ -17,6 +18,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -90,6 +92,16 @@ class OrderResource extends Resource
                         ->minValue(1)
                         ->default(1),
                 ]),
+
+            // What was sold, as frozen on the order: name, choices and agreed price.
+            TextEntry::make('lines')
+                ->label('Line Items')
+                ->state(fn (?Order $record) => $record?->items->map(fn (OrderItem $item) => $item->quantity.' × '.$item->displayName()
+                    .($item->options ? ' — '.implode('; ', $item->optionLabels($record->currency_code)) : '')
+                    .' @ '.Money::format($item->price, $record->currency_code))->all())
+                ->listWithLineBreaks()
+                ->visibleOn('edit')
+                ->columnSpanFull(),
 
             TextInput::make('status')
                 ->disabled()

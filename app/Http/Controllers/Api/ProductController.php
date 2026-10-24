@@ -78,10 +78,10 @@ class ProductController extends Controller
     {
         // Try to find by ID if identifier is numeric, otherwise by slug
         $product = is_numeric($identifier)
-            ? Product::with(['category', 'images', 'tags', 'review', 'rating'])
+            ? Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices'])
                 ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->find($identifier)
-            : Product::with(['category', 'images', 'tags', 'review', 'rating'])
+            : Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices'])
                 ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->where('slug', $identifier)
                 ->first();
@@ -113,6 +113,7 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'category_id' => ['required', $this->categoryInThisStore()],
             'featured_image' => 'nullable|string',
+            'track_inventory' => 'nullable|boolean',
             'inventory_count' => 'nullable|integer|min:0',
             'low_stock_threshold' => 'nullable|integer|min:0',
             'meta_title' => 'nullable|string|max:255',
@@ -168,6 +169,7 @@ class ProductController extends Controller
             'price' => 'sometimes|required|numeric|min:0',
             'category_id' => ['sometimes', 'required', $this->categoryInThisStore()],
             'featured_image' => 'nullable|string',
+            'track_inventory' => 'nullable|boolean',
             'inventory_count' => 'nullable|integer|min:0',
             'low_stock_threshold' => 'nullable|integer|min:0',
             'meta_title' => 'nullable|string|max:255',

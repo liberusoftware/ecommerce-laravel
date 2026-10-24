@@ -47,8 +47,9 @@ final class ProductTable
                     ->description(fn (Product $record) => $record->isOnSale()
                         ? 'On sale: '.Money::format($record->sale_price, $record->store?->currency_code)
                         : null),
-                TextColumn::make('inventory_count')->label('Stock')->sortable()->numeric()
-                    ->color(fn (Product $record) => $record->inventory_count <= 0 ? 'danger' : ($record->isLowStock() ? 'warning' : null)),
+                TextColumn::make('inventory_count')->label('Stock')->sortable()
+                    ->formatStateUsing(fn (Product $record, $state) => $record->tracksInventory() ? number_format((int) $state) : 'Not tracked')
+                    ->color(fn (Product $record) => ! $record->isInStock() ? 'danger' : ($record->isLowStock() ? 'warning' : null)),
                 TextColumn::make('category.name')->label('Category')->sortable()->toggleable(),
                 IconColumn::make('is_featured')->label('Featured')->boolean()->toggleable(),
                 TextColumn::make('visibility')->toggleable(isToggledHiddenByDefault: true),
@@ -62,8 +63,8 @@ final class ProductTable
                     ->trueLabel('In stock')
                     ->falseLabel('Out of stock')
                     ->queries(
-                        true: fn (Builder $query) => $query->where('inventory_count', '>', 0),
-                        false: fn (Builder $query) => $query->where('inventory_count', '<=', 0),
+                        true: fn (Builder $query) => $query->where(fn ($q) => $q->where('track_inventory', false)->orWhere('inventory_count', '>', 0)),
+                        false: fn (Builder $query) => $query->where('track_inventory', true)->where('inventory_count', '<=', 0),
                     ),
             ])
             ->recordActions([
@@ -71,6 +72,7 @@ final class ProductTable
                 Action::make('adjustInventory')
                     ->label('Adjust stock')
                     ->icon('heroicon-o-adjustments-horizontal')
+                    ->visible(fn (Product $record) => $record->tracksInventory())
                     ->authorize(fn (Product $record) => auth()->user()?->can('update', $record))
                     ->schema([
                         TextInput::make('adjustment')

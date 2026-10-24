@@ -12,6 +12,7 @@ use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,7 @@ class Product extends Model implements Orderable
         'sale_price',
         'category_id',
         'featured_image',
+        'track_inventory',
         'inventory_count',
         'low_stock_threshold',
         'weight',
@@ -93,6 +95,7 @@ class Product extends Model implements Orderable
 
     protected $casts = [
         'is_downloadable' => 'boolean',
+        'track_inventory' => 'boolean',
         'list_on_facebook' => 'boolean',
         'price' => 'decimal:2',
         'sale_price' => 'decimal:2',
@@ -151,6 +154,14 @@ class Product extends Model implements Orderable
         return str_starts_with($url, $appUrl) ? '/'.ltrim((string) parse_url($url, PHP_URL_PATH), '/') : $url;
     }
 
+    public function optionGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductOptionGroup::class, 'product_option_group_product')
+            ->withPivot('position')
+            ->orderByPivot('position')
+            ->orderBy('product_option_groups.id');
+    }
+
     public function cartItems()
     {
         return $this->hasMany(CartItem::class);
@@ -200,6 +211,13 @@ class Product extends Model implements Orderable
 
     protected static function booted(): void
     {
+        // A new product's stock follows its kind unless the caller says otherwise:
+        // physical goods are counted, downloads are not. Once stored, the choice
+        // is the merchant's and nothing changes it behind their back.
+        static::creating(function (Product $product) {
+            $product->track_inventory ??= ! $product->is_downloadable;
+        });
+
         // Only on create: a product's URL does not change because it was renamed.
         static::creating(function (Product $product) {
             if (empty($product->slug)) {
@@ -224,7 +242,8 @@ class Product extends Model implements Orderable
         // `updated` (not `saved`) so increment()/decrement() — the admin & refund
         // restock paths — are caught alongside plain save()/update().
         static::updated(function ($product) {
-            if ($product->wasChanged('inventory_count')
+            if ($product->tracksInventory()
+                && $product->wasChanged('inventory_count')
                 && (int) $product->getOriginal('inventory_count') <= 0
                 && $product->inventory_count > 0) {
                 $product->notifyBackInStockSubscribers();
@@ -391,14 +410,31 @@ class Product extends Model implements Orderable
         return $this->isOnSale() ? (float) $this->sale_price : (float) $this->price;
     }
 
-    public function isInStock(): bool
+    public function tracksInventory(): bool
     {
-        return (int) $this->inventory_count > 0;
+        return (bool) ($this->track_inventory ?? ! $this->is_downloadable);
     }
 
-    public function isLowStock()
+    public function isInStock(): bool
     {
-        return $this->inventory_count <= $this->low_stock_threshold;
+        return ! $this->tracksInventory() || (int) $this->inventory_count > 0;
+    }
+
+    /** Whether the stock rule allows selling this many in total. */
+    public function canSupply(int $quantity): bool
+    {
+        return ! $this->tracksInventory() || (int) $this->inventory_count >= $quantity;
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->tracksInventory() && $this->inventory_count <= $this->low_stock_threshold;
+    }
+
+    /** Products whose stock is counted; the rest have no stock to run low or out of. */
+    public function scopeTracked(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('track_inventory'), true);
     }
 
     public function getPrice(): float

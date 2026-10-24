@@ -6,8 +6,8 @@
 
     // Product::isLowStock() reports true for sold-out stock too (0 <= threshold),
     // which is why the old card badged sold-out items "Low Stock". Split explicitly.
-    $isOut = $stock <= 0;
-    $isLow = ! $isOut && $stock <= $threshold;
+    $isOut = ! $product->isInStock();
+    $isLow = ! $isOut && $product->tracksInventory() && $stock <= $threshold;
 
     // review_count / rating_avg_rating come from the controller's eager loads;
     // the method calls are the fallback for any caller that didn't eager-load.

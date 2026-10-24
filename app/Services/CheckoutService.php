@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Exceptions\CheckoutException;
+use App\Exceptions\InvalidProductConfigurationException;
 use App\Factories\PaymentGatewayFactory;
 use App\Jobs\DispatchDropshippingOrder;
+use App\Models\CartItem;
 use App\Models\Coupon;
 use App\Models\InventoryLog;
 use App\Models\Order;
@@ -27,11 +29,34 @@ use Throwable;
  * presentation) and calls these primitives; they do not encode any web- or
  * GraphQL-specific behaviour.
  *
- * @phpstan-type LineItem array{product_id: int, quantity: int, price: float|string}
+ * @phpstan-type LineItem array{product_id: int, quantity: int, price: float|string, product_name?: ?string, options?: ?array}
  */
 class CheckoutService
 {
-    public function __construct(private CouponService $couponService) {}
+    public function __construct(private CouponService $couponService, private ProductOptionResolver $resolver) {}
+
+    /**
+     * The order lines for a cart, as both checkout paths write them: the name
+     * and choices are frozen here, so the order never reads the catalogue again.
+     *
+     * @param  iterable<CartItem>  $items
+     * @return list<LineItem>
+     */
+    public function orderLines(iterable $items): array
+    {
+        $lines = [];
+        foreach ($items as $item) {
+            $lines[] = [
+                'product_id' => (int) $item->product_id,
+                'product_name' => $item->product?->name,
+                'options' => $item->options ?: null,
+                'quantity' => (int) $item->quantity,
+                'price' => $item->price,
+            ];
+        }
+
+        return $lines;
+    }
 
     /**
      * Every line must still be an active product: a product taken down after it
@@ -45,6 +70,56 @@ class CheckoutService
 
         if (Product::active()->whereKey($productIds)->count() !== $productIds->count()) {
             throw new CheckoutException('Some items in your cart are no longer available.');
+        }
+    }
+
+    /**
+     * Brings every line to the catalogue's current price and choices. If any
+     * price moved, the cart is left corrected and checkout refuses, so the
+     * shopper sees the new total before anything is charged. A line whose
+     * choices are no longer valid is refused outright: there is no price to
+     * correct it to.
+     *
+     * @param  iterable<CartItem>  $items
+     */
+    public function assertCartPricesCurrent(iterable $items): void
+    {
+        $changed = false;
+        $invalid = [];
+
+        foreach ($items as $item) {
+            if ($item->product === null) {
+                continue;
+            }
+
+            if ($item->product->isDonationBased()) {
+                $current = max((float) $item->price, (float) $item->product->minimum_price);
+                $options = $item->options;
+            } else {
+                try {
+                    $configuration = $this->resolver->resolve($item->product, $item->choiceIds());
+                } catch (InvalidProductConfigurationException) {
+                    $invalid[] = $item->product->name;
+
+                    continue;
+                }
+                $current = $configuration->unitPrice;
+                $options = $configuration->options ?: null;
+            }
+
+            $moved = abs($current - (float) $item->price) >= 0.005;
+            if ($moved || $options != $item->options) {
+                $item->update(['price' => $current, 'options' => $options]);
+            }
+            $changed = $changed || $moved;
+        }
+
+        if ($invalid !== []) {
+            throw new InvalidProductConfigurationException('Some options chosen for '.implode(', ', array_unique($invalid)).' are no longer available. Remove the item and add it again.');
+        }
+
+        if ($changed) {
+            throw new CheckoutException('Prices in your cart have changed. Please review your cart and check out again.');
         }
     }
 
@@ -159,15 +234,23 @@ class CheckoutService
         foreach ($lineItems as $line) {
             $order->items()->create([
                 'product_id' => $line['product_id'],
+                'product_name' => $line['product_name'] ?? Product::withTrashed()->whereKey($line['product_id'])->value('name'),
+                'options' => $line['options'] ?? null,
                 'quantity' => $line['quantity'],
                 'price' => $line['price'],
             ]);
 
             $affected = Product::where('id', $line['product_id'])
+                ->where('track_inventory', true)
                 ->where('inventory_count', '>=', $line['quantity'])
                 ->decrement('inventory_count', $line['quantity']);
 
             if ($affected === 0) {
+                // An untracked product has nothing to reserve.
+                if (Product::where('id', $line['product_id'])->where('track_inventory', false)->exists()) {
+                    continue;
+                }
+
                 throw new CheckoutException('Some items in your cart are no longer available in the requested quantity.');
             }
 
@@ -197,7 +280,7 @@ class CheckoutService
     {
         foreach ($lineItems as $line) {
             DB::transaction(function () use ($order, $line) {
-                if (Product::where('id', $line['product_id'])->increment('inventory_count', $line['quantity']) === 0) {
+                if (Product::where('id', $line['product_id'])->where('track_inventory', true)->increment('inventory_count', $line['quantity']) === 0) {
                     return;
                 }
 

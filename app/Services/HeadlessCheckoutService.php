@@ -37,6 +37,7 @@ class HeadlessCheckoutService
 
         $paymentMethod = $input['paymentMethod'] ?? 'stripe';
         $this->checkoutService->assertPurchasable($cart->pluck('product_id'));
+        $this->checkoutService->assertCartPricesCurrent($cart);
         $this->checkoutService->assertGatewayAccepted($paymentMethod);
         $country = strtoupper((string) ($input['country'] ?? ''));
         $isDropship = (bool) ($input['dropship'] ?? false);
@@ -63,9 +64,7 @@ class HeadlessCheckoutService
 
         // Floor at 0 — a discount can zero an order but must never make it negative.
         $total = max(0, round($subtotal - $discount + $shippingCost + $taxAmount, 2));
-        $lineItems = $cart->map(fn (CartItem $i) => [
-            'product_id' => $i->product_id, 'quantity' => $i->quantity, 'price' => $i->price,
-        ])->all();
+        $lineItems = $this->checkoutService->orderLines($cart);
 
         $order = null;
         DB::transaction(function () use (&$order, $lineItems, $user, $input, $paymentMethod, $country, $total, $shippingCost, $carrier, $service, $quoteId, $taxAmount, $taxLines, $discount, $coupon, $isDropship, $vatNumber, $reverseCharge) {
