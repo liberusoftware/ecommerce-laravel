@@ -14,6 +14,9 @@ class ConnectedAccount extends SocialstreamConnectedAccount
     use HasFactory;
     use HasTimestamps;
 
+    /** @var list<string> */
+    protected $hidden = ['token', 'secret', 'refresh_token'];
+
     /**
      * The attributes that are mass assignable.
      *
