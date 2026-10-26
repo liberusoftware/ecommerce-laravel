@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "891b00a5479a92688728feb0cf16436c",
+    "content-hash": "b7412d97eac0aa6f4ecadbcb2c236adc",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -5268,20 +5268,26 @@
         {
             "name": "liberusoftware/module-manager",
             "version": "1.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/liberusoftware/module-module-manager.git",
+                "reference": "688fc9c01008bfd5258afa2a78587c48804ec2e7"
+            },
             "dist": {
-                "type": "path",
-                "url": "modules/module-manager",
-                "reference": "ece156b06f39416fbcfc662f7ad819a63c1bf4da"
+                "type": "zip",
+                "url": "https://api.github.com/repos/liberusoftware/module-module-manager/zipball/688fc9c01008bfd5258afa2a78587c48804ec2e7",
+                "reference": "688fc9c01008bfd5258afa2a78587c48804ec2e7",
+                "shasum": ""
             },
             "require": {
-                "composer/semver": "^3.5.2",
-                "illuminate/contracts": "^13.38.0",
-                "illuminate/support": "^13.38.0",
+                "composer/semver": "^3.4",
+                "illuminate/contracts": "^13.0",
+                "illuminate/support": "^13.0",
                 "php": "^8.5"
             },
             "require-dev": {
                 "liberusoftware/package-testbench": "^1.5",
-                "pestphp/pest": "^5.3.3"
+                "pestphp/pest": "^5.0"
             },
             "type": "liberu-module",
             "extra": {
@@ -5294,24 +5300,16 @@
                     "Liberu\\Foundation\\ModuleManager\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Liberu\\Foundation\\ModuleManager\\Tests\\": "tests/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "pest"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
             "description": "Deterministic manifest discovery and runtime enablement for Liberu modules.",
-            "transport-options": {
-                "symlink": false,
-                "relative": true
-            }
+            "support": {
+                "issues": "https://github.com/liberusoftware/module-module-manager/issues",
+                "source": "https://github.com/liberusoftware/module-module-manager/tree/1.4.2"
+            },
+            "time": "2026-08-07T14:25:25+00:00"
         },
         {
             "name": "livewire/livewire",

@@ -108,17 +108,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "path",
-            "url": "modules/*",
-            "options": {
-                "symlink": false,
-                "versions": {
-                    "liberusoftware/module-manager": "1.4.2"
-                }
-            }
-        }
-    ]
+    "prefer-stable": true
 }
