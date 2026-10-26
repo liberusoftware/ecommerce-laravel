@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b7412d97eac0aa6f4ecadbcb2c236adc",
+    "content-hash": "b50179f8b7f70986b3486de91e92fc4b",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -5267,16 +5267,16 @@
         },
         {
             "name": "liberusoftware/module-manager",
-            "version": "1.4.2",
+            "version": "1.4.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/liberusoftware/module-module-manager.git",
-                "reference": "688fc9c01008bfd5258afa2a78587c48804ec2e7"
+                "reference": "af8dc4a966f4c4b7b0faf416c1fac49abb615c3c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/liberusoftware/module-module-manager/zipball/688fc9c01008bfd5258afa2a78587c48804ec2e7",
-                "reference": "688fc9c01008bfd5258afa2a78587c48804ec2e7",
+                "url": "https://api.github.com/repos/liberusoftware/module-module-manager/zipball/af8dc4a966f4c4b7b0faf416c1fac49abb615c3c",
+                "reference": "af8dc4a966f4c4b7b0faf416c1fac49abb615c3c",
                 "shasum": ""
             },
             "require": {
@@ -5307,9 +5307,9 @@
             "description": "Deterministic manifest discovery and runtime enablement for Liberu modules.",
             "support": {
                 "issues": "https://github.com/liberusoftware/module-module-manager/issues",
-                "source": "https://github.com/liberusoftware/module-module-manager/tree/1.4.2"
+                "source": "https://github.com/liberusoftware/module-module-manager/tree/1.4.3"
             },
-            "time": "2026-08-07T14:25:25+00:00"
+            "time": "2026-10-26T21:37:12+00:00"
         },
         {
             "name": "livewire/livewire",
