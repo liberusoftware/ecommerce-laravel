@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b50179f8b7f70986b3486de91e92fc4b",
+    "content-hash": "c9a7281c2224414080cfd425f2b5d2f4",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -5310,6 +5310,56 @@
                 "source": "https://github.com/liberusoftware/module-module-manager/tree/1.4.3"
             },
             "time": "2026-10-26T21:37:12+00:00"
+        },
+        {
+            "name": "liberusoftware/users-roles",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "modules/users-roles",
+                "reference": "9390410edaa397332d7b6d5b34d4a379ae3e81f1"
+            },
+            "require": {
+                "illuminate/auth": "^13.0",
+                "illuminate/contracts": "^13.0",
+                "illuminate/database": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^8.5",
+                "spatie/laravel-permission": "^8.0"
+            },
+            "require-dev": {
+                "liberusoftware/package-testbench": "^1.5",
+                "pestphp/pest": "^5.3.3"
+            },
+            "type": "liberu-module",
+            "extra": {
+                "liberu": {
+                    "name": "users-roles"
+                },
+                "laravel": {
+                    "providers": [
+                        "Liberu\\Foundation\\UsersRoles\\UsersRolesServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\Foundation\\UsersRoles\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Shared users, role lookup, user policies, and user factories.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
         },
         {
             "name": "livewire/livewire",
