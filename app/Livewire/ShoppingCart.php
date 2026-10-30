@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Exceptions\InsufficientStockException;
+use App\Exceptions\InvalidProductConfigurationException;
 use App\Models\Product;
 use App\Services\CartService;
 use Livewire\Attributes\On;
@@ -38,32 +40,29 @@ class ShoppingCart extends Component
     }
 
     #[On('addToCart')]
-    public function addToCart(int $productId, string $name = '', float $price = 0, int $quantity = 1, bool $isDownloadable = false, float $weight = 0): void
+    public function addToCart(int $productId, string $name = '', float $price = 0, int $quantity = 1, bool $isDownloadable = false, float $weight = 0, array $options = [], ?int $variantId = null): void
     {
-        // Never trust the dispatched name/price/isDownloadable/weight — the checkout
-        // charges whatever the session cart holds, so a client could set price=0.01,
-        // forge the downloadable flag to skip the stock gate, or send a negative
-        // quantity. Derive everything from the Product and clamp the quantity.
-        $product = Product::findOrFail($productId);
-        $quantity = max(1, $quantity);
-        $isDownloadable = (bool) $product->is_downloadable;
-
-        if (! $isDownloadable && $product->inventory_count < $quantity) {
-            session()->flash('error', 'Not enough inventory available.');
+        // The dispatched name, price, downloadable flag and weight are never
+        // trusted: everything is derived from the product and the chosen options.
+        $product = Product::active()->find($productId);
+        if ($product === null) {
+            session()->flash('error', 'This product is not available.');
 
             return;
         }
 
-        if (isset($this->items[$productId])) {
-            $newQuantity = $this->items[$productId]['quantity'] + $quantity;
-            if (! $isDownloadable && $newQuantity > $product->inventory_count) {
-                session()->flash('error', 'Cannot add more items than available in stock.');
+        try {
+            $this->cart()->add($product, max(1, $quantity), $options, null, $variantId);
+        } catch (InsufficientStockException) {
+            session()->flash('error', 'Not enough inventory available.');
 
-                return;
-            }
+            return;
+        } catch (InvalidProductConfigurationException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
         }
 
-        $this->cart()->add($product, $quantity);
         $this->items = $this->cart()->contents();
         $this->dispatch('cartUpdated');
         session()->flash('success', 'Product added to cart successfully!');
@@ -80,7 +79,7 @@ class ShoppingCart extends Component
         return false;
     }
 
-    public function updateQuantity(int $productId, int $quantity): void
+    public function updateQuantity(int $lineId, int $quantity): void
     {
         if ($quantity < 1) {
             $this->addError('quantity', 'Quantity must be at least 1');
@@ -88,37 +87,29 @@ class ShoppingCart extends Component
             return;
         }
 
-        if (! isset($this->items[$productId])) {
+        $line = $this->cart()->line($lineId);
+        if ($line === null) {
             $this->addError('product', 'Product not found in cart');
 
             return;
         }
 
-        $isDownloadable = $this->items[$productId]['is_downloadable'] ?? false;
-        if (! $isDownloadable) {
-            $product = Product::find($productId);
-            if (! $product) {
-                $this->addError('product', 'Product not found');
+        try {
+            $this->cart()->setQuantity($line, $quantity);
+        } catch (InsufficientStockException) {
+            session()->flash('error', 'Requested quantity exceeds available stock.');
 
-                return;
-            }
-            if ($quantity > $product->inventory_count) {
-                session()->flash('error', 'Requested quantity exceeds available stock.');
-
-                return;
-            }
+            return;
         }
 
-        $this->cart()->setQuantity($productId, $quantity);
         $this->items = $this->cart()->contents();
         $this->dispatch('cartUpdated');
         session()->flash('success', 'Cart updated');
     }
 
-    public function removeItem(int $productId): void
+    public function removeItem(int $lineId): void
     {
-        if (isset($this->items[$productId])) {
-            $this->cart()->remove($productId);
+        if ($this->cart()->remove($lineId)) {
             $this->items = $this->cart()->contents();
             $this->dispatch('cartUpdated');
             session()->flash('success', 'Item removed from cart');

@@ -16,6 +16,7 @@ use App\Filament\App\Pages\EditProfile;
 use App\Filament\App\Resources\Coupons\CouponResource;
 use App\Filament\App\Resources\Orders\OrderResource;
 use App\Filament\App\Resources\ProductCategories\ProductCategoryResource;
+use App\Filament\App\Resources\ProductOptionGroups\ProductOptionGroupResource;
 use App\Filament\App\Resources\Products\ProductResource;
 use App\Http\Middleware\TeamsPermission;
 use App\Models\Menu;
@@ -76,6 +77,7 @@ class AdminPanelProvider extends PanelProvider
             ->resources([
                 ProductResource::class,
                 ProductCategoryResource::class,
+                ProductOptionGroupResource::class,
                 OrderResource::class,
                 CouponResource::class,
             ])

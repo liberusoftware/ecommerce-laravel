@@ -62,6 +62,31 @@ class CommerceRulesParityTest extends TestCase
         $this->assertEquals(30, CartItem::where('user_id', $gqlUser->id)->value('price'));
     }
 
+    public function test_every_door_reprices_a_line_it_adds_to(): void
+    {
+        $product = $this->product(['inventory_count' => 10]);
+
+        $this->post(route('cart.add', $product));
+        $product->update(['price' => 70]);
+        $this->post(route('cart.add', $product));
+        $web = CartItem::query()->whereNull('user_id')->sole();
+        $this->assertEquals([70, 2], [$web->price, $web->quantity]);
+
+        Sanctum::actingAs($apiUser = User::factory()->create());
+        $this->postJson('/api/cart', ['product_id' => $product->id, 'quantity' => 1]);
+        $product->update(['price' => 80]);
+        $this->postJson('/api/cart', ['product_id' => $product->id, 'quantity' => 1]);
+        $api = CartItem::where('user_id', $apiUser->id)->sole();
+        $this->assertEquals([80, 2], [$api->price, $api->quantity]);
+
+        Sanctum::actingAs($gqlUser = User::factory()->create());
+        $this->addByGraphql($product, 1);
+        $product->update(['price' => 90]);
+        $this->addByGraphql($product, 1);
+        $gql = CartItem::where('user_id', $gqlUser->id)->sole();
+        $this->assertEquals([90, 2], [$gql->price, $gql->quantity]);
+    }
+
     public function test_every_door_counts_what_is_already_in_the_cart_against_stock(): void
     {
         $scarce = $this->product(['inventory_count' => 3]);

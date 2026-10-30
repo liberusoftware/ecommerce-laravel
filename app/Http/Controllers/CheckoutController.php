@@ -163,12 +163,18 @@ class CheckoutController extends Controller
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
 
-        // Verify inventory before processing
-        foreach ($cart as $productId => $item) {
-            $product = Product::active()->find($productId);
-            if (! $product || $product->inventory_count < $item['quantity']) {
-                return redirect()->back()->with('error', 'Some items in your cart are no longer available in the requested quantity.');
-            }
+        try {
+            $items = $this->cart->items();
+            $this->checkoutService->assertPurchasable($items->pluck('product_id'));
+            $this->checkoutService->assertInStock($items);
+        } catch (CheckoutException $e) {
+            return redirect()->back()->with('error', 'Some items in your cart are no longer available in the requested quantity.');
+        }
+
+        try {
+            $this->checkoutService->assertCartPricesCurrent($items);
+        } catch (CheckoutException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
 
         // Calculate total amount
@@ -264,9 +270,9 @@ class CheckoutController extends Controller
             // coupon was given against, so the calculator counts them when it
             // spreads the discount.
             $taxItems = [];
-            foreach ($cart as $productId => $item) {
+            foreach ($cart as $item) {
                 $taxItems[] = [
-                    'product' => Product::find($productId),
+                    'product' => Product::find($item['product_id']),
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                 ];
@@ -284,10 +290,7 @@ class CheckoutController extends Controller
         // If any line can't be reserved (e.g. a concurrent buyer took the last
         // unit), the whole transaction rolls back and no payment is taken — this
         // is what prevents charging a customer for stock we can't fulfil.
-        $lineItems = [];
-        foreach ($cart as $productId => $item) {
-            $lineItems[] = ['product_id' => $productId, 'quantity' => $item['quantity'], 'price' => $item['price']];
-        }
+        $lineItems = $this->checkoutService->orderLines($this->cart->items());
 
         $order = null;
         try {

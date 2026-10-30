@@ -68,7 +68,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->withCount('review')
+        $products = $query->with(['variants', 'optionGroups'])->withCount('review')
             ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());
@@ -106,7 +106,7 @@ class ProductController extends Controller
             $query->whereIn('category_id', $category ? $category->listingCategoryIds() : [$categoryId]);
         }
 
-        $products = $query->withCount('review')
+        $products = $query->with(['variants', 'optionGroups'])->withCount('review')
             ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());
@@ -120,7 +120,7 @@ class ProductController extends Controller
     {
         abort_unless($product->isActive(), 404);
 
-        $product->load(['images', 'category']);
+        $product->load(['images', 'category', 'optionGroups.choices', 'variants']);
 
         return view('products.show', compact('product'));
     }

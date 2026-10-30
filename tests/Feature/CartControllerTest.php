@@ -73,7 +73,7 @@ class CartControllerTest extends TestCase
         $product = $this->makeProduct(['inventory_count' => 50]);
         $this->post(route('cart.add', $product), ['quantity' => 1]);
 
-        $response = $this->put(route('cart.update', $product->id), ['quantity' => 3]);
+        $response = $this->put(route('cart.update', CartItem::sole()->id), ['quantity' => 3]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -93,7 +93,7 @@ class CartControllerTest extends TestCase
         $product = $this->makeProduct();
         $this->post(route('cart.add', $product), ['quantity' => 1]);
 
-        $response = $this->put(route('cart.update', $product->id), ['quantity' => 0]);
+        $response = $this->put(route('cart.update', CartItem::sole()->id), ['quantity' => 0]);
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
@@ -104,7 +104,7 @@ class CartControllerTest extends TestCase
         $product = $this->makeProduct(['inventory_count' => 2]);
         $this->post(route('cart.add', $product), ['quantity' => 1]);
 
-        $response = $this->put(route('cart.update', $product->id), ['quantity' => 10]);
+        $response = $this->put(route('cart.update', CartItem::sole()->id), ['quantity' => 10]);
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
@@ -115,7 +115,7 @@ class CartControllerTest extends TestCase
         $product = $this->makeProduct();
         $this->post(route('cart.add', $product), ['quantity' => 1]);
 
-        $response = $this->delete(route('cart.remove', $product->id));
+        $response = $this->delete(route('cart.remove', CartItem::sole()->id));
 
         $response->assertRedirect();
         $response->assertSessionHas('success');

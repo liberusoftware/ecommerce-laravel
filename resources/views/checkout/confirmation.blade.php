@@ -45,8 +45,14 @@
                 @foreach($order->items as $item)
                     <div class="py-3 flex justify-between items-center">
                         <div>
-                            <span class="font-medium text-ink">{{ $item->product->name ?? 'Product #' . $item->product_id }}</span>
+                            <span class="font-medium text-ink">{{ $item->displayName() }}</span>
                             <span class="text-muted text-sm ml-2">× {{ $item->quantity }}</span>
+                            @if ($item->variantLabel())
+                                <span class="block text-muted text-sm">{{ $item->variantLabel() }}</span>
+                            @endif
+                            @foreach($item->optionLabels($order->currency_code) as $label)
+                                <span class="block text-muted text-sm">{{ $label }}</span>
+                            @endforeach
                             @if($item->is_downloadable ?? false)
                                 <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">Digital</span>
                             @endif

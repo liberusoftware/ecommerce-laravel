@@ -6,8 +6,8 @@
 
     // Product::isLowStock() reports true for sold-out stock too (0 <= threshold),
     // which is why the old card badged sold-out items "Low Stock". Split explicitly.
-    $isOut = $stock <= 0;
-    $isLow = ! $isOut && $stock <= $threshold;
+    $isOut = ! $product->isInStock();
+    $isLow = ! $isOut && $product->tracksInventory() && $stock <= $threshold;
 
     // review_count / rating_avg_rating come from the controller's eager loads;
     // the method calls are the fallback for any caller that didn't eager-load.
@@ -17,7 +17,9 @@
         ? $product->rating_avg_rating
         : $product->getAverageRating());
 
+    $requiresChoice = $product->requiresChoice();
     $price = \App\Support\Money::format($product->sellingPrice());
+    $fromPrice = $product->hasVariantPriceRange();
     $image = $product->image_url ?: asset('images/placeholder-product.svg');
 @endphp
 
@@ -72,7 +74,7 @@
     <div class="mt-auto flex flex-wrap items-end justify-between gap-3 pt-4">
         <div class="min-w-0">
             <p class="data text-title font-semibold text-ink">
-                {{ $price }}
+                @if ($fromPrice)<span class="text-label font-normal text-muted">From </span>@endif{{ $price }}
                 @if ($product->isOnSale())
                     <s class="ml-1 text-label font-normal text-muted"><span class="sr-only">Was </span>{{ \App\Support\Money::format($product->price) }}</s>
                 @endif
@@ -89,12 +91,20 @@
             @endif
         </div>
 
-        <form action="{{ route('cart.add', $product) }}" method="POST" class="shrink-0">
-            @csrf
-            <button type="submit" class="btn btn-primary btn-sm" @disabled($isOut)>
-                {{ $isOut ? 'Sold out' : 'Add to cart' }}
+        @if ($requiresChoice && ! $isOut)
+            {{-- A variant or a required option has to be chosen first, which happens on the product page. --}}
+            <a href="{{ route('products.show', $product) }}" class="btn btn-primary btn-sm shrink-0">
+                Choose options
                 <span class="sr-only">: {{ $product->name }}</span>
-            </button>
-        </form>
+            </a>
+        @else
+            <form action="{{ route('cart.add', $product) }}" method="POST" class="shrink-0">
+                @csrf
+                <button type="submit" class="btn btn-primary btn-sm" @disabled($isOut)>
+                    {{ $isOut ? 'Sold out' : 'Add to cart' }}
+                    <span class="sr-only">: {{ $product->name }}</span>
+                </button>
+            </form>
+        @endif
     </div>
 </article>

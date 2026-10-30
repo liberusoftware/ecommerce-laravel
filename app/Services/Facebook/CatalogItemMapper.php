@@ -25,7 +25,7 @@ class CatalogItemMapper
                 'id' => $retailerId,
                 'title' => $product->name,
                 'description' => self::description($product),
-                'availability' => $product->inventory_count > 0 ? 'in stock' : 'out of stock',
+                'availability' => $product->isInStock() ? 'in stock' : 'out of stock',
                 'condition' => 'new',
                 'price' => self::money($product->price, $product),
                 'link' => self::link($product),

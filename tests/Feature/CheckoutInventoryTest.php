@@ -81,7 +81,7 @@ class CheckoutInventoryTest extends TestCase
         Notification::fake();
         $this->bindGateway(fn () => ['success' => true, 'transaction_id' => 'ch_persist']);
 
-        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
+        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true, 'track_inventory' => true]);
 
         $this->withStoredCart($this->cartFor($product, 1))
             ->post(route('checkout.process'), $this->payload());
@@ -99,7 +99,7 @@ class CheckoutInventoryTest extends TestCase
         Notification::fake();
         $spy = $this->bindGateway(fn () => ['success' => true]);
 
-        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
+        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true, 'track_inventory' => true]);
 
         $this->withStoredCart($this->cartFor($product, 2))
             ->post(route('checkout.process'), $this->payload());
@@ -114,7 +114,7 @@ class CheckoutInventoryTest extends TestCase
         Notification::fake();
         $this->bindGateway(fn () => ['success' => false, 'error' => 'card declined']);
 
-        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
+        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true, 'track_inventory' => true]);
 
         $this->withStoredCart($this->cartFor($product, 2))
             ->post(route('checkout.process'), $this->payload());
@@ -132,7 +132,7 @@ class CheckoutInventoryTest extends TestCase
         $this->bindGateway(fn () => ['success' => true, 'transaction_id' => 'ch_1']);
 
         $user = User::factory()->create();
-        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
+        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true, 'track_inventory' => true]);
 
         $this->actingAs($user)
             ->withStoredCart($this->cartFor($product, 1))
@@ -146,7 +146,7 @@ class CheckoutInventoryTest extends TestCase
         Notification::fake();
         $this->bindGateway(fn () => ['success' => true, 'transaction_id' => 'ch_1']);
 
-        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true]);
+        $product = Product::factory()->create(['inventory_count' => 5, 'is_downloadable' => true, 'track_inventory' => true]);
 
         $this->withStoredCart($this->cartFor($product, 1))
             ->post(route('checkout.process'), $this->payload());

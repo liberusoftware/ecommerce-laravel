@@ -50,6 +50,30 @@ _Avoid_: buyer, shopper, account, client
 An authenticated identity. Platform-wide and not tenant-scoped, which is why a `User` arriving on one merchant's domain while holding a `Customer` record at another is legitimate traffic rather than an attack.
 _Avoid_: customer, member, account
 
+## Variants and product options
+
+A product is bought as one of its variants, if it has any, plus any product options chosen for it.
+
+**Variant**:
+One purchasable version of a product — "Black / 128 GB" — with its own SKU, selling price, stock and availability. A product with variants is priced and stocked only through them; its own price is kept at the lowest variant price for listings, and its own stock is not counted.
+_Avoid_: option, configuration, SKU (a variant has a SKU; it is not one)
+
+**Variation attribute**:
+What a product's variants differ by — "Colour", "Storage" — and its values. Defined per product; every variant is one value of each.
+_Avoid_: option, property
+
+**Product option** (internally, **option group**):
+A reusable set of extras a shopper may add to a product — "Gift wrapping", "Protection" — with a minimum and maximum number of picks. Owned by a `Store` and attached to any of its products. Has no SKU or stock.
+_Avoid_: modifier, add-on, attribute, variant
+
+**Choice**:
+One entry in a product option, carrying a price adjustment to the product's or variant's price.
+_Avoid_: option value, topping
+
+**Configuration**:
+The variant and choices made for one cart line. A product with two configurations is two lines; an order line keeps its variant and choices as a snapshot.
+_Avoid_: variant — a variant is a separately stocked item, which a configuration is not
+
 ## Where the rest lives
 
 | Vocabulary | Source |

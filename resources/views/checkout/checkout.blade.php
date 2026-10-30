@@ -440,6 +440,9 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-medium text-ink truncate">{{ $item['name'] }}</p>
+                                    @if (! empty($item['variant']))
+                                        <p class="text-xs text-muted mt-0.5">{{ $item['variant'] }}</p>
+                                    @endif
                                     <p class="text-xs text-muted mt-0.5">Qty: {{ $item['quantity'] }}</p>
                                 </div>
                                 <span class="text-sm font-semibold text-ink flex-shrink-0">

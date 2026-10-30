@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InsufficientStockException;
+use App\Exceptions\InvalidProductConfigurationException;
 use App\Models\Product;
 use App\Services\CartService;
 use App\Services\CouponService;
@@ -41,12 +43,15 @@ class CartController extends Controller
             ])['price'];
         }
 
-        // What is already in the cart counts against the stock too.
-        if ($product->inventory_count < $this->cart->quantityOf($product->id) + $quantity) {
-            return redirect()->back()->with('error', 'Not enough inventory available.');
-        }
+        $request->validate(['options' => 'nullable|array', 'options.*' => 'integer', 'variant_id' => 'nullable|integer']);
 
-        $this->cart->add($product, $quantity, $unitPrice);
+        try {
+            $this->cart->add($product, $quantity, $request->input('options', []), $unitPrice, $request->input('variant_id'));
+        } catch (InsufficientStockException) {
+            return redirect()->back()->with('error', 'Not enough inventory available.');
+        } catch (InvalidProductConfigurationException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
 
         return redirect()->back()->with('success', 'Product added to cart successfully!');
     }
@@ -56,39 +61,33 @@ class CartController extends Controller
         return view('cart.index');
     }
 
-    public function update(Request $request, $productId)
+    public function update(Request $request, int $line)
     {
-        $quantity = $request->input('quantity', 1);
+        $quantity = (int) $request->input('quantity', 1);
 
         if ($quantity < 1) {
             return redirect()->back()->with('error', 'Quantity must be at least 1.');
         }
 
-        if (! $this->cart->has((int) $productId)) {
+        $item = $this->cart->line($line);
+        if ($item === null) {
             return redirect()->back()->with('error', 'Product not found in cart.');
         }
 
-        $product = Product::find($productId);
-        if (! $product) {
-            return redirect()->back()->with('error', 'Product not found.');
-        }
-
-        if ($product->inventory_count < $quantity) {
+        try {
+            $this->cart->setQuantity($item, $quantity);
+        } catch (InsufficientStockException) {
             return redirect()->back()->with('error', 'Not enough inventory available.');
         }
-
-        $this->cart->setQuantity((int) $productId, (int) $quantity);
 
         return redirect()->back()->with('success', 'Cart updated successfully!');
     }
 
-    public function remove($productId)
+    public function remove(int $line)
     {
-        if (! $this->cart->has((int) $productId)) {
+        if (! $this->cart->remove($line)) {
             return redirect()->back()->with('error', 'Product not found in cart.');
         }
-
-        $this->cart->remove((int) $productId);
 
         return redirect()->back()->with('success', 'Product removed from cart successfully!');
     }

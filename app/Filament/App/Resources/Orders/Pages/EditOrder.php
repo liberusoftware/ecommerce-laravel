@@ -56,7 +56,7 @@ class EditOrder extends EditRecord
                     // A pending order holds reserved stock; leaving it without
                     // payment returns the stock, as a failed checkout does.
                     if ($order->status === Order::STATUS_PENDING && in_array($to, [Order::STATUS_FAILED, Order::STATUS_CANCELLED], true)) {
-                        $lines = $order->items->map(fn ($item) => ['product_id' => $item->product_id, 'quantity' => $item->quantity])->all();
+                        $lines = $order->items->map(fn ($item) => ['product_id' => $item->product_id, 'product_variant_id' => $item->product_variant_id, 'quantity' => $item->quantity])->all();
                         app(CheckoutService::class)->releaseStock($order, $lines);
                     }
 

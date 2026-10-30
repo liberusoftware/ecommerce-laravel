@@ -2,24 +2,27 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\InsufficientStockException;
+use App\Exceptions\InvalidProductConfigurationException;
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Headless cart for API clients, backed by the persistent cart_items store.
- * Every query is scoped by user_id — that scoping is the IDOR guard, so a
- * client can only ever see or mutate its own cart.
+ * Headless cart for API clients, the same cart the storefront writes. Every
+ * line is reached through the token's own cart — that scoping is the IDOR
+ * guard. Lines are addressed by id: one product can be several lines.
  */
 class CartController extends Controller
 {
+    public function __construct(private CartService $cart) {}
+
     public function index(Request $request): JsonResponse
     {
-        $items = CartItem::where('user_id', $request->user()->id)
-            ->with('product')
-            ->get();
+        $items = $this->cart->for($request->user())->items();
 
         return response()->json([
             'data' => $items,
@@ -32,61 +35,54 @@ class CartController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'quantity' => ['required', 'integer', 'min:1'],
+            'options' => ['nullable', 'array'],
+            'options.*' => ['integer'],
+            'variant_id' => ['nullable', 'integer'],
         ]);
 
         $product = Product::active()->findOrFail($data['product_id']);
 
-        $item = CartItem::firstOrNew([
-            'user_id' => $request->user()->id,
-            'product_id' => $product->id,
-        ]);
-        $quantity = ($item->quantity ?? 0) + $data['quantity'];
+        try {
+            $item = $this->cart->for($request->user())->add($product, $data['quantity'], $data['options'] ?? [], null, $data['variant_id'] ?? null);
+        } catch (InsufficientStockException) {
+            $variant = isset($data['variant_id']) ? $product->variants()->find($data['variant_id']) : null;
 
-        if ($product->inventory_count < $quantity) {
-            return $this->outOfStock($product->inventory_count);
+            return $this->outOfStock((int) ($variant ?? $product)->inventory_count);
+        } catch (InvalidProductConfigurationException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $item->fill([
-            'quantity' => $quantity,
-            'price' => $product->sellingPrice(),
-        ])->save();
-
-        return response()->json(['data' => $item->load('product')], 201);
+        return response()->json(['data' => $item->load(['product', 'variant'])], 201);
     }
 
-    public function update(Request $request, int $product): JsonResponse
+    public function update(Request $request, int $item): JsonResponse
     {
         $data = $request->validate([
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $product = Product::findOrFail($product);
+        $cart = $this->cart->for($request->user());
+        $line = $cart->line($item) ?? abort(404);
 
-        if ($product->inventory_count < $data['quantity']) {
-            return $this->outOfStock($product->inventory_count);
+        try {
+            $cart->setQuantity($line, $data['quantity']);
+        } catch (InsufficientStockException) {
+            return $this->outOfStock((int) ($line->product_variant_id !== null ? $line->variant : $line->product)?->inventory_count);
         }
 
-        $item = CartItem::where('user_id', $request->user()->id)
-            ->where('product_id', $product->id)
-            ->firstOrFail();
-
-        $item->update(['quantity' => $data['quantity']]);
-
-        return response()->json(['data' => $item->load('product')]);
+        return response()->json(['data' => $line->load(['product', 'variant'])]);
     }
 
-    public function destroy(Request $request, int $product): JsonResponse
+    public function destroy(Request $request, int $item): JsonResponse
     {
-        CartItem::where('user_id', $request->user()->id)
-            ->where('product_id', $product)
-            ->delete();
+        $this->cart->for($request->user())->remove($item);
 
         return response()->json(['message' => 'Item removed from cart.']);
     }
 
     public function clear(Request $request): JsonResponse
     {
-        CartItem::where('user_id', $request->user()->id)->delete();
+        $this->cart->for($request->user())->clear();
 
         return response()->json(['message' => 'Cart cleared.']);
     }

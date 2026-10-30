@@ -6,15 +6,16 @@ use App\Interfaces\Orderable;
 use App\Jobs\RemoveProductFromFacebookCatalog;
 use App\Jobs\SyncProductToFacebookCatalog;
 use App\Notifications\ProductBackInStockNotification;
+use App\Services\Inventory;
 use App\Services\TaxCalculator;
 use App\Traits\IsStoreScoped;
 use App\Traits\IsTenantModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -68,8 +69,10 @@ class Product extends Model implements Orderable
         'sale_price',
         'category_id',
         'featured_image',
+        'track_inventory',
         'inventory_count',
         'low_stock_threshold',
+        'variant_attributes',
         'weight',
         'meta_title',
         'meta_description',
@@ -93,6 +96,7 @@ class Product extends Model implements Orderable
 
     protected $casts = [
         'is_downloadable' => 'boolean',
+        'track_inventory' => 'boolean',
         'list_on_facebook' => 'boolean',
         'price' => 'decimal:2',
         'sale_price' => 'decimal:2',
@@ -101,6 +105,7 @@ class Product extends Model implements Orderable
         'weight' => 'decimal:2',
         'suggested_price' => 'decimal:2',
         'minimum_price' => 'decimal:2',
+        'variant_attributes' => 'array',
     ];
 
     public function getRouteKeyName(): string
@@ -149,6 +154,66 @@ class Product extends Model implements Orderable
         $appUrl = rtrim((string) config('app.url'), '/').'/';
 
         return str_starts_with($url, $appUrl) ? '/'.ltrim((string) parse_url($url, PHP_URL_PATH), '/') : $url;
+    }
+
+    public function optionGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductOptionGroup::class, 'product_option_group_product')
+            ->withPivot('position')
+            ->orderByPivot('position')
+            ->orderBy('product_option_groups.id');
+    }
+
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** A product with variants is priced and stocked per variant, never at product level. */
+    public function hasVariants(): bool
+    {
+        return $this->variants->isNotEmpty();
+    }
+
+    /** Products without variants: the ones whose own stock columns are live. */
+    public function scopeWithoutVariants(Builder $query): void
+    {
+        $query->whereDoesntHave('variants');
+    }
+
+    /** @return array{0: float, 1: float}|null lowest and highest active variant price */
+    public function variantPriceRange(): ?array
+    {
+        $prices = $this->variants->where('is_active', true)->map(fn (ProductVariant $v) => (float) $v->price);
+
+        return $prices->isEmpty() ? null : [$prices->min(), $prices->max()];
+    }
+
+    /** For API reads: {min, max} of what a shopper can pay. */
+    public function getPriceRangeAttribute(): array
+    {
+        [$min, $max] = ($this->hasVariants() ? $this->variantPriceRange() : null) ?? [$this->sellingPrice(), $this->sellingPrice()];
+
+        return ['min' => $min, 'max' => $max];
+    }
+
+    public function getHasVariantsAttribute(): bool
+    {
+        return $this->hasVariants();
+    }
+
+    /** Whether a shopper has to choose something (a variant, a required option) before buying. */
+    public function requiresChoice(): bool
+    {
+        return $this->hasVariants()
+            || (! $this->isDonationBased() && $this->optionGroups->contains(fn (ProductOptionGroup $group) => $group->isRequired()));
+    }
+
+    public function hasVariantPriceRange(): bool
+    {
+        $range = $this->hasVariants() ? $this->variantPriceRange() : null;
+
+        return $range !== null && $range[0] !== $range[1];
     }
 
     public function cartItems()
@@ -200,6 +265,13 @@ class Product extends Model implements Orderable
 
     protected static function booted(): void
     {
+        // A new product's stock follows its kind unless the caller says otherwise:
+        // physical goods are counted, downloads are not. Once stored, the choice
+        // is the merchant's and nothing changes it behind their back.
+        static::creating(function (Product $product) {
+            $product->track_inventory ??= ! $product->is_downloadable;
+        });
+
         // Only on create: a product's URL does not change because it was renamed.
         static::creating(function (Product $product) {
             if (empty($product->slug)) {
@@ -224,7 +296,8 @@ class Product extends Model implements Orderable
         // `updated` (not `saved`) so increment()/decrement() — the admin & refund
         // restock paths — are caught alongside plain save()/update().
         static::updated(function ($product) {
-            if ($product->wasChanged('inventory_count')
+            if ($product->tracksInventory()
+                && $product->wasChanged('inventory_count')
                 && (int) $product->getOriginal('inventory_count') <= 0
                 && $product->inventory_count > 0) {
                 $product->notifyBackInStockSubscribers();
@@ -371,12 +444,18 @@ class Product extends Model implements Orderable
 
     public function isOnSale(): bool
     {
+        if ($this->hasVariants()) {
+            return false;
+        }
+
         return $this->sale_price !== null && (float) $this->sale_price < (float) $this->price;
     }
 
     /**
      * What a shopper pays per unit before tax and discounts. Pay-what-you-want is
      * the suggested price where the shopper did not name one (the web cart lets them).
+     * With variants, the lowest active variant price: what "from" shows; a line is
+     * always charged its own variant's price.
      */
     public function sellingPrice(): float
     {
@@ -388,17 +467,51 @@ class Product extends Model implements Orderable
             return max((float) $this->minimum_price, (float) ($this->suggested_price ?? 0));
         }
 
+        if ($this->hasVariants()) {
+            return $this->variantPriceRange()[0] ?? (float) $this->price;
+        }
+
         return $this->isOnSale() ? (float) $this->sale_price : (float) $this->price;
+    }
+
+    /** Whether product-level stock is counted. Never, once the product has variants. */
+    public function tracksInventory(): bool
+    {
+        return ! $this->hasVariants() && (bool) ($this->track_inventory ?? ! $this->is_downloadable);
     }
 
     public function isInStock(): bool
     {
-        return (int) $this->inventory_count > 0;
+        if ($this->hasVariants()) {
+            return $this->variants->contains(fn (ProductVariant $variant) => $variant->isPurchasable());
+        }
+
+        return ! $this->tracksInventory() || (int) $this->inventory_count > 0;
     }
 
-    public function isLowStock()
+    /** Whether the stock rule allows selling this many in total. A variable product sells only through a variant. */
+    public function canSupply(int $quantity): bool
     {
-        return $this->inventory_count <= $this->low_stock_threshold;
+        if ($this->hasVariants()) {
+            return false;
+        }
+
+        return ! $this->tracksInventory() || (int) $this->inventory_count >= $quantity;
+    }
+
+    public function isLowStock(): bool
+    {
+        if ($this->hasVariants()) {
+            return $this->variants->contains(fn (ProductVariant $variant) => $variant->is_active && $variant->isLowStock());
+        }
+
+        return $this->tracksInventory() && $this->inventory_count <= $this->low_stock_threshold;
+    }
+
+    /** Products whose stock is counted; the rest have no stock to run low or out of. */
+    public function scopeTracked(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('track_inventory'), true);
     }
 
     public function getPrice(): float
@@ -436,40 +549,10 @@ class Product extends Model implements Orderable
         return $this->belongsTo(Team::class);
     }
 
-    /**
-     * Atomically adjust stock by $delta (positive to add, negative to remove) and
-     * record a reconcilable old/new InventoryLog row. A decrease is a guarded atomic
-     * decrement — it only succeeds while enough stock remains, so concurrent
-     * adjustments (or an adjustment racing a checkout decrement) can neither lose an
-     * update nor drive the count negative. Returns false if the decrease was refused.
-     */
+    /** Adjust product-level stock through the ledger; false when a decrease was refused. */
     public function adjustInventory(int $delta, string $reason): bool
     {
-        $adjusted = (bool) DB::transaction(function () use ($delta, $reason) {
-            if ($delta < 0) {
-                $affected = static::whereKey($this->getKey())
-                    ->where('inventory_count', '>=', abs($delta))
-                    ->decrement('inventory_count', abs($delta));
-
-                if ($affected === 0) {
-                    return false;
-                }
-            } else {
-                $this->increment('inventory_count', $delta);
-            }
-
-            $this->refresh();
-
-            InventoryLog::create([
-                'product_id' => $this->id,
-                'quantity_change' => $delta,
-                'old_quantity' => $this->inventory_count - $delta,
-                'new_quantity' => $this->inventory_count,
-                'reason' => $reason,
-            ]);
-
-            return true;
-        });
+        $adjusted = app(Inventory::class)->adjust($this, $delta, $reason);
 
         // increment()/decrement() bypass `saved`, so the Catalog push that a
         // plain save() would have queued has to be queued here. Selling out is

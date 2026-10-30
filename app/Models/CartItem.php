@@ -19,8 +19,15 @@ class CartItem extends Model
         'user_id',
         'guest_token',
         'product_id',
+        'product_variant_id',
+        'configuration_key',
+        'options',
         'quantity',
         'price',
+    ];
+
+    protected $casts = [
+        'options' => 'array',
     ];
 
     /**
@@ -29,5 +36,17 @@ class CartItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** Trashed included: a removed variant still names the line, and checkout refuses it. */
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id')->withTrashed();
+    }
+
+    /** @return list<int> */
+    public function choiceIds(): array
+    {
+        return array_map('intval', array_column($this->options ?? [], 'choice_id'));
     }
 }
