@@ -34,7 +34,7 @@ class HomeController extends Controller
 
         // withCount/withAvg keep the card's rating block from firing two queries
         // per product across the grid.
-        $withRatings = fn ($query) => $query->with('variants')->withCount('review')->withAvg('rating', 'rating');
+        $withRatings = fn ($query) => $query->with(['variants', 'optionGroups'])->withCount('review')->withAvg('rating', 'rating');
 
         return view('home', [
             'categories' => $categories,

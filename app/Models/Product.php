@@ -202,6 +202,13 @@ class Product extends Model implements Orderable
         return $this->hasVariants();
     }
 
+    /** Whether a shopper has to choose something (a variant, a required option) before buying. */
+    public function requiresChoice(): bool
+    {
+        return $this->hasVariants()
+            || (! $this->isDonationBased() && $this->optionGroups->contains(fn (ProductOptionGroup $group) => $group->isRequired()));
+    }
+
     public function hasVariantPriceRange(): bool
     {
         $range = $this->hasVariants() ? $this->variantPriceRange() : null;

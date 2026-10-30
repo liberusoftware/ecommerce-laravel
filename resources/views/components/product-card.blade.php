@@ -17,7 +17,7 @@
         ? $product->rating_avg_rating
         : $product->getAverageRating());
 
-    $hasVariants = $product->hasVariants();
+    $requiresChoice = $product->requiresChoice();
     $price = \App\Support\Money::format($product->sellingPrice());
     $fromPrice = $product->hasVariantPriceRange();
     $image = $product->image_url ?: asset('images/placeholder-product.svg');
@@ -91,8 +91,8 @@
             @endif
         </div>
 
-        @if ($hasVariants && ! $isOut)
-            {{-- A version has to be chosen first, which happens on the product page. --}}
+        @if ($requiresChoice && ! $isOut)
+            {{-- A variant or a required option has to be chosen first, which happens on the product page. --}}
             <a href="{{ route('products.show', $product) }}" class="btn btn-primary btn-sm shrink-0">
                 Choose options
                 <span class="sr-only">: {{ $product->name }}</span>

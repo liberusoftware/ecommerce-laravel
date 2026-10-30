@@ -17,6 +17,8 @@ class DummyDataSeeder extends Seeder
             ProductCollectionSeeder::class,
             ProductCategorySeeder::class,
             ProductSeeder::class,
+            ProductOptionGroupSeeder::class,
+            ProductVariantSeeder::class,
             DemoStoreSeeder::class,
         ]);
     }

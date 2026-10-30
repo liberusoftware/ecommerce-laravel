@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Support\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Feature\Concerns\BuildsOptionGroups;
 use Tests\Feature\Concerns\BuildsVariants;
 use Tests\TestCase;
 
 /** How a product with variants is shown: a price range, a choice per attribute, and nothing to buy until one is made. */
 class ProductVariantStorefrontTest extends TestCase
 {
+    use BuildsOptionGroups;
     use BuildsVariants;
     use RefreshDatabase;
 
@@ -64,6 +66,19 @@ class ProductVariantStorefrontTest extends TestCase
             ->assertSee(Money::format(20))
             ->assertSee('Choose options')
             ->assertDontSee(route('cart.add', $this->tee));
+    }
+
+    public function test_a_card_sends_the_shopper_to_choose_a_required_option_but_not_an_optional_one(): void
+    {
+        $laptop = Product::factory()->create(['name' => 'Laptop', 'price' => 999, 'inventory_count' => 5]);
+        $lamp = Product::factory()->create(['name' => 'Lamp', 'price' => 40, 'inventory_count' => 5]);
+        $this->optionGroup('Warranty', 1, 1, ['One year' => 0, 'Three years' => 129], [$laptop]);
+        $this->optionGroup('Gift wrapping', 0, 1, ['Gift wrap' => 3.5], [$lamp]);
+
+        $this->get(route('products.index'))->assertOk()
+            ->assertDontSee(route('cart.add', $laptop))
+            ->assertSee(route('products.show', $laptop))
+            ->assertSee(route('cart.add', $lamp));
     }
 
     public function test_an_unavailable_choice_is_refused_by_the_page_form(): void
