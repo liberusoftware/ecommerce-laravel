@@ -35,7 +35,7 @@ class ProductCategoryController extends Controller
 
         $featuredProducts = Product::listed()
             ->whereIn('category_id', $categoryIds)
-            ->withCount('review')
+            ->with(['variants', 'optionGroups'])->withCount('review')
             ->withAvg('rating', 'rating')
             ->latest()
             ->take(4)
@@ -58,7 +58,7 @@ class ProductCategoryController extends Controller
             )
             ->whereIn('category_id', $category->listingCategoryIds())
             ->listed()
-            ->withCount('review')
+            ->with(['variants', 'optionGroups'])->withCount('review')
             ->withAvg('rating', 'rating')
             ->allowedSorts('name', 'price', 'created_at')
             ->paginate(config('pagination.per_page'))

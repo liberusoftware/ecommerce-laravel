@@ -40,7 +40,7 @@ class ShoppingCart extends Component
     }
 
     #[On('addToCart')]
-    public function addToCart(int $productId, string $name = '', float $price = 0, int $quantity = 1, bool $isDownloadable = false, float $weight = 0, array $options = []): void
+    public function addToCart(int $productId, string $name = '', float $price = 0, int $quantity = 1, bool $isDownloadable = false, float $weight = 0, array $options = [], ?int $variantId = null): void
     {
         // The dispatched name, price, downloadable flag and weight are never
         // trusted: everything is derived from the product and the chosen options.
@@ -52,7 +52,7 @@ class ShoppingCart extends Component
         }
 
         try {
-            $this->cart()->add($product, max(1, $quantity), $options);
+            $this->cart()->add($product, max(1, $quantity), $options, null, $variantId);
         } catch (InsufficientStockException) {
             session()->flash('error', 'Not enough inventory available.');
 

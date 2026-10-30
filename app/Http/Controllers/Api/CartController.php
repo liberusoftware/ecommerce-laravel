@@ -37,19 +37,22 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'min:1'],
             'options' => ['nullable', 'array'],
             'options.*' => ['integer'],
+            'variant_id' => ['nullable', 'integer'],
         ]);
 
         $product = Product::active()->findOrFail($data['product_id']);
 
         try {
-            $item = $this->cart->for($request->user())->add($product, $data['quantity'], $data['options'] ?? []);
+            $item = $this->cart->for($request->user())->add($product, $data['quantity'], $data['options'] ?? [], null, $data['variant_id'] ?? null);
         } catch (InsufficientStockException) {
-            return $this->outOfStock($product->inventory_count);
+            $variant = isset($data['variant_id']) ? $product->variants()->find($data['variant_id']) : null;
+
+            return $this->outOfStock((int) ($variant ?? $product)->inventory_count);
         } catch (InvalidProductConfigurationException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['data' => $item->load('product')], 201);
+        return response()->json(['data' => $item->load(['product', 'variant'])], 201);
     }
 
     public function update(Request $request, int $item): JsonResponse
@@ -64,10 +67,10 @@ class CartController extends Controller
         try {
             $cart->setQuantity($line, $data['quantity']);
         } catch (InsufficientStockException) {
-            return $this->outOfStock((int) $line->product?->inventory_count);
+            return $this->outOfStock((int) ($line->product_variant_id !== null ? $line->variant : $line->product)?->inventory_count);
         }
 
-        return response()->json(['data' => $line->load('product')]);
+        return response()->json(['data' => $line->load(['product', 'variant'])]);
     }
 
     public function destroy(Request $request, int $item): JsonResponse

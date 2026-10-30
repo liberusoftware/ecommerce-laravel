@@ -35,7 +35,7 @@ class ProductTagController extends Controller
             ->withTag($tag)
             ->listed()
             ->allowedSorts('name', 'price', 'created_at')
-            ->withCount('review')
+            ->with(['variants', 'optionGroups'])->withCount('review')
             ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());

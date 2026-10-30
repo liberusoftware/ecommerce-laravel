@@ -65,9 +65,9 @@
         }
     ],
     "products": [
-        {"category": "phones-tablets", "slug": "aurora-6-smartphone-128gb", "name": "Aurora 6 Smartphone, 128 GB", "price": 649.00, "stock": 42, "featured": true, "icon": "mobile-screen-button",
+        {"category": "phones-tablets", "slug": "aurora-6-smartphone-128gb", "name": "Aurora 6 Smartphone", "price": 649.00, "stock": 42, "featured": true, "icon": "mobile-screen-button",
          "short": "6.1-inch OLED display, dual camera and all-day battery.",
-         "description": "The Aurora 6 pairs a bright 6.1-inch OLED display with a 48-megapixel main camera and a battery that comfortably lasts a full day. 128 GB of storage, 5G and a tough aluminium frame come as standard."},
+         "description": "The Aurora 6 pairs a bright 6.1-inch OLED display with a 48-megapixel main camera and a battery that comfortably lasts a full day. Choose 128, 256 or 512 GB of storage; 5G and a tough aluminium frame come as standard."},
         {"category": "phones-tablets", "slug": "aurora-tab-11-tablet", "name": "Aurora Tab 11 Tablet", "price": 449.00, "stock": 23, "featured": false, "icon": "tablet-screen-button",
          "short": "11-inch tablet for reading, streaming and note-taking.",
          "description": "A slim 11-inch tablet with a sharp 2K display, quad speakers and stylus support. Ideal for reading, streaming and handwritten notes, with up to twelve hours of video playback."},
@@ -235,12 +235,67 @@
          "description": "A rugged four-wheel-drive remote-control truck with oil-filled shocks, a rechargeable battery and a top speed of 30 km/h."},
         {"category": "rc-toys", "slug": "mini-camera-drone", "name": "Mini Camera Drone", "price": 89.00, "stock": 20, "featured": false, "icon": "helicopter",
          "short": "Beginner-friendly drone with HD camera and altitude hold.",
-         "description": "A palm-sized drone with a 1080p camera, altitude hold and one-key take-off and landing. Two batteries give around twenty minutes of flight."}
+         "description": "A palm-sized drone with a 1080p camera, altitude hold and one-key take-off and landing. Two batteries give around twenty minutes of flight."},
+        {"category": "decor", "slug": "arden-oak-lounge-chair", "name": "Arden Oak Lounge Chair", "price": 349.00, "stock": 12, "featured": false, "icon": "couch",
+         "short": "Solid oak lounge chair with removable upholstered cushions.",
+         "description": "A low, generous lounge chair in solid FSC-certified oak, with deep removable seat and back cushions. Choose a natural or smoked oak frame and oat linen or charcoal wool upholstery. Delivered flat-packed, or assembled in your room."}
     ],
     "collections": {
         "Best Sellers": ["aurora-6-smartphone-128gb", "pulse-wireless-headphones", "nimbus-14-laptop", "wrap-midi-dress", "ceramic-table-lamp", "non-slip-yoga-mat-6mm", "family-strategy-board-game"],
-        "New Arrivals": ["aurora-tab-11-tablet", "low-profile-mechanical-keyboard", "linen-button-down-shirt", "pour-over-coffee-set", "vitamin-c-brightening-serum-30ml", "trail-running-shoes", "magnetic-tile-set-60", "mini-camera-drone"],
+        "New Arrivals": ["aurora-tab-11-tablet", "low-profile-mechanical-keyboard", "linen-button-down-shirt", "pour-over-coffee-set", "vitamin-c-brightening-serum-30ml", "trail-running-shoes", "magnetic-tile-set-60", "mini-camera-drone", "arden-oak-lounge-chair"],
         "Gift Ideas": ["echo-mini-bluetooth-speaker", "leather-card-wallet", "polarised-sunglasses", "field-guide-to-british-birds", "ceramic-table-lamp", "classic-wooden-chess-set", "insulated-water-bottle-750ml", "my-first-atlas"],
         "Summer Sale": ["mineral-sunscreen-spf50", "polarised-sunglasses", "two-person-trekking-tent", "insulated-water-bottle-750ml", "linen-cushion-cover", "merino-wool-socks-3-pack"]
-    }
+    },
+    "variants": {
+        "aurora-6-smartphone-128gb": {
+            "attributes": {"Storage": ["128 GB", "256 GB", "512 GB"], "Colour": ["Graphite", "Silver", "Sea Blue"]},
+            "price": {"base": 649.00, "256 GB": 100.00, "512 GB": 250.00},
+            "stock": {"default": 8, "128 GB / Graphite": 18, "128 GB / Silver": 12, "512 GB / Silver": 3, "512 GB / Sea Blue": 0}
+        },
+        "pulse-wireless-headphones": {
+            "attributes": {"Colour": ["Black", "Ivory", "Forest Green"]},
+            "price": {"base": 189.00, "Forest Green": 10.00},
+            "stock": {"default": 14, "Ivory": 9, "Forest Green": 3}
+        },
+        "organic-cotton-crew-tshirt": {
+            "attributes": {"Size": ["S", "M", "L", "XL"], "Colour": ["White", "Black", "Navy"]},
+            "price": {"base": 24.00, "XL": 2.00},
+            "stock": {"default": 12, "M / Black": 25, "L / Black": 20, "XL / Navy": 2, "S / White": 0}
+        },
+        "wrap-midi-dress": {
+            "attributes": {"Size": ["8", "10", "12", "14", "16"], "Colour": ["Terracotta", "Navy"]},
+            "price": {"base": 89.00},
+            "stock": {"default": 4, "10 / Terracotta": 7, "12 / Terracotta": 6, "8 / Navy": 1},
+            "unavailable": ["16 / Terracotta"]
+        },
+        "the-weeknight-kitchen": {
+            "attributes": {"Format": ["Paperback", "Hardcover"]},
+            "price": {"base": 16.99, "Hardcover": 13.00},
+            "stock": {"Paperback": 40, "Hardcover": 24}
+        },
+        "ceramic-table-lamp": {
+            "attributes": {"Finish": ["Chalk White", "Sage Green", "Charcoal"]},
+            "price": {"base": 69.00, "Charcoal": 5.00},
+            "stock": {"Chalk White": 9, "Sage Green": 6, "Charcoal": 4}
+        },
+        "arden-oak-lounge-chair": {
+            "attributes": {"Frame": ["Natural Oak", "Smoked Oak"], "Upholstery": ["Oat Linen", "Charcoal Wool"]},
+            "price": {"base": 349.00, "Smoked Oak": 30.00, "Charcoal Wool": 40.00},
+            "stock": {"default": 3, "Natural Oak / Oat Linen": 6, "Smoked Oak / Charcoal Wool": 0}
+        }
+    },
+    "option_groups": [
+        {"name": "Phone protection", "min": 0, "max": null,
+         "choices": [{"name": "Protective case", "price": 24.00}, {"name": "Tempered-glass screen protector", "price": 12.00}],
+         "products": ["aurora-6-smartphone-128gb"]},
+        {"name": "Extended warranty", "min": 1, "max": 1,
+         "choices": [{"name": "1-year manufacturer warranty", "price": 0, "default": true}, {"name": "2-year extended warranty", "price": 79.00}, {"name": "3-year extended warranty", "price": 129.00}],
+         "products": ["nimbus-14-laptop", "aurora-tab-11-tablet"]},
+        {"name": "Gift wrapping", "min": 0, "max": 1,
+         "choices": [{"name": "Gift wrap", "price": 3.50}, {"name": "Gift wrap with handwritten card", "price": 5.00}],
+         "products": ["the-weeknight-kitchen", "field-guide-to-british-birds", "leather-card-wallet", "polarised-sunglasses", "classic-wooden-chess-set", "ceramic-table-lamp"]},
+        {"name": "Assembly service", "min": 0, "max": 1,
+         "choices": [{"name": "Assembly in your room", "price": 45.00}],
+         "products": ["arden-oak-lounge-chair"]}
+    ]
 }

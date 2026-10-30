@@ -8,12 +8,11 @@ use App\Factories\PaymentGatewayFactory;
 use App\Jobs\DispatchDropshippingOrder;
 use App\Models\CartItem;
 use App\Models\Coupon;
-use App\Models\InventoryLog;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Store;
 use App\Notifications\SupplierFailureNotification;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -29,15 +28,16 @@ use Throwable;
  * presentation) and calls these primitives; they do not encode any web- or
  * GraphQL-specific behaviour.
  *
- * @phpstan-type LineItem array{product_id: int, quantity: int, price: float|string, product_name?: ?string, options?: ?array}
+ * @phpstan-type LineItem array{product_id: int, quantity: int, price: float|string, product_variant_id?: ?int, product_name?: ?string, sku?: ?string, variant_attributes?: ?array, options?: ?array}
  */
 class CheckoutService
 {
-    public function __construct(private CouponService $couponService, private ProductOptionResolver $resolver) {}
+    public function __construct(private CouponService $couponService, private ProductOptionResolver $resolver, private Inventory $inventory) {}
 
     /**
-     * The order lines for a cart, as both checkout paths write them: the name
-     * and choices are frozen here, so the order never reads the catalogue again.
+     * The order lines for a cart, as both checkout paths write them: the name,
+     * SKU, variant and choices are frozen here, so the order never reads the
+     * catalogue again.
      *
      * @param  iterable<CartItem>  $items
      * @return list<LineItem>
@@ -48,7 +48,10 @@ class CheckoutService
         foreach ($items as $item) {
             $lines[] = [
                 'product_id' => (int) $item->product_id,
+                'product_variant_id' => $item->product_variant_id,
                 'product_name' => $item->product?->name,
+                'sku' => $item->product_variant_id !== null ? $item->variant?->sku : $item->product?->sku,
+                'variant_attributes' => $item->variant?->attribute_values,
                 'options' => $item->options ?: null,
                 'quantity' => (int) $item->quantity,
                 'price' => $item->price,
@@ -74,6 +77,33 @@ class CheckoutService
     }
 
     /**
+     * Every line's stock — its variant's, or the product's — must cover what
+     * the cart holds of it across all lines. Whether a variant is still offered
+     * at all is assertCartPricesCurrent()'s question, which says so plainly.
+     *
+     * @param  iterable<CartItem>  $items
+     */
+    public function assertInStock(iterable $items): void
+    {
+        $held = [];
+        foreach ($items as $item) {
+            $key = $item->product_variant_id !== null ? 'v'.$item->product_variant_id : 'p'.$item->product_id;
+            $held[$key] ??= ['holder' => $this->inventory->holderFor((int) $item->product_id, $item->product_variant_id), 'quantity' => 0];
+            $held[$key]['quantity'] += (int) $item->quantity;
+        }
+
+        foreach ($held as ['holder' => $holder, 'quantity' => $quantity]) {
+            if ($holder instanceof ProductVariant && ($holder->trashed() || ! $holder->is_active)) {
+                continue;
+            }
+
+            if ($holder === null || ! $holder->canSupply($quantity)) {
+                throw new CheckoutException('Some items in your cart are no longer available in the requested quantity.');
+            }
+        }
+    }
+
+    /**
      * Brings every line to the catalogue's current price and choices. If any
      * price moved, the cart is left corrected and checkout refuses, so the
      * shopper sees the new total before anything is charged. A line whose
@@ -86,6 +116,7 @@ class CheckoutService
     {
         $changed = false;
         $invalid = [];
+        $withdrawn = [];
 
         foreach ($items as $item) {
             if ($item->product === null) {
@@ -97,9 +128,13 @@ class CheckoutService
                 $options = $item->options;
             } else {
                 try {
-                    $configuration = $this->resolver->resolve($item->product, $item->choiceIds());
+                    $configuration = $this->resolver->resolve($item->product, $item->choiceIds(), $item->product_variant_id);
                 } catch (InvalidProductConfigurationException) {
-                    $invalid[] = $item->product->name;
+                    if ($item->product_variant_id !== null || $item->product->hasVariants()) {
+                        $withdrawn[] = $item->product->name;
+                    } else {
+                        $invalid[] = $item->product->name;
+                    }
 
                     continue;
                 }
@@ -112,6 +147,10 @@ class CheckoutService
                 $item->update(['price' => $current, 'options' => $options]);
             }
             $changed = $changed || $moved;
+        }
+
+        if ($withdrawn !== []) {
+            throw new InvalidProductConfigurationException('The version of '.implode(', ', array_unique($withdrawn)).' in your cart, or an option chosen for it, is no longer available. Remove the item and add it again.');
         }
 
         if ($invalid !== []) {
@@ -221,9 +260,10 @@ class CheckoutService
 
     /**
      * Create the order's line items and RESERVE their stock with a guarded atomic
-     * decrement. Call inside a transaction: on the first shortfall this throws, the
-     * transaction rolls back, and no payment is taken. Reserving before charging is
-     * what prevents charging a customer for stock we can't fulfil.
+     * decrement — the variant's for a variant line, the product's otherwise. Call
+     * inside a transaction: on the first shortfall this throws, the transaction
+     * rolls back, and no payment is taken. Reserving before charging is what
+     * prevents charging a customer for stock we can't fulfil.
      *
      * @param  array<int, LineItem>  $lineItems
      *
@@ -232,41 +272,34 @@ class CheckoutService
     public function reserveStock(Order $order, array $lineItems): void
     {
         foreach ($lineItems as $line) {
+            $variantId = $line['product_variant_id'] ?? null;
+
             $order->items()->create([
                 'product_id' => $line['product_id'],
+                'product_variant_id' => $variantId,
                 'product_name' => $line['product_name'] ?? Product::withTrashed()->whereKey($line['product_id'])->value('name'),
+                'sku' => $line['sku'] ?? null,
+                'variant_attributes' => $line['variant_attributes'] ?? null,
                 'options' => $line['options'] ?? null,
                 'quantity' => $line['quantity'],
                 'price' => $line['price'],
             ]);
 
-            $affected = Product::where('id', $line['product_id'])
-                ->where('track_inventory', true)
-                ->where('inventory_count', '>=', $line['quantity'])
-                ->decrement('inventory_count', $line['quantity']);
+            $holder = $this->inventory->holderFor((int) $line['product_id'], $variantId);
 
-            if ($affected === 0) {
-                // An untracked product has nothing to reserve.
-                if (Product::where('id', $line['product_id'])->where('track_inventory', false)->exists()) {
-                    continue;
-                }
-
+            // A product with variants holds no stock of its own: a line must name one.
+            if ($holder === null || ($holder instanceof Product && $holder->hasVariants())) {
                 throw new CheckoutException('Some items in your cart are no longer available in the requested quantity.');
             }
 
-            // Read after the update: inside the caller's transaction the row is
-            // locked by our UPDATE, so this is exactly the stock we left.
-            $after = Product::where('id', $line['product_id'])->value('inventory_count');
+            // An untracked product or variant has nothing to reserve.
+            if (! $holder->tracksInventory()) {
+                continue;
+            }
 
-            InventoryLog::create([
-                'product_id' => $line['product_id'],
-                'quantity_change' => -$line['quantity'],
-                'old_quantity' => $after + $line['quantity'],
-                'new_quantity' => $after,
-                'reason' => 'order',
-                'reference_id' => $order->id,
-                'reference_type' => Order::class,
-            ]);
+            if (! $this->inventory->adjust($holder, -$line['quantity'], 'order', $order)) {
+                throw new CheckoutException('Some items in your cart are no longer available in the requested quantity.');
+            }
         }
     }
 
@@ -279,23 +312,11 @@ class CheckoutService
     public function releaseStock(Order $order, array $lineItems): void
     {
         foreach ($lineItems as $line) {
-            DB::transaction(function () use ($order, $line) {
-                if (Product::where('id', $line['product_id'])->where('track_inventory', true)->increment('inventory_count', $line['quantity']) === 0) {
-                    return;
-                }
+            $holder = $this->inventory->holderFor((int) $line['product_id'], $line['product_variant_id'] ?? null);
 
-                $after = Product::where('id', $line['product_id'])->value('inventory_count');
-
-                InventoryLog::create([
-                    'product_id' => $line['product_id'],
-                    'quantity_change' => $line['quantity'],
-                    'old_quantity' => $after - $line['quantity'],
-                    'new_quantity' => $after,
-                    'reason' => 'payment_failed_release',
-                    'reference_id' => $order->id,
-                    'reference_type' => Order::class,
-                ]);
-            });
+            if ($holder !== null && $holder->tracksInventory()) {
+                $this->inventory->adjust($holder, $line['quantity'], 'payment_failed_release', $order);
+            }
         }
     }
 

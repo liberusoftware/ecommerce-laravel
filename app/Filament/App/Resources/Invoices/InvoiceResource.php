@@ -48,6 +48,7 @@ class InvoiceResource extends Resource
                     TextEntry::make('lines')
                         ->hiddenLabel()
                         ->state(fn (Invoice $record) => $record->lines->map(fn (OrderItem $line) => $line->quantity.' × '.$line->displayName()
+                            .($line->variantLabel() ? ' ('.$line->variantLabel().')' : '')
                             .($line->options ? ' — '.implode('; ', $line->optionLabels($record->currency())) : '')
                             .' @ '.Money::format($line->price, $record->currency()))->all())
                         ->listWithLineBreaks(),

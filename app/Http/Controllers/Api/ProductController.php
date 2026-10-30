@@ -6,13 +6,16 @@ use App\Http\Controllers\Api\Concerns\OwnsTeamResources;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Store;
+use App\Services\ProductVariantService;
 use App\Support\StoreAccess;
 use App\Support\TeamPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
@@ -66,7 +69,8 @@ class ProductController extends Controller
             $query->orderBy($sortBy, $sortOrder);
         }
 
-        $products = $query->with(['category', 'images'])->paginate($perPage);
+        $products = $query->with(['category', 'images', 'variants'])->paginate($perPage);
+        $products->getCollection()->each->append(['has_variants', 'price_range']);
 
         return response()->json($products);
     }
@@ -78,10 +82,10 @@ class ProductController extends Controller
     {
         // Try to find by ID if identifier is numeric, otherwise by slug
         $product = is_numeric($identifier)
-            ? Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices'])
+            ? Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices', 'variants'])
                 ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->find($identifier)
-            : Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices'])
+            : Product::with(['category', 'images', 'tags', 'review', 'rating', 'optionGroups.choices', 'variants'])
                 ->unless($this->isStaff($request), fn ($q) => $q->active())
                 ->where('slug', $identifier)
                 ->first();
@@ -95,7 +99,7 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $product,
+            'data' => $product->append(['has_variants', 'price_range']),
         ]);
     }
 
@@ -110,7 +114,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'short_description' => 'required|string',
-            'price' => 'required|numeric|min:0',
+            'price' => 'required_without:variants|numeric|min:0',
             'category_id' => ['required', $this->categoryInThisStore()],
             'featured_image' => 'nullable|string',
             'track_inventory' => 'nullable|boolean',
@@ -125,6 +129,7 @@ class ProductController extends Controller
             'pricing_type' => 'nullable|string|in:fixed,free,donation',
             'suggested_price' => 'nullable|numeric|min:0',
             'minimum_price' => 'nullable|numeric|min:0',
+            ...self::VARIANT_RULES,
         ]);
 
         if ($validator->fails()) {
@@ -134,13 +139,24 @@ class ProductController extends Controller
             ], 422);
         }
 
-        // store_id and team_id come from the storefront the request arrived on.
-        $product = Product::create($validator->validated());
+        $data = $validator->validated();
+
+        try {
+            // store_id and team_id come from the storefront the request arrived on.
+            $product = DB::transaction(function () use ($request, $data) {
+                $product = Product::create(collect($data)->except(['variant_attributes', 'variants'])->all());
+                $this->syncVariants($request, $product);
+
+                return $product;
+            });
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
-            'data' => $product->load(['category', 'images']),
+            'data' => $product->load(['category', 'images', 'variants'])->append(['has_variants', 'price_range']),
         ], 201);
     }
 
@@ -181,6 +197,7 @@ class ProductController extends Controller
             'pricing_type' => 'nullable|string|in:fixed,free,donation',
             'suggested_price' => 'nullable|numeric|min:0',
             'minimum_price' => 'nullable|numeric|min:0',
+            ...self::VARIANT_RULES,
         ]);
 
         if ($validator->fails()) {
@@ -190,12 +207,25 @@ class ProductController extends Controller
             ], 422);
         }
 
-        $product->update($validator->validated());
+        $data = collect($validator->validated())->except(['variant_attributes', 'variants']);
+        // Price and stock belong to the variants while there are any.
+        if ($product->hasVariants() && ! $request->has('variants')) {
+            $data = $data->except(['price', 'sale_price', 'inventory_count', 'track_inventory']);
+        }
+
+        try {
+            DB::transaction(function () use ($request, $product, $data) {
+                $product->update($data->all());
+                $this->syncVariants($request, $product);
+            });
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
-            'data' => $product->load(['category', 'images']),
+            'data' => $product->load(['category', 'images', 'variants'])->append(['has_variants', 'price_range']),
         ]);
     }
 
@@ -223,6 +253,43 @@ class ProductController extends Controller
             'success' => true,
             'message' => 'Product deleted successfully',
         ]);
+    }
+
+    /**
+     * `variants` replaces the whole set: a variant left out is removed, and one
+     * sent without an id is matched to an existing one by its combination.
+     * `inventory_count` is read only for a new variant; later changes go
+     * through POST /inventory/adjust with a `variant_id`. An empty list with
+     * no attributes removes every variant.
+     */
+    private const VARIANT_RULES = [
+        'variant_attributes' => 'nullable|array',
+        'variant_attributes.*.name' => 'required|string|max:50',
+        'variant_attributes.*.values' => 'required|array|min:1',
+        'variant_attributes.*.values.*' => 'string|max:100',
+        'variants' => 'nullable|array',
+        'variants.*.id' => 'nullable|integer',
+        'variants.*.attribute_values' => 'required|array',
+        'variants.*.attribute_values.*.name' => 'required|string',
+        'variants.*.attribute_values.*.value' => 'required|string',
+        'variants.*.sku' => 'nullable|string|max:100',
+        'variants.*.price' => 'required|numeric|min:0',
+        'variants.*.track_inventory' => 'nullable|boolean',
+        'variants.*.inventory_count' => 'nullable|integer|min:0',
+        'variants.*.is_active' => 'nullable|boolean',
+    ];
+
+    private function syncVariants(Request $request, Product $product): void
+    {
+        if (! $request->has('variants') && ! $request->has('variant_attributes')) {
+            return;
+        }
+
+        app(ProductVariantService::class)->sync(
+            $product,
+            $request->input('variant_attributes', $product->variant_attributes),
+            $request->input('variants', []),
+        );
     }
 
     private function isStaff(Request $request): bool

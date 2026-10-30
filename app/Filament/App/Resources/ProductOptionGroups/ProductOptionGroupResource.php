@@ -22,14 +22,17 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Choices a shopper makes for a product — sizes, extras, removals — defined once
- * per store and attached to any of its products. Registered in both panels.
+ * Product options: extras a shopper adds to a product — gift wrap, a case, a
+ * warranty — defined once per store as option groups and attached to any of
+ * its products. Registered in both panels.
  */
 class ProductOptionGroupResource extends Resource
 {
     protected static ?string $model = ProductOptionGroup::class;
 
-    protected static ?string $modelLabel = 'option group';
+    protected static ?string $modelLabel = 'product option';
+
+    protected static ?string $navigationLabel = 'Product options';
 
     protected static ?string $slug = 'option-groups';
 
@@ -40,7 +43,8 @@ class ProductOptionGroupResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->columns(2)->components([
-            Section::make('Option group')
+            Section::make('Product option')
+                ->description('A reusable set of choices, such as Gift wrapping or Extended warranty. Attach it to any product in this store.')
                 ->columnSpanFull()
                 ->columns(3)
                 ->schema([
@@ -48,7 +52,7 @@ class ProductOptionGroupResource extends Resource
                     TextInput::make('name')
                         ->required()
                         ->maxLength(255)
-                        ->helperText('Shown to shoppers, e.g. "Size" or "Extras".'),
+                        ->helperText('Shown to shoppers, e.g. "Gift wrapping" or "Protection".'),
                     TextInput::make('min_select')
                         ->label('Minimum choices')
                         ->integer()
@@ -82,7 +86,7 @@ class ProductOptionGroupResource extends Resource
                                 ->numeric()
                                 ->required()
                                 ->default(0)
-                                ->helperText('Added to the product price; may be negative.'),
+                                ->helperText('Added to the product or variant price; may be negative.'),
                             Toggle::make('is_default')->label('Selected by default'),
                             Toggle::make('is_available')->label('Available')->default(true),
                         ]),
@@ -105,7 +109,7 @@ class ProductOptionGroupResource extends Resource
             ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make()->modalDescription('Products lose this group. Past orders keep the choices made.'),
+                DeleteAction::make()->modalDescription('Products lose this option. Past orders keep the choices made.'),
             ]);
     }
 

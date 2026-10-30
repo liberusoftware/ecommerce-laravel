@@ -1,7 +1,7 @@
 <?php
 
+use App\Support\PreReleaseSchema;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Before the first release, migrations were consolidated by editing them in
@@ -24,22 +24,7 @@ return new class extends Migration
 
     public function up(): void
     {
-        $missing = [];
-        foreach (self::MARKERS as $table => $columns) {
-            foreach ($columns as $column) {
-                if (Schema::hasTable($table) && ! Schema::hasColumn($table, $column)) {
-                    $missing[] = "{$table}.{$column}";
-                }
-            }
-        }
-
-        if ($missing !== []) {
-            throw new RuntimeException(
-                'This database was built from migrations that have since been consolidated (missing '.implode(', ', $missing).'). '
-                .'It cannot be upgraded in place: rebuild it with `php artisan migrate:fresh --seed`, which drops every table. '
-                .'See docs/INSTALLATION.md, "Rebuilding a development database".'
-            );
-        }
+        PreReleaseSchema::assertCurrent(self::MARKERS);
     }
 
     public function down(): void {}

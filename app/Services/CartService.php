@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\InvalidProductConfigurationException;
 use App\Models\CartItem;
+use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,8 +35,9 @@ use Illuminate\Support\Str;
  * `CONFORMANCE.md` §D3 prescribes — *the session path becomes a guest
  * identifier on the same store.*
  *
- * A line is a product plus the choices made for it (its configuration key),
- * so the same burger with and without cheese is two lines. Every door — web,
+ * A line is a product plus its variant and the choices made for it (its
+ * configuration key), so a black and a white T-shirt, or the same phone with
+ * and without a case, are separate lines. Every door — web,
  * Livewire, REST and GraphQL — adds through here, so identity, pricing and
  * the stock rule are decided once.
  */
@@ -74,12 +77,15 @@ class CartService
     {
         $contents = [];
 
-        foreach ($this->query()->with('product.store')->orderBy('id')->get() as $item) {
+        foreach ($this->query()->with(['product.store', 'variant'])->orderBy('id')->get() as $item) {
             $product = $item->product;
 
             $contents[$item->id] = [
                 'product_id' => (int) $item->product_id,
+                'product_variant_id' => $item->product_variant_id,
                 'name' => $product?->name,
+                'variant' => OrderItem::variantLabelFor($item->variant?->attribute_values),
+                'sku' => $item->variant?->sku ?? $product?->sku,
                 'options' => $item->options ?? [],
                 'price' => (float) $item->price,
                 'quantity' => (int) $item->quantity,
@@ -109,32 +115,38 @@ class CartService
         return (int) $this->query()->sum('quantity');
     }
 
-    /** Every line of the product counts against its stock, whatever was chosen for it. */
-    public function quantityOfProduct(int $productId): int
+    /** Every line drawing on the same stock counts against it, whatever options were chosen. */
+    public function quantityHeldBy(Product|ProductVariant $holder): int
     {
-        return (int) $this->query()->where('product_id', $productId)->sum('quantity');
+        return (int) $this->query()
+            ->when($holder instanceof ProductVariant,
+                fn ($q) => $q->where('product_variant_id', $holder->getKey()),
+                fn ($q) => $q->where('product_id', $holder->getKey())->whereNull('product_variant_id'))
+            ->sum('quantity');
     }
 
     public function line(int $lineId): ?CartItem
     {
-        return $this->query()->with('product')->find($lineId);
+        return $this->query()->with(['product', 'variant'])->find($lineId);
     }
 
     /**
-     * Add to the cart, or to the line with the same choices. The line takes
-     * the current price; checkout refuses a line whose price has since moved.
-     * `$unitPrice` is a pay-what-you-want amount the caller has validated.
+     * Add to the cart, or to the line with the same variant and choices. The
+     * line takes the current price; checkout refuses a line whose price has
+     * since moved. `$unitPrice` is a pay-what-you-want amount the caller has
+     * validated.
      *
      * @param  array<int|string>  $choiceIds
      *
      * @throws InvalidProductConfigurationException
      * @throws InsufficientStockException
      */
-    public function add(Product $product, int $quantity, array $choiceIds = [], ?float $unitPrice = null): CartItem
+    public function add(Product $product, int $quantity, array $choiceIds = [], ?float $unitPrice = null, int|string|null $variantId = null): CartItem
     {
-        $configuration = $this->resolver->resolve($product, $choiceIds);
+        $configuration = $this->resolver->resolve($product, $choiceIds, $variantId);
+        $holder = $configuration->variant ?? $product;
 
-        if (! $product->canSupply($this->quantityOfProduct($product->id) + $quantity)) {
+        if (! $holder->canSupply($this->quantityHeldBy($holder) + $quantity)) {
             throw InsufficientStockException::make();
         }
 
@@ -152,6 +164,7 @@ class CartService
 
         return CartItem::create($this->owner() + [
             'product_id' => $product->id,
+            'product_variant_id' => $configuration->variant?->id,
             'configuration_key' => $configuration->key,
             'options' => $configuration->options,
             'quantity' => $quantity,
@@ -162,15 +175,15 @@ class CartService
     /** @return Collection<int, CartItem> */
     public function items(): Collection
     {
-        return $this->query()->with('product')->orderBy('id')->get();
+        return $this->query()->with(['product', 'variant'])->orderBy('id')->get();
     }
 
     /** @throws InsufficientStockException */
     public function setQuantity(CartItem $line, int $quantity): CartItem
     {
-        $others = $this->quantityOfProduct($line->product_id) - $line->quantity;
+        $holder = $line->product_variant_id !== null ? $line->variant : $line->product;
 
-        if ($line->product !== null && ! $line->product->canSupply($others + $quantity)) {
+        if ($holder !== null && ! $holder->canSupply($this->quantityHeldBy($holder) - $line->quantity + $quantity)) {
             throw InsufficientStockException::make();
         }
 

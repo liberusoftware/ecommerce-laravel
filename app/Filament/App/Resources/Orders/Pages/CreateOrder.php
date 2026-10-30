@@ -42,9 +42,18 @@ class CreateOrder extends CreateRecord
             // No options are chosen here, so a product whose options are required is refused.
             $lines = collect($data['items'])->map(function (array $item): array {
                 $product = Product::findOrFail($item['product_id']);
-                $configuration = app(ProductOptionResolver::class)->resolve($product, []);
+                $configuration = app(ProductOptionResolver::class)->resolve($product, [], $item['product_variant_id'] ?? null);
+                $variant = $configuration->variant;
 
-                return ['product_id' => $product->id, 'product_name' => $product->name, 'quantity' => (int) $item['quantity'], 'price' => $configuration->unitPrice];
+                return [
+                    'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
+                    'product_name' => $product->name,
+                    'sku' => $variant ? $variant->sku : $product->sku,
+                    'variant_attributes' => $variant?->attribute_values,
+                    'quantity' => (int) $item['quantity'],
+                    'price' => $configuration->unitPrice,
+                ];
             })->all();
 
             return DB::transaction(function () use ($data, $customer, $lines): Order {

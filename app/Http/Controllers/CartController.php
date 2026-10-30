@@ -43,10 +43,10 @@ class CartController extends Controller
             ])['price'];
         }
 
-        $request->validate(['options' => 'nullable|array', 'options.*' => 'integer']);
+        $request->validate(['options' => 'nullable|array', 'options.*' => 'integer', 'variant_id' => 'nullable|integer']);
 
         try {
-            $this->cart->add($product, $quantity, $request->input('options', []), $unitPrice);
+            $this->cart->add($product, $quantity, $request->input('options', []), $unitPrice, $request->input('variant_id'));
         } catch (InsufficientStockException) {
             return redirect()->back()->with('error', 'Not enough inventory available.');
         } catch (InvalidProductConfigurationException $e) {

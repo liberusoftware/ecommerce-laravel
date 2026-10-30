@@ -5,10 +5,12 @@ namespace App\GraphQL;
 use App\Exceptions\CheckoutException;
 use App\Models\CartItem;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductCollection;
 use App\Models\ProductOptionChoice;
 use App\Models\ProductOptionGroup;
+use App\Models\ProductVariant;
 use App\Services\CartService;
 use App\Services\HeadlessCheckoutService;
 use App\Services\ShippingService;
@@ -38,6 +40,8 @@ class StorefrontSchema
     private const MAX_LIST = 100;
 
     private ?ObjectType $selectedOption = null;
+
+    private ?ObjectType $variantValue = null;
 
     public function build(): Schema
     {
@@ -98,6 +102,8 @@ class StorefrontSchema
                         'quantity' => Type::nonNull(Type::int()),
                         // Choice ids from Product.optionGroups. Never a price.
                         'options' => Type::listOf(Type::nonNull(Type::int())),
+                        // Required when Product.hasVariants: an id from Product.variants.
+                        'variantId' => Type::int(),
                     ],
                     'resolve' => fn ($root, array $args, array $context) => $this->addToCart($args, $context),
                 ],
@@ -143,10 +149,13 @@ class StorefrontSchema
                 'description' => Type::string(),
                 'shortDescription' => ['type' => Type::string(), 'resolve' => fn (Product $p) => $p->short_description],
                 'sku' => Type::string(),
+                // With variants, the lowest active variant price; see priceMin/priceMax.
                 'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => $p->sellingPrice()],
+                'priceMin' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => $p->hasVariants() ? ($p->variantPriceRange()[0] ?? $p->sellingPrice()) : $p->sellingPrice()],
+                'priceMax' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => $p->hasVariants() ? ($p->variantPriceRange()[1] ?? $p->sellingPrice()) : $p->sellingPrice()],
                 'regularPrice' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (Product $p) => (float) $p->price],
                 'onSale' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isOnSale()],
-                // Null when the product's stock is not counted.
+                // Null when the product's own stock is not counted, which includes every product with variants.
                 'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (Product $p) => $p->tracksInventory() ? $p->inventory_count : null],
                 'inStock' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->isInStock()],
                 'isDownloadable' => ['type' => Type::boolean(), 'resolve' => fn (Product $p) => (bool) $p->is_downloadable],
@@ -156,6 +165,59 @@ class StorefrontSchema
                     'type' => Type::nonNull(Type::listOf(Type::nonNull($this->optionGroupType()))),
                     'resolve' => fn (Product $p) => $p->isDonationBased() ? [] : $p->optionGroups()->with('choices')->get(),
                 ],
+                'hasVariants' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (Product $p) => $p->hasVariants()],
+                'variantAttributes' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->variantAttributeType()))),
+                    'resolve' => fn (Product $p) => $p->hasVariants() ? ($p->variant_attributes ?? []) : [],
+                ],
+                // Inactive variants are listed so a client can show them as unavailable.
+                'variants' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->variantType()))),
+                    'resolve' => fn (Product $p) => $p->variants,
+                ],
+            ],
+        ]);
+    }
+
+    private function variantAttributeType(): ObjectType
+    {
+        return new ObjectType([
+            'name' => 'VariantAttribute',
+            'fields' => [
+                'name' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (array $a) => $a['name']],
+                'values' => ['type' => Type::nonNull(Type::listOf(Type::nonNull(Type::string()))), 'resolve' => fn (array $a) => $a['values']],
+            ],
+        ]);
+    }
+
+    private function variantValueType(): ObjectType
+    {
+        return $this->variantValue ??= new ObjectType([
+            'name' => 'VariantValue',
+            'fields' => [
+                'name' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (array $v) => $v['name']],
+                'value' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (array $v) => $v['value']],
+            ],
+        ]);
+    }
+
+    private function variantType(): ObjectType
+    {
+        return new ObjectType([
+            'name' => 'ProductVariant',
+            'fields' => [
+                'id' => Type::nonNull(Type::int()),
+                'sku' => Type::string(),
+                'label' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (ProductVariant $v) => $v->label()],
+                'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (ProductVariant $v) => $v->sellingPrice()],
+                'attributes' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->variantValueType()))),
+                    'resolve' => fn (ProductVariant $v) => $v->attribute_values ?? [],
+                ],
+                'isAvailable' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (ProductVariant $v) => $v->is_active],
+                'inStock' => ['type' => Type::nonNull(Type::boolean()), 'resolve' => fn (ProductVariant $v) => $v->isPurchasable()],
+                // Null when the variant's stock is not counted.
+                'inventoryCount' => ['type' => Type::int(), 'resolve' => fn (ProductVariant $v) => $v->tracksInventory() ? $v->inventory_count : null],
             ],
         ]);
     }
@@ -201,6 +263,12 @@ class StorefrontSchema
             'fields' => [
                 'id' => Type::nonNull(Type::int()),
                 'productId' => ['type' => Type::nonNull(Type::int()), 'resolve' => fn (CartItem $i) => $i->product_id],
+                'variantId' => ['type' => Type::int(), 'resolve' => fn (CartItem $i) => $i->product_variant_id],
+                'variantAttributes' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->variantValueType()))),
+                    'resolve' => fn (CartItem $i) => $i->variant?->attribute_values ?? [],
+                ],
+                'sku' => ['type' => Type::string(), 'resolve' => fn (CartItem $i) => $i->product_variant_id !== null ? $i->variant?->sku : $i->product?->sku],
                 'quantity' => Type::nonNull(Type::int()),
                 'options' => [
                     'type' => Type::nonNull(Type::listOf(Type::nonNull($this->selectedOptionType()))),
@@ -227,6 +295,35 @@ class StorefrontSchema
                 'shippingService' => ['type' => Type::string(), 'resolve' => fn (Order $o) => $o->shipping_service],
                 'billingCountry' => ['type' => Type::string(), 'resolve' => fn (Order $o) => $o->billing_country],
                 'createdAt' => ['type' => Type::string(), 'resolve' => fn (Order $o) => $o->created_at?->toIso8601String()],
+                'items' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->orderLineType()))),
+                    'resolve' => fn (Order $o) => $o->items,
+                ],
+            ],
+        ]);
+    }
+
+    /** An order line as it was sold: a snapshot, never the live catalogue. */
+    private function orderLineType(): ObjectType
+    {
+        return new ObjectType([
+            'name' => 'OrderLine',
+            'fields' => [
+                'id' => Type::nonNull(Type::int()),
+                'productId' => ['type' => Type::int(), 'resolve' => fn (OrderItem $i) => $i->product_id],
+                'variantId' => ['type' => Type::int(), 'resolve' => fn (OrderItem $i) => $i->product_variant_id],
+                'productName' => ['type' => Type::nonNull(Type::string()), 'resolve' => fn (OrderItem $i) => $i->displayName()],
+                'sku' => Type::string(),
+                'variantAttributes' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->variantValueType()))),
+                    'resolve' => fn (OrderItem $i) => $i->variant_attributes ?? [],
+                ],
+                'options' => [
+                    'type' => Type::nonNull(Type::listOf(Type::nonNull($this->selectedOptionType()))),
+                    'resolve' => fn (OrderItem $i) => $i->options ?? [],
+                ],
+                'quantity' => Type::nonNull(Type::int()),
+                'price' => ['type' => Type::nonNull(Type::float()), 'resolve' => fn (OrderItem $i) => (float) $i->price],
             ],
         ]);
     }
@@ -284,7 +381,7 @@ class StorefrontSchema
         $product = $this->findProduct($args['productId']);
 
         try {
-            return app(CartService::class)->for($user)->add($product, $args['quantity'], $args['options'] ?? []);
+            return app(CartService::class)->for($user)->add($product, $args['quantity'], $args['options'] ?? [], null, $args['variantId'] ?? null);
         } catch (CheckoutException $e) {
             throw new Error($e->getMessage());
         }

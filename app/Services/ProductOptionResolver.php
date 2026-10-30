@@ -6,17 +6,23 @@ use App\Exceptions\InvalidProductConfigurationException;
 use App\Models\Product;
 use App\Models\ProductOptionChoice;
 use App\Models\ProductOptionGroup;
+use App\Models\ProductVariant;
 use App\Support\ProductConfiguration;
 
 /**
  * The only place shopper choices become a price. Every cart door and both
  * checkout paths resolve through here; a client never supplies a price.
+ *
+ * The base is the variant's price when the product has variants, otherwise the
+ * product's; option choices adjust that base.
  */
 class ProductOptionResolver
 {
     /** @param  array<int|string>  $choiceIds */
-    public function resolve(Product $product, array $choiceIds): ProductConfiguration
+    public function resolve(Product $product, array $choiceIds, int|string|null $variantId = null): ProductConfiguration
     {
+        $variant = $this->variantOf($product, $variantId === null || $variantId === '' ? null : (int) $variantId);
+
         $choiceIds = array_map('intval', array_values($choiceIds));
 
         if (count($choiceIds) !== count(array_unique($choiceIds))) {
@@ -64,12 +70,51 @@ class ProductOptionResolver
         }
 
         sort($choiceIds);
+        $base = $variant?->sellingPrice() ?? $product->sellingPrice();
 
         return new ProductConfiguration(
             options: $options,
-            unitPrice: round(max(0.0, $product->sellingPrice() + $adjustment), 2),
-            key: $choiceIds === [] ? '' : sha1(implode(',', $choiceIds)),
+            unitPrice: round(max(0.0, $base + $adjustment), 2),
+            key: $this->key($variant, $choiceIds),
+            variant: $variant,
         );
+    }
+
+    /** @param  list<int>  $choiceIds  sorted */
+    private function key(?ProductVariant $variant, array $choiceIds): string
+    {
+        if ($variant === null) {
+            return $choiceIds === [] ? '' : sha1(implode(',', $choiceIds));
+        }
+
+        return sha1('variant:'.$variant->id.'|'.implode(',', $choiceIds));
+    }
+
+    private function variantOf(Product $product, ?int $variantId): ?ProductVariant
+    {
+        if (! $product->hasVariants()) {
+            if ($variantId !== null) {
+                throw new InvalidProductConfigurationException("{$product->name} has no variants to choose from.");
+            }
+
+            return null;
+        }
+
+        $names = implode(' and ', array_column($product->variant_attributes ?? [], 'name')) ?: 'an option';
+        if ($variantId === null) {
+            throw new InvalidProductConfigurationException("Choose {$names} for {$product->name}.");
+        }
+
+        $variant = $product->variants()->whereKey($variantId)->first();
+        if ($variant === null) {
+            throw new InvalidProductConfigurationException("That {$names} is not offered for {$product->name}.");
+        }
+
+        if (! $variant->is_active) {
+            throw new InvalidProductConfigurationException("{$product->name} ({$variant->label()}) is not available at the moment.");
+        }
+
+        return $variant;
     }
 
     /** Pay-what-you-want products take no options: the shopper names the whole price. */

@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\StoreContext;
 use App\Support\Money;
 use Filament\Actions\DeleteBulkAction;
@@ -85,7 +86,13 @@ class OrderResource extends Resource
                         ->required()
                         ->searchable()
                         ->options(fn (Get $get) => self::sellableProducts($get('../../store_id')))
-                        ->in(fn (Get $get) => array_keys(self::sellableProducts($get('../../store_id')))),
+                        ->in(fn (Get $get) => array_keys(self::sellableProducts($get('../../store_id'))))
+                        ->live(),
+                    Select::make('product_variant_id')
+                        ->label('Variant')
+                        ->options(fn (Get $get) => self::variantsOf($get('product_id')))
+                        ->visible(fn (Get $get) => self::variantsOf($get('product_id')) !== [])
+                        ->required(fn (Get $get) => self::variantsOf($get('product_id')) !== []),
                     TextInput::make('quantity')
                         ->required()
                         ->integer()
@@ -97,6 +104,8 @@ class OrderResource extends Resource
             TextEntry::make('lines')
                 ->label('Line Items')
                 ->state(fn (?Order $record) => $record?->items->map(fn (OrderItem $item) => $item->quantity.' × '.$item->displayName()
+                    .($item->variantLabel() ? ' ('.$item->variantLabel().')' : '')
+                    .($item->sku ? ' [SKU '.$item->sku.']' : '')
                     .($item->options ? ' — '.implode('; ', $item->optionLabels($record->currency_code)) : '')
                     .' @ '.Money::format($item->price, $record->currency_code))->all())
                 ->listWithLineBreaks()
@@ -130,6 +139,22 @@ class OrderResource extends Resource
             ->active()
             ->orderBy('name')
             ->pluck('name', 'id')
+            ->all();
+    }
+
+    /** @return array<int, string> the product's active variants */
+    private static function variantsOf(mixed $productId): array
+    {
+        if (blank($productId)) {
+            return [];
+        }
+
+        return ProductVariant::withoutGlobalScope('store')
+            ->where('product_id', $productId)
+            ->available()
+            ->orderBy('position')
+            ->get()
+            ->mapWithKeys(fn (ProductVariant $v) => [$v->id => $v->label().($v->sku ? " ({$v->sku})" : '')])
             ->all();
     }
 

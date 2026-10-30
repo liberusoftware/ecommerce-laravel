@@ -21,6 +21,8 @@ class PreReleaseSchemaGuardTest extends TestCase
 
     private const OPTION_TABLES = '2026_10_23_000001_create_product_option_tables';
 
+    private const VARIANT_TABLE = '2022_09_26_113709_create_product_variants_table';
+
     private function guard(): object
     {
         return require database_path('migrations/'.self::GUARD.'.php');
@@ -53,5 +55,29 @@ class PreReleaseSchemaGuardTest extends TestCase
 
         $this->assertFalse(Schema::hasTable('product_option_groups'));
         $this->assertDatabaseMissing('migrations', ['migration' => self::OPTION_TABLES]);
+    }
+
+    public function test_a_database_from_before_variants_stops_at_the_variant_table(): void
+    {
+        // Migrated after the guard ran, before variants: the in-place columns are
+        // missing, and only the new file would run.
+        Schema::disableForeignKeyConstraints();
+        Schema::table('cart_items', fn ($table) => $table->dropConstrainedForeignId('product_variant_id'));
+        Schema::table('order_items', fn ($table) => $table->dropConstrainedForeignId('product_variant_id'));
+        Schema::drop('product_variants');
+        Schema::enableForeignKeyConstraints();
+        DB::table('migrations')->where('migration', self::VARIANT_TABLE)->delete();
+
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            $this->fail('Migrating a database from before variants did not stop.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('cart_items.product_variant_id', $e->getMessage());
+            $this->assertStringContainsString('order_items.product_variant_id', $e->getMessage());
+            $this->assertStringContainsString('migrate:fresh', $e->getMessage());
+        }
+
+        $this->assertFalse(Schema::hasTable('product_variants'));
+        $this->assertDatabaseMissing('migrations', ['migration' => self::VARIANT_TABLE]);
     }
 }

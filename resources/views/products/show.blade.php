@@ -15,6 +15,8 @@
 @php
     $stock = (int) $product->inventory_count;
     $isOut = ! $product->isInStock();
+    $hasVariants = $product->hasVariants();
+    $range = $hasVariants ? $product->variantPriceRange() : null;
     $currency = \App\Support\Money::currency();
     $gallery = collect([$product->image_url])->merge($product->images->map(fn ($image) => $image->url))->filter()->unique()->values();
 @endphp
@@ -76,7 +78,7 @@
                 @if ($product->category)
                     <p class="mt-2 text-label text-muted">{{ $product->category->name }}</p>
                 @endif
-                @if (filled($product->sku))
+                @if (filled($product->sku) && ! $hasVariants)
                     <p class="mt-1 text-caption text-muted">SKU <span class="data">{{ $product->sku }}</span></p>
                 @endif
 
@@ -85,6 +87,16 @@
                 <div class="mt-6">
                     @if ($product->isFree())
                         <p class="data text-headline font-semibold text-ink">Free</p>
+                    @elseif ($range !== null && $range[0] !== $range[1])
+                        @php $tax = app(\App\Services\TaxCalculator::class); @endphp
+                        <p class="data text-headline font-semibold text-ink">
+                            {{ \App\Support\Money::format($tax->displayAmount($product, $range[0])) }}
+                            <span class="font-normal text-muted">&ndash;</span>
+                            {{ \App\Support\Money::format($tax->displayAmount($product, $range[1])) }}
+                        </p>
+                        @if ($tax->shouldDisplayPricesWithTax())
+                            <p class="mt-1 text-caption text-muted">(inc. tax)</p>
+                        @endif
                     @else
                         <p class="data text-headline font-semibold text-ink">
                             {{ \App\Support\Money::format($product->displayPrice()) }}
@@ -105,6 +117,9 @@
                     <span class="inline-block size-2 rounded-full {{ $isOut ? 'bg-danger-600' : 'bg-primary-700' }}" aria-hidden="true"></span>
                     @if ($isOut)
                         <span class="font-medium text-danger-700">Out of stock</span>
+                    @elseif ($hasVariants)
+                        <span class="font-medium text-primary-700">Available</span>
+                        <span class="text-muted">&middot; {{ $product->variants->filter->isPurchasable()->count() }} of {{ $product->variants->count() }} options in stock</span>
                     @else
                         <span class="font-medium text-primary-700">In stock</span>
                         @if ($product->tracksInventory())
@@ -143,8 +158,13 @@
                             </a>
                         @endif
                     @elseif (! $isOut)
-                        <form action="{{ route('cart.add', $product) }}" method="POST">
+                        <form action="{{ route('cart.add', $product) }}" method="POST"
+                              x-data="{ variant: null, hasVariants: @js($hasVariants) }"
+                              x-on:variant-changed="variant = $event.detail">
                             @csrf
+                            @if ($hasVariants)
+                                @include('products.partials.variant-picker')
+                            @endif
                             {{-- Prices shown here are a guide; the server prices the choices. --}}
                             @foreach ($product->optionGroups as $group)
                                 <fieldset class="mb-6">
@@ -186,9 +206,11 @@
                                            class="form-input data w-24"
                                            value="1"
                                            min="1"
-                                           @if ($product->tracksInventory()) max="{{ $stock }}" @endif>
+                                           @if ($product->tracksInventory()) max="{{ $stock }}" @endif
+                                           @if ($hasVariants) x-bind:max="variant && variant.stock !== null ? variant.stock : null" @endif>
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-lg">Add to cart</button>
+                                <button type="submit" class="btn btn-primary btn-lg"
+                                        x-bind:disabled="hasVariants && ! (variant && variant.available)">Add to cart</button>
                             </div>
                         </form>
                     @else
@@ -266,10 +288,22 @@
             ],
         ];
 
+        if ($range !== null) {
+            $jsonLd['offers'] = [
+                '@type' => 'AggregateOffer',
+                'url' => route('products.show', $product),
+                'priceCurrency' => $currency,
+                'lowPrice' => $range[0],
+                'highPrice' => $range[1],
+                'offerCount' => $product->variants->where('is_active', true)->count(),
+                'availability' => $jsonLd['offers']['availability'],
+            ];
+        }
+
         if ($gallery->isNotEmpty()) {
             $jsonLd['image'] = $gallery->map(fn ($url) => url($url))->all();
         }
-        if (filled($product->sku)) {
+        if (filled($product->sku) && ! $hasVariants) {
             $jsonLd['sku'] = $product->sku;
         }
     @endphp

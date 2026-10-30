@@ -163,17 +163,16 @@ class CheckoutController extends Controller
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
 
-        // Verify inventory before processing
-        // A product may be several lines, so its stock is checked against their sum.
-        foreach (collect($cart)->groupBy('product_id') as $productId => $lines) {
-            $product = Product::active()->find($productId);
-            if (! $product || ! $product->canSupply((int) $lines->sum('quantity'))) {
-                return redirect()->back()->with('error', 'Some items in your cart are no longer available in the requested quantity.');
-            }
+        try {
+            $items = $this->cart->items();
+            $this->checkoutService->assertPurchasable($items->pluck('product_id'));
+            $this->checkoutService->assertInStock($items);
+        } catch (CheckoutException $e) {
+            return redirect()->back()->with('error', 'Some items in your cart are no longer available in the requested quantity.');
         }
 
         try {
-            $this->checkoutService->assertCartPricesCurrent($this->cart->items());
+            $this->checkoutService->assertCartPricesCurrent($items);
         } catch (CheckoutException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
