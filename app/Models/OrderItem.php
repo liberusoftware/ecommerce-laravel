@@ -15,7 +15,10 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'product_variant_id',
         'product_name',
+        'sku',
+        'variant_attributes',
         'options',
         'quantity',
         'price',
@@ -27,12 +30,29 @@ class OrderItem extends Model
     protected $casts = [
         'download_expires_at' => 'datetime',
         'options' => 'array',
+        'variant_attributes' => 'array',
     ];
 
     /** The name the line was sold under; the live product only for lines older than the snapshot. */
     public function displayName(): string
     {
         return $this->product_name ?? $this->product?->name ?? 'Product #'.$this->product_id;
+    }
+
+    /** "Colour: Black, Storage: 128 GB" as sold; null for a simple product. */
+    public function variantLabel(): ?string
+    {
+        return self::variantLabelFor($this->variant_attributes);
+    }
+
+    /** Shared with the cart. */
+    public static function variantLabelFor(?array $values): ?string
+    {
+        if (empty($values)) {
+            return null;
+        }
+
+        return implode(', ', array_map(fn (array $v) => $v['name'].': '.$v['value'], $values));
     }
 
     /** @return list<string> e.g. "Size: Large (+£0.20)" */
@@ -55,6 +75,11 @@ class OrderItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id')->withTrashed();
     }
 
     public function order()

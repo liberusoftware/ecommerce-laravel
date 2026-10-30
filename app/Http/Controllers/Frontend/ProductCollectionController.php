@@ -25,7 +25,7 @@ class ProductCollectionController extends Controller
     {
         $products = $collection->products()
             ->listed()
-            ->withCount('review')
+            ->with('variants')->withCount('review')
             ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'));
 
@@ -43,7 +43,7 @@ class ProductCollectionController extends Controller
                 AllowedFilter::scope('price_max'),
             )
             ->allowedSorts('name', 'price', 'created_at')
-            ->withCount('review')
+            ->with('variants')->withCount('review')
             ->withAvg('rating', 'rating')
             ->paginate(config('pagination.per_page'))
             ->appends($request->query());

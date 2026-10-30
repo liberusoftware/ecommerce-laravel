@@ -40,6 +40,9 @@
                             <div class="flex min-w-0 grow flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div class="min-w-0">
                                     <a href="{{ $item['url'] ?? '#' }}" class="font-medium text-ink hover:text-primary-700">{{ $item['name'] }}</a>
+                                    @if (! empty($item['variant']))
+                                        <p class="mt-1 text-label text-ink">{{ $item['variant'] }}</p>
+                                    @endif
                                     @if (! empty($item['options']))
                                         <ul class="mt-1 text-label text-muted">
                                             @foreach (\App\Models\OrderItem::labelsFor($item['options'], $item['currency'] ?? null) as $label)

@@ -7,17 +7,25 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductOptionGroup;
 use App\Models\TaxClass;
+use App\Services\ProductVariantService;
 use App\Services\StoreContext;
 use App\Support\Money;
 use Closure;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -25,6 +33,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /** The product form both panels use, so the two cannot drift. Every field here is read by the storefront, cart or checkout. */
 final class ProductForm
@@ -44,6 +53,8 @@ final class ProductForm
                         self::media(),
                         self::pricing(),
                         self::inventory(),
+                        self::variants(),
+                        self::productOptions(),
                         self::downloads(),
                         self::seo(),
                     ]),
@@ -83,6 +94,7 @@ final class ProductForm
                 TextInput::make('sku')
                     ->label('SKU')
                     ->maxLength(100)
+                    ->helperText(fn (Get $get) => self::hasVariants($get) ? 'Optional for the product as a whole; each variant has its own.' : null)
                     ->rule(fn (?Product $record, Get $get) => self::uniqueInStore('sku', $record, $get)),
                 TextInput::make('short_description')
                     ->label('Summary')
@@ -145,6 +157,8 @@ final class ProductForm
                     ->default('fixed')
                     ->required()
                     ->selectablePlaceholder(false)
+                    ->disabled(fn (Get $get) => self::hasVariants($get))
+                    ->helperText(fn (Get $get) => self::hasVariants($get) ? 'Products with variants are sold at a fixed price.' : null)
                     ->live()
                     ->columnSpanFull(),
                 TextInput::make('price')
@@ -152,8 +166,9 @@ final class ProductForm
                     ->minValue(0)
                     ->maxValue(99999999)
                     ->prefix($currency)
-                    ->required(fn (Get $get) => $get('pricing_type') === 'fixed')
-                    ->visible(fn (Get $get) => $get('pricing_type') === 'fixed')
+                    ->required(fn (Get $get) => $get('pricing_type') === 'fixed' && ! self::hasVariants($get))
+                    ->visible(fn (Get $get) => $get('pricing_type') === 'fixed' && ! self::hasVariants($get))
+                    ->helperText('New variants start at this price.')
                     ->live(onBlur: true),
                 TextInput::make('sale_price')
                     ->numeric()
@@ -161,7 +176,12 @@ final class ProductForm
                     ->prefix($currency)
                     ->lt('price')
                     ->helperText('Leave empty when not on sale. Shoppers see the price struck through.')
-                    ->visible(fn (Get $get) => $get('pricing_type') === 'fixed'),
+                    ->visible(fn (Get $get) => $get('pricing_type') === 'fixed' && ! self::hasVariants($get)),
+                Callout::make('Priced per variant')
+                    ->description('Each variant below has its own selling price. Shoppers see the range, and pay the price of the variant they choose.')
+                    ->info()
+                    ->visible(fn (Get $get) => self::hasVariants($get))
+                    ->columnSpanFull(),
                 TextInput::make('suggested_price')
                     ->numeric()
                     ->minValue(0)
@@ -188,15 +208,21 @@ final class ProductForm
         return Section::make('Inventory and shipping')
             ->columns(3)
             ->schema([
+                Callout::make('Stocked per variant')
+                    ->description('Each variant below counts its own stock; the product has none of its own while it has variants.')
+                    ->info()
+                    ->visible(fn (Get $get) => self::hasVariants($get))
+                    ->columnSpanFull(),
                 Toggle::make('track_inventory')
                     ->label('Track stock')
                     ->default(fn (Get $get) => ! $get('is_downloadable'))
                     ->live()
+                    ->hidden(fn (Get $get) => self::hasVariants($get))
                     ->helperText('Off sells any quantity: for made-to-order goods. Downloads start untracked.')
                     ->columnSpanFull(),
                 TextInput::make('inventory_count')
                     ->label('Stock')
-                    ->visible(fn (Get $get) => (bool) $get('track_inventory'))
+                    ->visible(fn (Get $get) => (bool) $get('track_inventory') && ! self::hasVariants($get))
                     ->required()
                     ->integer()
                     ->minValue(0)
@@ -206,7 +232,8 @@ final class ProductForm
                     ->helperText(fn (string $operation) => $operation === 'edit' ? 'Use “Adjust stock” on the product list; adjustments are logged.' : null),
                 TextInput::make('low_stock_threshold')
                     ->label('Low-stock alert at')
-                    ->visible(fn (Get $get) => (bool) $get('track_inventory'))
+                    ->helperText(fn (Get $get) => self::hasVariants($get) ? 'Applies to each variant.' : null)
+                    ->visible(fn (Get $get) => (bool) $get('track_inventory') || self::hasVariants($get))
                     ->required()
                     ->integer()
                     ->minValue(0)
@@ -218,6 +245,132 @@ final class ProductForm
                     ->suffix('kg')
                     ->helperText('Used by weight-based shipping.'),
             ]);
+    }
+
+    private static function variants(): Section
+    {
+        $currency = fn () => Money::currency();
+
+        return Section::make('Variants')
+            ->description('Use variants when shoppers choose between versions of this product, such as colours, sizes or storage, and each version has its own SKU, price or stock. Leave this empty for a product sold in one version.')
+            ->collapsible()
+            ->collapsed(fn (Get $get) => ! self::hasVariants($get) && blank($get('variant_attributes')))
+            ->visible(fn (Get $get) => $get('pricing_type') === 'fixed')
+            ->schema([
+                Repeater::make('variant_attributes')
+                    ->label('1. What do the versions differ by?')
+                    ->helperText('Add an attribute such as Colour, then type each of its values and press Enter.')
+                    ->addActionLabel('Add attribute')
+                    ->defaultItems(0)
+                    ->reorderable()
+                    ->columns(3)
+                    ->schema([
+                        TextInput::make('name')
+                            ->label('Attribute')
+                            ->placeholder('Colour')
+                            ->required()
+                            ->maxLength(50),
+                        TagsInput::make('values')
+                            ->placeholder('Black, White, Blue…')
+                            ->required()
+                            ->reorderable()
+                            ->splitKeys([','])
+                            ->columnSpan(2),
+                    ]),
+                Actions::make([
+                    Action::make('generateVariants')
+                        ->label(fn (Get $get) => self::hasVariants($get) ? '2. Update variants' : '2. Generate variants')
+                        ->icon('heroicon-o-squares-plus')
+                        ->action(function (Get $get, Set $set): void {
+                            try {
+                                $rows = app(ProductVariantService::class)->generate(
+                                    $get('variant_attributes'),
+                                    $get('variants') ?? [],
+                                    ['price' => $get('price'), 'track_inventory' => ! $get('is_downloadable')],
+                                );
+                            } catch (ValidationException $e) {
+                                Notification::make()->title(collect($e->errors())->flatten()->first())->danger()->send();
+
+                                return;
+                            }
+
+                            // Fresh keys for new rows, so a later regeneration cannot collide with them.
+                            $set('variants', collect($rows)->mapWithKeys(fn (array $row, $key) => [str_starts_with((string) $key, 'new-') ? (string) Str::uuid() : $key => $row])->all());
+                        }),
+                ])->key('variantActions'),
+                Repeater::make('variants')
+                    ->label('3. Set each variant\'s SKU, price and stock')
+                    ->helperText('Every combination is listed. Remove a row for a combination you do not sell, or switch it off to stop selling it for now. Saving applies your changes.')
+                    ->addable(false)
+                    ->reorderable(false)
+                    ->defaultItems(0)
+                    ->live()
+                    ->table([
+                        TableColumn::make('Variant'),
+                        TableColumn::make('SKU'),
+                        TableColumn::make('Price')->markAsRequired(),
+                        TableColumn::make('Track stock'),
+                        TableColumn::make('Stock'),
+                        TableColumn::make('On sale'),
+                    ])
+                    ->schema([
+                        Hidden::make('id'),
+                        Hidden::make('attribute_values'),
+                        TextInput::make('label')->disabled()->dehydrated(false),
+                        TextInput::make('sku')->maxLength(100),
+                        TextInput::make('price')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->maxValue(99999999)
+                            ->prefix($currency),
+                        Toggle::make('track_inventory')->default(true)->live(),
+                        TextInput::make('inventory_count')
+                            ->integer()
+                            ->minValue(0)
+                            ->default(0)
+                            ->visible(fn (Get $get) => (bool) $get('track_inventory'))
+                            // Like product stock: set when created, adjusted (and logged) afterwards.
+                            ->disabled(fn (Get $get) => filled($get('id')))
+                            ->dehydrated(fn (Get $get) => blank($get('id'))),
+                        Toggle::make('is_active')->default(true),
+                    ]),
+                Callout::make('Changing stock on an existing variant')
+                    ->description('Use “Adjust stock” on the product list. Every adjustment is logged.')
+                    ->color('gray')
+                    ->visible(fn (Get $get, string $operation) => $operation === 'edit' && self::hasVariants($get)),
+            ]);
+    }
+
+    private static function productOptions(): Section
+    {
+        return Section::make('Product options')
+            ->description('Optional extras shoppers can add, such as gift wrapping, a protective case or an extended warranty. Options adjust the price but have no SKU or stock of their own. Manage the reusable sets under Product options.')
+            ->collapsible()
+            ->collapsed(fn (?Product $record) => $record === null || $record->optionGroups()->doesntExist())
+            ->hidden(fn (Get $get) => $get('pricing_type') === 'donation')
+            ->schema([
+                // Only this product's own store's groups, offered and accepted.
+                Select::make('optionGroups')
+                    ->label('Options offered')
+                    ->multiple()
+                    ->relationship('optionGroups', 'name', modifyQueryUsing: fn ($query, Get $get, ?Product $record) => $query
+                        ->where('product_option_groups.store_id', self::storeOf($record, $get)))
+                    ->rule(fn (Get $get, ?Product $record) => function (string $attribute, $value, Closure $fail) use ($get, $record): void {
+                        $ids = array_map('intval', (array) $value);
+                        $own = ProductOptionGroup::withoutGlobalScopes()->whereKey($ids)->where('store_id', self::storeOf($record, $get))->count();
+                        if ($own !== count($ids)) {
+                            $fail('Product options must belong to this product\'s store.');
+                        }
+                    })
+                    ->preload()
+                    ->hidden(fn (Get $get) => $get('pricing_type') === 'donation'),
+            ]);
+    }
+
+    private static function hasVariants(Get $get): bool
+    {
+        return filled($get('variants'));
     }
 
     private static function downloads(): Section
@@ -319,22 +472,6 @@ final class ProductForm
                     ->multiple()
                     ->relationship('tags', 'name')
                     ->preload(),
-                // Only this product's own store's groups, offered and accepted.
-                Select::make('optionGroups')
-                    ->label('Option groups')
-                    ->multiple()
-                    ->relationship('optionGroups', 'name', modifyQueryUsing: fn ($query, Get $get, ?Product $record) => $query
-                        ->where('product_option_groups.store_id', self::storeOf($record, $get)))
-                    ->rule(fn (Get $get, ?Product $record) => function (string $attribute, $value, Closure $fail) use ($get, $record): void {
-                        $ids = array_map('intval', (array) $value);
-                        $own = ProductOptionGroup::withoutGlobalScopes()->whereKey($ids)->where('store_id', self::storeOf($record, $get))->count();
-                        if ($own !== count($ids)) {
-                            $fail('Option groups must belong to this product\'s store.');
-                        }
-                    })
-                    ->preload()
-                    ->hidden(fn (Get $get) => $get('pricing_type') === 'donation')
-                    ->helperText('Choices shoppers make when adding this product, such as size or extras.'),
             ]);
     }
 

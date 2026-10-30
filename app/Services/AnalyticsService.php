@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -207,43 +208,72 @@ class AnalyticsService
     }
 
     /**
-     * Get inventory insights
+     * Stock insights per stock line: a simple product's own stock, or each
+     * active variant's. A product with variants holds no stock of its own, so
+     * it is never counted as well as its variants.
      */
     public function getInventoryInsights(): array
     {
-        // Low stock products — the list is capped for display; low_stock_count is the
+        $simple = fn () => Product::tracked()->withoutVariants();
+        $variants = fn () => ProductVariant::query()
+            ->join('products', 'products.id', '=', 'product_variants.product_id')
+            ->whereNull('products.deleted_at')
+            ->where('product_variants.is_active', true);
+        $trackedVariants = fn () => $variants()->where('product_variants.track_inventory', true);
+
+        // Low stock — the list is capped for display; low_stock_count is the
         // true total so the dashboard stat doesn't silently plateau at the cap.
-        $lowStockQuery = Product::tracked()->whereNotNull('low_stock_threshold')
-            ->whereColumn('inventory_count', '<=', 'low_stock_threshold');
-        $lowStockCount = (clone $lowStockQuery)->count();
-        $lowStockProducts = $lowStockQuery
+        $lowSimple = $simple()->whereNotNull('low_stock_threshold')->whereColumn('inventory_count', '<=', 'low_stock_threshold');
+        $lowVariants = $trackedVariants()->whereColumn('product_variants.inventory_count', '<=', 'products.low_stock_threshold');
+        $lowStockCount = (clone $lowSimple)->count() + (clone $lowVariants)->count();
+
+        $lowStockProducts = $lowSimple
             ->select('id', 'name', 'inventory_count', 'low_stock_threshold')
             ->orderBy('inventory_count')
             ->limit(20)
             ->get()
             ->toArray();
+        foreach ($lowVariants->select('product_variants.*', 'products.name as product_name', 'products.low_stock_threshold')
+            ->orderBy('product_variants.inventory_count')->limit(20)->get() as $variant) {
+            $lowStockProducts[] = [
+                'id' => $variant->product_id,
+                'variant_id' => $variant->id,
+                'name' => $variant->product_name.' — '.$variant->label(),
+                'inventory_count' => $variant->inventory_count,
+                'low_stock_threshold' => $variant->low_stock_threshold,
+            ];
+        }
+        usort($lowStockProducts, fn (array $a, array $b) => $a['inventory_count'] <=> $b['inventory_count']);
+        $lowStockProducts = array_slice($lowStockProducts, 0, 20);
 
-        // Out of stock products
-        $outOfStockCount = Product::tracked()->where('inventory_count', '<=', 0)->count();
+        $outOfStockCount = $simple()->where('inventory_count', '<=', 0)->count()
+            + $trackedVariants()->where('product_variants.inventory_count', '<=', 0)->count();
 
-        // Inventory value
-        $inventoryValue = Product::tracked()->where('inventory_count', '>', 0)
+        $inventoryValue = (float) ($simple()->where('inventory_count', '>', 0)
             ->select(DB::raw('SUM(inventory_count * price) as total_value'))
-            ->value('total_value') ?? 0;
+            ->value('total_value') ?? 0)
+            + (float) ($trackedVariants()->where('product_variants.inventory_count', '>', 0)
+                ->select(DB::raw('SUM(product_variants.inventory_count * product_variants.price) as total_value'))
+                ->value('total_value') ?? 0);
 
-        // Products by stock status
         $stockStatus = [
-            'out_of_stock' => Product::tracked()->where('inventory_count', '<=', 0)->count(),
-            'low_stock' => Product::tracked()->whereNotNull('low_stock_threshold')
+            'out_of_stock' => $outOfStockCount,
+            'low_stock' => (clone $simple())->whereNotNull('low_stock_threshold')
                 ->whereColumn('inventory_count', '<=', 'low_stock_threshold')
                 ->where('inventory_count', '>', 0)
-                ->count(),
-            // An untracked product never runs out.
-            'in_stock' => Product::where(fn ($q) => $q->where('track_inventory', false)
+                ->count()
+                + $trackedVariants()->whereColumn('product_variants.inventory_count', '<=', 'products.low_stock_threshold')
+                    ->where('product_variants.inventory_count', '>', 0)
+                    ->count(),
+            // An untracked product or variant never runs out.
+            'in_stock' => Product::withoutVariants()->where(fn ($q) => $q->where('track_inventory', false)
                 ->orWhere(fn ($q) => $q->where('inventory_count', '>', 0)
                     ->where(fn ($q) => $q->whereNull('low_stock_threshold')
                         ->orWhereColumn('inventory_count', '>', 'low_stock_threshold'))))
-                ->count(),
+                ->count()
+                + $variants()->where(fn ($q) => $q->where('product_variants.track_inventory', false)
+                    ->orWhereColumn('product_variants.inventory_count', '>', 'products.low_stock_threshold'))
+                    ->count(),
         ];
 
         return [

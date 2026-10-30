@@ -47,6 +47,9 @@
                         <div>
                             <span class="font-medium text-ink">{{ $item->displayName() }}</span>
                             <span class="text-muted text-sm ml-2">× {{ $item->quantity }}</span>
+                            @if ($item->variantLabel())
+                                <span class="block text-muted text-sm">{{ $item->variantLabel() }}</span>
+                            @endif
                             @foreach($item->optionLabels($order->currency_code) as $label)
                                 <span class="block text-muted text-sm">{{ $label }}</span>
                             @endforeach

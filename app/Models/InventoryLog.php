@@ -10,6 +10,7 @@ class InventoryLog extends Model
 
     protected $fillable = [
         'product_id',
+        'product_variant_id',
         'quantity_change',
         'old_quantity',
         'new_quantity',
@@ -21,5 +22,10 @@ class InventoryLog extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id')->withTrashed();
     }
 }

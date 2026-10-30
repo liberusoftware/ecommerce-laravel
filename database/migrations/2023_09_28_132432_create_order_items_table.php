@@ -18,7 +18,10 @@ return new class extends Migration
             $table->foreignId('order_id')->constrained()->onUpdate('cascade')->onDelete('cascade');
             // The line outlives its product: name, options and price are a snapshot.
             $table->foreignId('product_id')->nullable()->constrained()->onUpdate('cascade')->nullOnDelete();
+            $table->foreignId('product_variant_id')->nullable()->constrained()->nullOnDelete();
             $table->string('product_name')->nullable();
+            $table->string('sku', 100)->nullable();
+            $table->json('variant_attributes')->nullable();
             $table->json('options')->nullable();
             $table->integer('quantity');
             $table->decimal('price', 10, 2);

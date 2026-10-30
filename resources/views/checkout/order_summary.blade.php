@@ -33,6 +33,9 @@
                                     </div>
                                     <div>
                                         <p class="text-sm font-medium text-ink">{{ $item->displayName() }}</p>
+                                        @if ($item->variantLabel())
+                                            <p class="text-xs text-muted mt-0.5">{{ $item->variantLabel() }}</p>
+                                        @endif
                                         @foreach($item->optionLabels($order->currency_code) as $label)
                                             <p class="text-xs text-muted mt-0.5">{{ $label }}</p>
                                         @endforeach

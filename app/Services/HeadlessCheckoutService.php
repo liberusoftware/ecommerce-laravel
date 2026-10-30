@@ -30,13 +30,14 @@ class HeadlessCheckoutService
 
     public function place(User $user, array $input): Order
     {
-        $cart = CartItem::where('user_id', $user->id)->with('product')->get();
+        $cart = CartItem::where('user_id', $user->id)->with(['product', 'variant'])->get();
         if ($cart->isEmpty()) {
             throw new CheckoutException('Your cart is empty.');
         }
 
         $paymentMethod = $input['paymentMethod'] ?? 'stripe';
         $this->checkoutService->assertPurchasable($cart->pluck('product_id'));
+        $this->checkoutService->assertInStock($cart);
         $this->checkoutService->assertCartPricesCurrent($cart);
         $this->checkoutService->assertGatewayAccepted($paymentMethod);
         $country = strtoupper((string) ($input['country'] ?? ''));

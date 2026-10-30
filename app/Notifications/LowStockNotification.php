@@ -2,11 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Models\Product;
 
 class LowStockNotification extends Notification
 {
@@ -14,9 +14,23 @@ class LowStockNotification extends Notification
 
     protected $product;
 
-    public function __construct(Product $product)
+    /** Set when the stock running low is one variant's. */
+    protected ?ProductVariant $variant;
+
+    public function __construct(Product $product, ?ProductVariant $variant = null)
     {
         $this->product = $product;
+        $this->variant = $variant;
+    }
+
+    private function name(): string
+    {
+        return $this->product->name.($this->variant ? ' ('.$this->variant->label().')' : '');
+    }
+
+    private function stock(): int
+    {
+        return (int) ($this->variant ?? $this->product)->inventory_count;
     }
 
     public function via($notifiable)
@@ -27,19 +41,20 @@ class LowStockNotification extends Notification
     public function toMail($notifiable)
     {
         return (new MailMessage)
-                    ->subject('Low Stock Alert')
-                    ->line('The product "' . $this->product->name . '" is running low on stock.')
-                    ->line('Current stock: ' . $this->product->inventory_count)
-                    ->line('Low stock threshold: ' . $this->product->low_stock_threshold)
-                    ->action('View Product', url('/admin/products/' . $this->product->id));
+            ->subject('Low Stock Alert')
+            ->line('The product "'.$this->name().'" is running low on stock.')
+            ->line('Current stock: '.$this->stock())
+            ->line('Low stock threshold: '.$this->product->low_stock_threshold)
+            ->action('View Product', url('/admin/products/'.$this->product->id));
     }
 
     public function toArray($notifiable)
     {
         return [
             'product_id' => $this->product->id,
-            'product_name' => $this->product->name,
-            'current_stock' => $this->product->inventory_count,
+            'product_variant_id' => $this->variant?->id,
+            'product_name' => $this->name(),
+            'current_stock' => $this->stock(),
             'low_stock_threshold' => $this->product->low_stock_threshold,
         ];
     }

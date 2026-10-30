@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
-/** A validated set of choices for one product, priced from the catalogue. */
+use App\Models\ProductVariant;
+
+/** A validated variant and set of choices for one product, priced from the catalogue. */
 final class ProductConfiguration
 {
     /**
@@ -12,5 +14,6 @@ final class ProductConfiguration
         public readonly array $options,
         public readonly float $unitPrice,
         public readonly string $key,
+        public readonly ?ProductVariant $variant = null,
     ) {}
 }

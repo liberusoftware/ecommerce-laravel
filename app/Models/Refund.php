@@ -84,10 +84,13 @@ class Refund extends Model
         // Restock refunded items if requested.
         if ($this->restock_items) {
             foreach ($this->items as $item) {
-                // A withdrawn product still takes its stock back; a deleted or untracked one has none.
-                $product = $item->restock ? $item->orderItem?->product()->withTrashed()->first() : null;
-                if ($product?->tracksInventory()) {
-                    $product->adjustInventory($item->quantity, 'refund');
+                // A withdrawn product or variant still takes its stock back; a deleted or untracked one has none.
+                $line = $item->restock ? $item->orderItem : null;
+                $holder = $line?->product_variant_id !== null
+                    ? $line->variant()->withoutGlobalScopes()->withTrashed()->first()
+                    : $line?->product()->withTrashed()->first();
+                if ($holder?->tracksInventory()) {
+                    $holder->adjustInventory($item->quantity, 'refund');
                 }
             }
         }

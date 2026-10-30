@@ -201,8 +201,12 @@ class TaxCalculator
      */
     public function displayPrice(Product $product): float
     {
-        $price = $product->sellingPrice();
+        return $this->displayAmount($product, $product->sellingPrice());
+    }
 
+    /** As displayPrice(), for another amount of the same product: a variant's price. */
+    public function displayAmount(Product $product, float $price): float
+    {
         if (! $this->shouldDisplayPricesWithTax()) {
             return $price;
         }

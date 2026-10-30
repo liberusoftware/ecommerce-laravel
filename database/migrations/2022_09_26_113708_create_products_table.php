@@ -20,6 +20,7 @@ return new class extends Migration
                 // Slug and SKU are unique per store, indexed with store_id.
                 $table->string('slug')->nullable();
                 $table->string('sku', 100)->nullable();
+                // With variants, the lowest active variant price, kept in step for listings.
                 $table->decimal('price', 10, 2)->nullable();
                 $table->decimal('sale_price', 10, 2)->nullable();
                 $table->enum('pricing_type', ['fixed', 'free', 'donation'])->default('fixed');
@@ -29,6 +30,8 @@ return new class extends Migration
                 $table->boolean('track_inventory')->default(true);
                 $table->integer('inventory_count')->default(0);
                 $table->integer('low_stock_threshold')->default(0);
+                // [{"name": "Colour", "values": ["Black", "White"]}]; null for a simple product.
+                $table->json('variant_attributes')->nullable();
                 $table->decimal('weight', 8, 2)->default(0);
                 $table->text('description')->nullable();
                 $table->text('short_description')->nullable();

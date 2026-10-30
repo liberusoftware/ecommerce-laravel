@@ -43,6 +43,12 @@
                 <tr>
                     <td class="py-3 pr-4 text-ink">
                         {{ $line->displayName() }}
+                        @if ($line->variantLabel())
+                            <span class="block text-muted">{{ $line->variantLabel() }}</span>
+                        @endif
+                        @if ($line->sku)
+                            <span class="block text-muted">SKU {{ $line->sku }}</span>
+                        @endif
                         @foreach ($line->optionLabels($currency) as $label)
                             <span class="block text-muted">{{ $label }}</span>
                         @endforeach
