@@ -19,6 +19,8 @@ class FacebookConnection extends Model
     use HasFactory;
     use IsTenantModel;
 
+    protected $hidden = ['access_token'];
+
     protected $fillable = [
         'access_token',
         'catalog_id',

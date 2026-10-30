@@ -27,9 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
 
@@ -39,7 +39,9 @@ jobs:
       # 2026-07-14 and reporting nothing. Auditing the lock is also what we want:
       # it checks the versions that actually get deployed, and needs no install.
       - name: Run Composer security audit
-        run: composer audit --locked --no-interaction
+        # Rector requires the abandoned rule-doc-generator contracts package.
+        # Report abandonment while still failing on every security advisory.
+        run: composer audit --locked --no-interaction --abandoned=report
 
   # Split from the Composer job rather than bolted on as a step: the two need
   # different toolchains (PHP vs Node), they run in parallel, and a JS advisory
@@ -50,15 +52,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           # package.json declares no engines. 20 matches the php-fpm image that
           # actually builds these assets (v20.20.2) and clears Vite 8's >= 20.19
           # floor. No cache: npm — nothing installs here, so there's nothing to
           # cache.
-          node-version: '20'
+          node-version: '26'
 
       # --package-lock-only is the npm mirror of `composer audit --locked` above:
       # audit the lockfile, install nothing. That keeps the whole npm ci
