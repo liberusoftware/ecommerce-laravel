@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c9a7281c2224414080cfd425f2b5d2f4",
+    "content-hash": "5193aefd1f1b0e5a2838f0e542a7606b",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -5310,6 +5310,59 @@
                 "source": "https://github.com/liberusoftware/module-module-manager/tree/1.4.3"
             },
             "time": "2026-10-26T21:37:12+00:00"
+        },
+        {
+            "name": "liberusoftware/tenancy",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/liberusoftware/module-tenancy.git",
+                "reference": "634fcb3bdf9eb4625d37442dc2e388ec476dd041"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/liberusoftware/module-tenancy/zipball/634fcb3bdf9eb4625d37442dc2e388ec476dd041",
+                "reference": "634fcb3bdf9eb4625d37442dc2e388ec476dd041",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^5.0",
+                "illuminate/database": "^13.0",
+                "illuminate/support": "^13.0",
+                "laravel/jetstream": "^5.5",
+                "php": "^8.5",
+                "spatie/laravel-permission": "^8.0"
+            },
+            "require-dev": {
+                "laravel/framework": "^13.0",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "liberu-module",
+            "extra": {
+                "liberu": {
+                    "name": "tenancy"
+                },
+                "laravel": {
+                    "providers": [
+                        "Liberu\\Foundation\\Tenancy\\TenancyServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Liberu\\Foundation\\Tenancy\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Shared Filament and Jetstream team tenancy with scoped runtime context and Eloquent isolation.",
+            "support": {
+                "issues": "https://github.com/liberusoftware/module-tenancy/issues",
+                "source": "https://github.com/liberusoftware/module-tenancy/tree/v1.0.0"
+            },
+            "time": "2026-11-02T14:07:14+00:00"
         },
         {
             "name": "liberusoftware/users-roles",

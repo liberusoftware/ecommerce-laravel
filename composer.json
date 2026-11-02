@@ -24,6 +24,7 @@
         "laravel/tinker": "^3.0.2",
         "liberusoftware/composer-installer": "^1.1",
         "liberusoftware/module-manager": "^1.4.3",
+        "liberusoftware/tenancy": "^1.0",
         "liberusoftware/users-roles": "^1.0",
         "livewire/livewire": "^4.4.8",
         "orangehill/iseed": "^3.8.1",
