@@ -3,25 +3,20 @@
 namespace App\Services\PaymentGateways;
 
 use App\Interfaces\PaymentGatewayInterface;
+use App\Support\Money;
 use Exception;
-use Illuminate\Support\Facades\Config;
 use Stripe\StripeClient;
 
 class StripeGateway implements PaymentGatewayInterface
 {
-    private $stripeClient;
-
-    public function __construct()
-    {
-        $this->stripeClient = new StripeClient(Config::get('services.stripe.secret'));
-    }
+    public function __construct(private readonly StripeClient $stripeClient) {}
 
     public function processPayment(float $amount, array $paymentDetails): array
     {
         try {
             $charge = $this->stripeClient->charges->create([
-                'amount' => $amount * 100, // Stripe expects amount in cents
-                'currency' => 'usd',
+                'amount' => (int) round($amount * 100),
+                'currency' => strtolower(Money::currency()),
                 'source' => $paymentDetails['token'],
                 'description' => 'Payment transaction',
             ]);
@@ -47,7 +42,7 @@ class StripeGateway implements PaymentGatewayInterface
         try {
             $refund = $this->stripeClient->refunds->create([
                 'charge' => $transactionId,
-                'amount' => $amount * 100, // Stripe expects amount in cents
+                'amount' => (int) round($amount * 100),
             ]);
 
             if ($refund->status === 'succeeded') {

@@ -33,7 +33,7 @@ class DownloadableProduct extends Model
 
     public function isDownloadable(): bool
     {
-        return $this->download_limit > $this->downloads_count
+        return ($this->download_limit === null || $this->download_limit > $this->downloads_count)
             && (! $this->expiration_time || $this->expiration_time->isFuture());
     }
 

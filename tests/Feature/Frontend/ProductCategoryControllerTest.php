@@ -26,9 +26,9 @@ class ProductCategoryControllerTest extends TestCase
     // Test that exactly one category exists
     public function test_list_categories_with_one_category()
     {
-        $categoryName = "Test Category";
+        $categoryName = 'Test Category';
         $category = ProductCategory::factory()->create([
-            "name" => $categoryName
+            'name' => $categoryName,
         ]);
 
         $response = $this->get(route('categories.index'));
@@ -36,11 +36,10 @@ class ProductCategoryControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewIs('categories.index');
         $response->assertViewHas('categories', function ($categories) use ($category, $categoryName) {
-            return (
+            return
                 $categories->count() === 1
                 && $categories->first()->id === $category->id
-                && $categories->first()->name === $categoryName
-            );
+                && $categories->first()->name === $categoryName;
         });
     }
 
@@ -48,9 +47,9 @@ class ProductCategoryControllerTest extends TestCase
     public function test_list_categories_with_multiple_categories()
     {
         $categories = ProductCategory::factory()->count(3)->sequence(
-            ["name" => "Category 1"],
-            ["name" => "Category 2"],
-            ["name" => "Category 3"]
+            ['name' => 'Category 1'],
+            ['name' => 'Category 2'],
+            ['name' => 'Category 3']
         )->create();
 
         $response = $this->get(route('categories.index'));
@@ -114,9 +113,9 @@ class ProductCategoryControllerTest extends TestCase
     {
         $categoryName = 'CategoryMatch';
         ProductCategory::factory()->count(3)->sequence(
-            ['name' => $categoryName . ' 1'],
+            ['name' => $categoryName.' 1'],
             ['name' => 'OtherCategory 1'],
-            ['name' => $categoryName . ' 2'],
+            ['name' => $categoryName.' 2'],
             ['name' => 'OtherCategory 2'],
             ['name' => 'OtherCategory 3'],
         )->create();
@@ -127,7 +126,8 @@ class ProductCategoryControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewIs('categories.index');
         $response->assertViewHas('categories', function ($categories) use ($categoryName) {
-            $expectedNames = [$categoryName . ' 1', $categoryName . ' 2'];
+            $expectedNames = [$categoryName.' 1', $categoryName.' 2'];
+
             return $categories->count() === 2
                 && $categories->pluck('name')->intersect($expectedNames)->count() === 2;
         });
@@ -176,7 +176,7 @@ class ProductCategoryControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    // Test showing a single category returns 404 when other categories exist 
+    // Test showing a single category returns 404 when other categories exist
     public function test_retrieve_category_returns_404_when_other_categories_exist()
     {
         ProductCategory::factory()->count(10)->create();
@@ -185,12 +185,12 @@ class ProductCategoryControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    // Test retrieving a category 
+    // Test retrieving a category
     public function test_can_retrieve_correct_category()
     {
-        $categoryName = "Test Category";
+        $categoryName = 'Test Category';
         $category = ProductCategory::factory()->create([
-            'name' => $categoryName
+            'name' => $categoryName,
         ]);
         ProductCategory::factory(5)->create();
 
@@ -224,7 +224,7 @@ class ProductCategoryControllerTest extends TestCase
     {
         $category = ProductCategory::factory()->create();
 
-        $response = $this->get(route('categories.products', ["category" => $category]));
+        $response = $this->get(route('categories.products', ['category' => $category]));
 
         $response->assertStatus(200);
         $response->assertViewIs('categories.products');
@@ -232,7 +232,6 @@ class ProductCategoryControllerTest extends TestCase
             return $viewProducts->count() === 0;
         });
     }
-
 
     // Test category products page shows only products belonging to the specific category
     public function test_category_products_page_shows_only_its_own_products()
@@ -248,16 +247,16 @@ class ProductCategoryControllerTest extends TestCase
             ['name' => 'Product 5', 'category_id' => $category2->id]
         )->create();
 
-        $response = $this->get(route('categories.products', ["category" => $category1]));
+        $response = $this->get(route('categories.products', ['category' => $category1]));
 
         $response->assertStatus(200);
         $response->assertViewIs('categories.products');
         $response->assertViewHas('products', function ($viewProducts) use ($products) {
             $category1Products = collect([$products->get(0), $products->get(2)]);
-            return (
+
+            return
                 $viewProducts->count() === 2 &&
-                $viewProducts->pluck('id')->diff($category1Products->pluck('id'))->isEmpty()
-            );
+                $viewProducts->pluck('id')->diff($category1Products->pluck('id'))->isEmpty();
         });
     }
 

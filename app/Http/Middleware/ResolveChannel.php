@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Channel;
 use App\Services\ChannelResolver;
+use App\Support\StorefrontTheme;
 use Closure;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -27,7 +28,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ResolveChannel
 {
-    public function __construct(private readonly ChannelResolver $resolver) {}
+    public function __construct(
+        private readonly ChannelResolver $resolver,
+        private readonly StorefrontTheme $theme,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -42,6 +46,8 @@ class ResolveChannel
         if ($channel === null && ! $request->is('health')) {
             abort(404);
         }
+
+        $this->theme->apply($channel?->theme);
 
         if ($locale = $channel?->store?->locale) {
             app()->setLocale($locale);

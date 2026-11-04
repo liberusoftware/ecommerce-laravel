@@ -26,7 +26,7 @@
                         @for($i = 1; $i <= 5; $i++)
                             <button 
                                 wire:click="$set('rating', {{ $i }})"
-                                class="text-3xl {{ $rating >= $i ? 'text-yellow-400' : 'text-gray-300' }} hover:text-yellow-400 transition">
+                                class="text-3xl {{ $rating >= $i ? 'text-warning-600' : 'text-gray-300' }} hover:text-warning-600 transition">
                                 ⭐
                             </button>
                         @endfor

@@ -24,7 +24,7 @@ class CustomerController extends Controller
             'first_name' => ['sometimes', 'required', 'string', 'max:255'],
             'last_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'email' => ['sometimes', 'required', 'email', 'max:255'],
-            'phone_number' => ['sometimes', 'nullable', 'integer'],
+            'phone_number' => ['sometimes', 'nullable', 'string', 'max:32'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:255'],
             'state' => ['sometimes', 'nullable', 'string', 'max:255'],

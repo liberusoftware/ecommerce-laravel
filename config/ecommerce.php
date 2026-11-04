@@ -48,4 +48,7 @@ return [
     */
 
     'default_currency' => env('DEFAULT_CURRENCY', 'USD'),
+
+    // The theme the initial channel renders with: a directory under themes/. See docs/THEMES.md.
+    'storefront_theme' => env('STOREFRONT_THEME', 'theme-ecommerce'),
 ];

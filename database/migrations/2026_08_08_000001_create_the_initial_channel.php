@@ -52,7 +52,7 @@ return new class extends Migration
         $channelId = DB::table('channels')->insertGetId([
             'store_id' => $storeId,
             'name' => 'Web',
-            'theme' => 'theme-ecommerce',
+            'theme' => config('ecommerce.storefront_theme') ?: 'theme-ecommerce',
             'created_at' => $now,
             'updated_at' => $now,
         ]);

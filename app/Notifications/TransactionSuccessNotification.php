@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -26,13 +27,13 @@ class TransactionSuccessNotification extends Notification implements ShouldQueue
     public function toMail($notifiable)
     {
         return (new MailMessage)
-                    ->subject('Transaction Successful')
-                    ->greeting('Hello!')
-                    ->line('Your transaction has been successfully processed.')
-                    ->line('Transaction ID: ' . $this->transactionDetails['transaction_id'])
-                    ->line('Amount: $' . number_format($this->transactionDetails['amount'], 2))
-                    ->action('View Transaction', url('/transactions/' . $this->transactionDetails['transaction_id']))
-                    ->line('Thank you for using our application!');
+            ->subject('Transaction Successful')
+            ->greeting('Hello!')
+            ->line('Your transaction has been successfully processed.')
+            ->line('Transaction ID: '.$this->transactionDetails['transaction_id'])
+            ->line('Amount: '.Money::format($this->transactionDetails['amount'], $this->transactionDetails['currency'] ?? null))
+            ->action('View Transaction', url('/transactions/'.$this->transactionDetails['transaction_id']))
+            ->line('Thank you for using our application!');
     }
 
     public function toArray($notifiable)

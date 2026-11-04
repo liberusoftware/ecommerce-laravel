@@ -117,6 +117,15 @@
                         </div>
                         <div class="px-6 py-5 space-y-5">
                             <div>
+                                <label for="shipping_name" class="block text-sm font-medium text-ink mb-1.5">Full name</label>
+                                <input type="text" id="shipping_name" name="shipping_name" value="{{ old('shipping_name', auth()->user()?->name) }}" autocomplete="name"
+                                    class="w-full px-4 py-2.5 border border-stroke rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-primary-600 @error('shipping_name') border-danger-600 @enderror">
+                                @error('shipping_name')
+                                    <p class="mt-1 text-sm text-danger-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
                                 <label for="shipping_address" class="block text-sm font-medium text-ink mb-1.5">
                                     Shipping Address <span class="text-danger-600">*</span>
                                 </label>
@@ -125,7 +134,7 @@
                                     name="shipping_address"
                                     required
                                     rows="3"
-                                    placeholder="Street address, city, state, ZIP / postal code, country"
+                                    placeholder="House number and street"
                                     class="w-full px-4 py-2.5 border border-stroke rounded-lg text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-colors resize-none @error('shipping_address') border-danger-600 @enderror"
                                 >{{ old('shipping_address') }}</textarea>
                                 @error('shipping_address')
@@ -154,12 +163,18 @@
                                 <div>
                                     <label for="city" class="block text-sm font-medium text-ink mb-1.5">City</label>
                                     <input type="text" id="city" name="city" value="{{ old('city') }}"
-                                        class="w-full px-4 py-2.5 border border-stroke rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-primary-600">
+                                        class="w-full px-4 py-2.5 border border-stroke rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-primary-600 @error('city') border-danger-600 @enderror">
+                                    @error('city')
+                                        <p class="mt-1 text-sm text-danger-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                                 <div>
                                     <label for="postal_code" class="block text-sm font-medium text-ink mb-1.5">Postal / ZIP code</label>
                                     <input type="text" id="postal_code" name="postal_code" value="{{ old('postal_code') }}"
-                                        class="w-full px-4 py-2.5 border border-stroke rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-primary-600">
+                                        class="w-full px-4 py-2.5 border border-stroke rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-primary-600 @error('postal_code') border-danger-600 @enderror">
+                                    @error('postal_code')
+                                        <p class="mt-1 text-sm text-danger-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                             </div>
 

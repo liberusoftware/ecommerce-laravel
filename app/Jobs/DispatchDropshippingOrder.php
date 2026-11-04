@@ -39,7 +39,7 @@ class DispatchDropshippingOrder implements ShouldQueue
      */
     public function handle(DropshippingService $dropshippingService): void
     {
-        $order = Order::with('items')->find($this->orderId);
+        $order = Order::with(['items.product', 'items.variant'])->find($this->orderId);
 
         if (! $order) {
             return;
@@ -60,20 +60,31 @@ class DispatchDropshippingOrder implements ShouldQueue
         // Build supplier payload
         $orderData = [
             'reference' => 'order-'.$order->id,
-            'customer_name' => $order->customer_email,
+            'customer_name' => $order->shipping_name ?: $order->user?->name ?: $order->customer_email,
             'customer_email' => $order->customer_email,
             'recipient_name' => $order->recipient_name,
             'recipient_email' => $order->recipient_email,
             'shipping_address' => $order->shipping_address,
+            'shipping_city' => $order->shipping_city,
+            'shipping_state' => $order->shipping_state,
+            'shipping_postal_code' => $order->shipping_postal_code,
+            'shipping_country' => $order->billing_country,
             'shipping_method' => $order->shipping_method_id,
             'shipping_cost' => $order->shipping_cost ?? 0,
+            'gift_message' => $order->gift_message,
             'items' => [],
         ];
 
-        foreach ($order->items as $item) {
+        // Where products name their supplier, this supplier gets only its own lines.
+        $items = $order->items->contains(fn ($item) => $item->product?->isDropshipped())
+            ? $order->items->filter(fn ($item) => $item->product?->supplier_id === $this->supplierId)
+            : $order->items;
+
+        foreach ($items as $item) {
             $orderData['items'][] = [
                 'product_id' => $item->product_id,
-                'sku' => optional($item->product)->sku ?? null,
+                'sku' => $item->sku ?? $item->product?->sku,
+                'supplier_variant_id' => $item->variant?->supplier_variant_id,
                 'quantity' => $item->quantity,
                 'price' => $item->price,
             ];

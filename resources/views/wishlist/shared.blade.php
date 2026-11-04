@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Shared wishlist — '.config('app.name'))
+@section('title', 'Shared wishlist — '.$storeName)
 
 @section('content')
 <div class="page-container py-10">

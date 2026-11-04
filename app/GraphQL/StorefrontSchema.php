@@ -416,6 +416,8 @@ class StorefrontSchema
                 'paymentMethod' => Type::string(),   // defaults to 'stripe'
                 'stripeToken' => Type::string(),
                 'shippingQuoteId' => Type::int(),     // a persisted ShippingQuote; its stored amount is billed
+                'shippingAddress' => Type::string(),
+                'shippingName' => Type::string(),
                 'state' => Type::string(),
                 'city' => Type::string(),
                 'postalCode' => Type::string(),

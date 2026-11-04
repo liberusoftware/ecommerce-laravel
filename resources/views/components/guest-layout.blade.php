@@ -17,9 +17,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex, nofollow">
 
-    <title>@yield('title', $title ?? __('Account')) &middot; {{ config('app.name') }}</title>
+    <title>@yield('title', $title ?? __('Account')) &middot; {{ $storeName }}</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(app(\App\Support\StorefrontTheme::class)->entries())
     @livewireStyles
     @stack('styles')
 </head>

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Mail\ContactMessage;
+use App\Models\Channel;
+use App\Models\ContactRequest;
 use App\Models\Store;
 use App\Settings\GeneralSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,6 +109,33 @@ class ContactFormTest extends TestCase
         // Silently: the bot gets the same success it would get on a real send, so it
         // learns nothing about why. But no mail leaves.
         Mail::assertNothingSent();
+        $this->assertDatabaseCount('contact_requests', 0);
+    }
+
+    #[Test]
+    public function a_message_is_kept_in_the_stores_inbox(): void
+    {
+        Mail::fake();
+
+        $this->post(route('contact.send'), $this->validPayload());
+
+        $kept = ContactRequest::query()->withoutGlobalScopes()->sole();
+        $this->assertSame(['Ada Lovelace', 'ada@example.test', 'Where is order 1043?'], [$kept->name, $kept->email, $kept->subject]);
+        $store = Channel::query()->sole()->store;
+        $this->assertSame([$store->id, $store->team_id], [$kept->store_id, $kept->team_id]);
+        $this->assertNull($kept->read_at);
+    }
+
+    #[Test]
+    public function a_mail_failure_still_keeps_the_message_and_thanks_the_sender(): void
+    {
+        Mail::shouldReceive('to')->andThrow(new \RuntimeException('Connection could not be established with host smtp'));
+
+        $this->post(route('contact.send'), $this->validPayload())
+            ->assertRedirect(route('contact'))
+            ->assertSessionHas('success');
+
+        $this->assertSame(1, ContactRequest::query()->withoutGlobalScopes()->count());
     }
 
     #[Test]
@@ -149,5 +178,26 @@ class ContactFormTest extends TestCase
         $response->assertSee('+44 20 7946 0000');
         $response->assertDontSee('Knowledgebase');   // the SaaS template copy is gone
         $response->assertDontSee('Developer APIs');
+    }
+
+    #[Test]
+    public function a_configured_contact_inbox_receives_the_form_instead_of_the_public_address(): void
+    {
+        Mail::fake();
+        config(['mail.contact_to' => 'inbox@example.test']);
+
+        $this->post(route('contact.send'), $this->validPayload())->assertSessionHas('success');
+
+        Mail::assertSent(ContactMessage::class, fn (ContactMessage $mail) => $mail->hasTo('inbox@example.test') && ! $mail->hasTo('merchant@example.test'));
+    }
+
+    #[Test]
+    public function nothing_promises_a_response_time(): void
+    {
+        Mail::fake();
+
+        $this->get(route('contact'))->assertDontSee('working day');
+        $this->post(route('contact.send'), $this->validPayload())
+            ->assertSessionHas('success', fn (string $message) => ! str_contains($message, 'working day'));
     }
 }

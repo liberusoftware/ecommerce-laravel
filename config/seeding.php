@@ -22,4 +22,7 @@ return [
 
     'admin_password' => env('SEED_ADMIN_PASSWORD'),
 
+    // The sample products, orders and customers seeded outside production. A site with its own catalogue turns this off.
+    'demo_catalogue' => (bool) env('SEED_DEMO_CATALOGUE', true),
+
 ];

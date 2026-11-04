@@ -2,6 +2,7 @@
 
 namespace App\Filament\Schemas;
 
+use App\Jobs\SyncProductToFacebookCatalog;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\StoreContext;
@@ -108,6 +109,16 @@ final class ProductTable
                         }
 
                         Notification::make()->title('Stock adjusted.')->success()->send();
+                    }),
+                Action::make('repushFacebook')
+                    ->label('Re-push to Facebook')
+                    ->icon('heroicon-o-arrow-path')
+                    ->visible(fn (Product $record) => $record->list_on_facebook && $record->isActive())
+                    ->authorize(fn (Product $record) => auth()->user()?->can('update', $record))
+                    ->action(function (Product $record): void {
+                        SyncProductToFacebookCatalog::dispatch($record->id);
+
+                        Notification::make()->title('Queued. The Catalog status updates shortly.')->success()->send();
                     }),
             ])
             ->toolbarActions([

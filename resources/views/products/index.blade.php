@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'All products — '.config('app.name'))
+@section('title', 'All products — '.$storeName)
 
 @section('content')
     <div class="page-container py-10">

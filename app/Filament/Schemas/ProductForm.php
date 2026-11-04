@@ -23,6 +23,7 @@ use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Callout;
@@ -297,9 +298,27 @@ final class ProductForm
                             // Fresh keys for new rows, so a later regeneration cannot collide with them.
                             $set('variants', collect($rows)->mapWithKeys(fn (array $row, $key) => [str_starts_with((string) $key, 'new-') ? (string) Str::uuid() : $key => $row])->all());
                         }),
+                    Action::make('setVariantPrices')
+                        ->label('Set every price')
+                        ->icon('heroicon-o-currency-dollar')
+                        ->color('gray')
+                        ->visible(fn (Get $get) => self::hasVariants($get))
+                        ->schema([
+                            TextInput::make('price')->numeric()->required()->minValue(0)->maxValue(99999999)->prefix($currency),
+                        ])
+                        ->action(fn (array $data, Get $get, Set $set) => $set('variants', collect($get('variants'))
+                            ->map(fn (array $row) => ['price' => $data['price']] + $row)->all())),
+                    Action::make('fillVariantSkus')
+                        ->label('Fill empty SKUs')
+                        ->icon('heroicon-o-hashtag')
+                        ->color('gray')
+                        ->visible(fn (Get $get) => self::hasVariants($get))
+                        ->action(fn (Get $get, Set $set) => $set('variants', collect($get('variants'))
+                            ->map(fn (array $row) => filled($row['sku'] ?? null) ? $row : ['sku' => self::variantSku($get('sku') ?: $get('slug') ?: $get('name'), $row)] + $row)
+                            ->all())),
                 ])->key('variantActions'),
                 Repeater::make('variants')
-                    ->label('3. Set each variant\'s SKU, price and stock')
+                    ->label(fn (Get $get) => '3. Set each variant\'s SKU, price and stock ('.self::variantSummary($get('variants') ?? []).')')
                     ->helperText('Every combination is listed. Remove a row for a combination you do not sell, or switch it off to stop selling it for now. Saving applies your changes.')
                     ->addable(false)
                     ->reorderable(false)
@@ -366,6 +385,21 @@ final class ProductForm
                     ->preload()
                     ->hidden(fn (Get $get) => $get('pricing_type') === 'donation'),
             ]);
+    }
+
+    /** "TEE" + Size S, Colour Black → "TEE-S-BLACK". The service still enforces uniqueness on save. */
+    private static function variantSku(?string $base, array $row): string
+    {
+        $values = array_column($row['attribute_values'] ?? [], 'value');
+
+        return Str::upper(Str::slug(implode(' ', [Str::limit((string) $base, 40, ''), ...$values])));
+    }
+
+    private static function variantSummary(array $rows): string
+    {
+        $onSale = collect($rows)->filter(fn (array $row) => (bool) ($row['is_active'] ?? true))->count();
+
+        return count($rows).' '.Str::plural('variant', count($rows)).", {$onSale} on sale";
     }
 
     private static function hasVariants(Get $get): bool
@@ -439,7 +473,22 @@ final class ProductForm
                     ->label('List on Facebook')
                     ->helperText('Pushes this product into your Meta Catalog.')
                     ->visible(fn (?Product $record) => FacebookConnection::forTeam($record?->team_id ?? Filament::getTenant()?->getKey()) !== null),
+                TextEntry::make('facebook_status')
+                    ->label('Catalog status')
+                    ->state(fn (?Product $record) => self::facebookStatus($record))
+                    ->visible(fn (?Product $record) => $record?->facebookListings()->exists() ?? false),
             ]);
+    }
+
+    /** Each Catalog item's status, with Meta's first rejection reason. */
+    public static function facebookStatus(?Product $record): array
+    {
+        return $record?->facebookListings()->with('variant')->get()->map(function ($listing) {
+            $label = $listing->product_variant_id ? ($listing->variant?->label() ?: 'Removed variant') : 'Product';
+            $error = $listing->errors[0]['message'] ?? $listing->errors['message'] ?? null;
+
+            return $label.': '.str_replace('_', ' ', $listing->status).($error ? ' — '.$error : '');
+        })->all() ?? [];
     }
 
     private static function organisation(): Section

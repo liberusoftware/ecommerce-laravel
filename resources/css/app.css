@@ -26,7 +26,7 @@
    2. There is no second green. Moss doubles as the affirmative signal, because a
       semantic success-green next to a brand-green would be two similar-but-not-
       identical greens — the colour equivalent of pairing two humanist sans.
-      A consequence: .btn-success and .btn-primary are deliberately the same.
+      So success-* aliases primary-*; a theme with a non-green brand redefines it.
 
    Every token below is inside the sRGB gamut, and every foreground/background
    pair in use clears WCAG 2.2 AA. Both were machine-verified, not eyeballed.
@@ -62,7 +62,13 @@
     --color-ink-inverse: oklch(0.860 0.012 140);
     --color-muted-inverse: oklch(0.720 0.012 140);
 
-    /* Semantics. Success is intentionally absent: it is the brand moss. */
+    /* Semantics. Success is the brand moss unless a theme says otherwise. */
+    --color-success-50: var(--color-primary-50);
+    --color-success-100: var(--color-primary-100);
+    --color-success-300: var(--color-primary-300);
+    --color-success-500: var(--color-primary-500);
+    --color-success-600: var(--color-primary-600);
+    --color-success-700: var(--color-primary-700);
     --color-danger-50: oklch(0.960 0.016 27);
     --color-danger-600: oklch(0.505 0.190 27);
     --color-danger-700: oklch(0.440 0.170 27);
@@ -164,7 +170,7 @@
        second green would fight the brand. Kept as an alias so existing views don't
        break; prefer .btn-primary in new work. */
     .btn-success {
-        @apply bg-primary-700 text-white hover:bg-primary-600;
+        @apply bg-success-700 text-white hover:bg-success-600;
     }
 
     .btn-danger {
@@ -326,7 +332,7 @@
 
     /* Success is moss — the brand colour is the affirmative colour. */
     .alert-success {
-        @apply bg-primary-50 border-primary-300 text-primary-700;
+        @apply bg-success-50 border-success-300 text-success-700;
     }
 
     .alert-error {
@@ -352,7 +358,7 @@
     }
 
     .badge-success {
-        @apply bg-primary-100 text-primary-700;
+        @apply bg-success-100 text-success-700;
     }
 
     .badge-warning {

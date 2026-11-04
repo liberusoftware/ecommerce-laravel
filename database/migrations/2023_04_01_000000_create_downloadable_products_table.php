@@ -11,12 +11,12 @@ class CreateDownloadableProductsTable extends Migration
      */
     public function up()
     {
-       
+
         Schema::create('downloadable_products', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('file_url');
-            $table->integer('download_limit');
+            $table->integer('download_limit')->nullable();
             $table->dateTime('expiration_time')->nullable();
             $table->timestamps();
         });

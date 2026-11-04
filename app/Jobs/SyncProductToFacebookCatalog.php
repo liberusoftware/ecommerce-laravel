@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\FacebookConnection;
 use App\Models\Product;
 use App\Models\ProductFacebookListing;
+use App\Models\ProductVariant;
 use App\Services\Facebook\CatalogItemMapper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,14 +49,14 @@ class SyncProductToFacebookCatalog implements ShouldQueue
             return;
         }
 
-        [$requests, $listings] = $this->request($product);
+        [$requests, $listings, $removed] = $this->request($product);
 
         $result = $connection->catalog()->itemsBatch($requests);
 
         if (! $result['ok']) {
             $message = $result['body']['error']['message'] ?? ('HTTP '.$result['status']);
 
-            foreach ($listings as $listing) {
+            foreach ([...array_values($listings), ...$removed] as $listing) {
                 $listing->update(['status' => 'error', 'errors' => ['message' => $message]]);
             }
 
@@ -71,20 +72,51 @@ class SyncProductToFacebookCatalog implements ShouldQueue
                 'last_synced_at' => now(),
             ]);
         }
+
+        foreach ($removed as $listing) {
+            $listing->update(['status' => 'deleted', 'errors' => null, 'last_synced_at' => now()]);
+        }
     }
 
-    /** @return array{0: array<int, array>, 1: array<string, ProductFacebookListing>} */
+    /**
+     * A product with variants is one item per variant on sale; a simple product is one item.
+     * Items the product no longer offers are deleted from the Catalog in the same batch.
+     *
+     * @return array{0: array<int, array>, 1: array<string, ProductFacebookListing>, 2: list<ProductFacebookListing>}
+     */
     private function request(Product $product): array
     {
-        $listing = $product->facebookListings()->firstOrCreate(
-            ['retailer_id' => CatalogItemMapper::retailerIdForProduct($product)],
-            ['status' => 'pending'],
-        );
+        $requests = [];
+        $listings = [];
+        $removed = [];
 
-        return [
-            [CatalogItemMapper::forProduct($product, $listing->retailer_id)],
-            [$listing->retailer_id => $listing],
-        ];
+        $items = $product->hasVariants()
+            ? $product->variants->filter->is_active->map(fn (ProductVariant $variant) => [CatalogItemMapper::retailerIdForVariant($variant), $variant])
+            : collect([[CatalogItemMapper::retailerIdForProduct($product), null]]);
+
+        foreach ($items as [$retailerId, $variant]) {
+            $listing = $product->facebookListings()->updateOrCreate(
+                ['retailer_id' => $retailerId],
+                ['product_variant_id' => $variant?->id, 'status' => 'pending'],
+            );
+
+            $requests[] = $variant
+                ? CatalogItemMapper::forVariant($product, $variant, $retailerId)
+                : CatalogItemMapper::forProduct($product, $retailerId);
+            $listings[$retailerId] = $listing;
+        }
+
+        $stale = $product->facebookListings()
+            ->whereNotIn('retailer_id', array_keys($listings))
+            ->where('status', '!=', 'deleted')
+            ->get();
+
+        foreach ($stale as $listing) {
+            $requests[] = CatalogItemMapper::deleteRequest($listing->retailer_id);
+            $removed[] = $listing;
+        }
+
+        return [$requests, $listings, $removed];
     }
 
     /** Per-item validation errors Meta returns inline for our retailer id. */

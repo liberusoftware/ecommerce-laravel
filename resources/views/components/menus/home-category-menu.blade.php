@@ -1,5 +1,5 @@
 @if(isset($menuItems) && $menuItems->isNotEmpty())
-    <ul class="flex space-x-8 overflow-x-auto pb-1 hide-scrollbar">
+    <ul class="flex gap-6 overflow-x-auto pb-1 hide-scrollbar">
         @foreach($menuItems as $item)
             @php
                 $itemPath = trim(parse_url($item->link, PHP_URL_PATH) ?? '', '/');
@@ -11,7 +11,13 @@
                 <a
                     href="{{ $item->link }}"
                     target="{{ $item->target }}"
-                    class="{{ trim(($item->link_class ? $item->link_class . ' ' : '') . 'text-gray-700 hover:text-blue-600 whitespace-nowrap' . ($isActive || $loop->first ? ' font-medium' : '')) }}"
+                    @class([
+                        $item->link_class => filled($item->link_class),
+                        'text-label whitespace-nowrap transition-colors' => true,
+                        'font-medium text-ink' => $isActive,
+                        'text-muted hover:text-primary-700' => ! $isActive,
+                    ])
+                    @if ($isActive) aria-current="page" @endif
                 >
                     {{ $item->name }}
                 </a>

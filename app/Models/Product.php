@@ -61,6 +61,8 @@ class Product extends Model implements Orderable
         'name',
         'slug',
         'sku',
+        'supplier_id',
+        'supplier_product_id',
         'status',
         'visibility',
         'description',
@@ -167,6 +169,12 @@ class Product extends Model implements Orderable
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** Fulfilled by a supplier such as Printful rather than shipped by the merchant. */
+    public function isDropshipped(): bool
+    {
+        return filled($this->supplier_id);
     }
 
     /** A product with variants is priced and stocked per variant, never at product level. */
@@ -285,7 +293,7 @@ class Product extends Model implements Orderable
                     ['product_id' => $product->id],
                     [
                         'file_url' => $product->downloadable_file,
-                        'download_limit' => $product->download_limit ?? PHP_INT_MAX,
+                        'download_limit' => $product->download_limit,
                         'expiration_time' => $product->expiration_time,
                     ]
                 );

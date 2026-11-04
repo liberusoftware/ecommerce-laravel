@@ -4,11 +4,11 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Queued Chats</div>
-                <div class="text-2xl font-bold text-blue-600">{{ $stats['total_queued'] }}</div>
+                <div class="text-2xl font-bold text-primary-600">{{ $stats['total_queued'] }}</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">My Active Chats</div>
-                <div class="text-2xl font-bold text-green-600">{{ $stats['my_active'] }}</div>
+                <div class="text-2xl font-bold text-success-600">{{ $stats['my_active'] }}</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Today Closed</div>
@@ -16,17 +16,17 @@
             </div>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Avg Response Time</div>
-                <div class="text-2xl font-bold text-orange-600">{{ $stats['avg_response_time'] }}s</div>
+                <div class="text-2xl font-bold text-warning-600">{{ $stats['avg_response_time'] }}s</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Avg Satisfaction</div>
-                <div class="text-2xl font-bold text-yellow-600">{{ $stats['avg_satisfaction'] }}/5</div>
+                <div class="text-2xl font-bold text-warning-600">{{ $stats['avg_satisfaction'] }}/5</div>
             </div>
         </div>
 
         <!-- Refresh Button -->
         <div class="flex justify-end">
-            <button wire:click="refresh" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <button wire:click="refresh" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700">
                 Refresh
             </button>
         </div>
@@ -54,7 +54,7 @@
                                 </div>
                                 <button 
                                     wire:click="assignToMe({{ $conversation['id'] }})"
-                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                                    class="bg-success-600 text-white px-3 py-1 rounded text-sm hover:bg-success-700">
                                     Accept
                                 </button>
                             </div>
@@ -92,7 +92,7 @@
                                 </div>
                                 <a 
                                     href="{{ route('filament.admin.resources.chat-conversations.view', $conversation['id']) }}"
-                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                    class="bg-primary-600 text-white px-3 py-1 rounded text-sm hover:bg-primary-700">
                                     View
                                 </a>
                             </div>

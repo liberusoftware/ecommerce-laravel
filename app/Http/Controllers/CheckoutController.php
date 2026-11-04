@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class CheckoutController extends Controller
 {
@@ -127,6 +128,7 @@ class CheckoutController extends Controller
             'email' => 'required|email',
             'has_physical_products' => 'sometimes|in:0,1',
             'shipping_address' => 'required_if:has_physical_products,1|string',
+            'shipping_name' => 'nullable|string|max:100',
             // A physical order ships on either a flat method OR a live-rate quote;
             // the "one of them is present" check is enforced below (needs the cart).
             'shipping_method_id' => 'nullable|exists:shipping_methods,id',
@@ -142,6 +144,7 @@ class CheckoutController extends Controller
             'payment_method' => 'required|string',
             'recipient_name' => 'required_if:dropship,on|string',
             'recipient_email' => 'required_if:dropship,on|email',
+            'supplier_id' => ['nullable', 'string', Rule::in(array_keys(config('dropshipping.suppliers', [])))],
         ]);
 
         if ($validator->fails()) {
@@ -155,6 +158,15 @@ class CheckoutController extends Controller
         if (empty($cart)) {
             return redirect()->route('products.index')
                 ->with('error', 'Your cart is empty');
+        }
+
+        // A supplier ships what its products say it ships, and it needs the address in parts.
+        $supplierId = $this->checkoutService->supplierFor($this->cart->items());
+        $missing = collect($supplierId !== null ? ['shipping_name' => 'full name', 'city' => 'city', 'postal_code' => 'postcode'] : [])
+            ->filter(fn ($label, $field) => blank($request->input($field)));
+        if ($missing->isNotEmpty()) {
+            return redirect()->back()->withInput()
+                ->withErrors($missing->map(fn ($label) => "Please enter your {$label}.")->all());
         }
 
         try {
@@ -302,6 +314,10 @@ class CheckoutController extends Controller
                     'user_id' => auth()->id(),
                     'customer_email' => $request->email,
                     'shipping_address' => $request->shipping_address,
+                    'shipping_name' => $request->input('shipping_name'),
+                    'shipping_city' => $request->input('city'),
+                    'shipping_state' => $request->input('state'),
+                    'shipping_postal_code' => $request->input('postal_code'),
                     // Buyer country VAT was charged against — drives the OSS/MOSS report.
                     'billing_country' => strtoupper((string) $request->input('country')),
                     'vat_number' => $vatNumber,
@@ -375,8 +391,8 @@ class CheckoutController extends Controller
             ->notify(new OrderConfirmationNotification($order));
 
         // If dropshipping, queue supplier order placement (shared with headless checkout).
-        if ($order->is_dropshipped) {
-            $supplierId = $request->input('supplier_id', 'dropxl');
+        $supplierId ??= $order->is_dropshipped ? $request->input('supplier_id', 'dropxl') : null;
+        if ($supplierId !== null) {
             if (! $this->checkoutService->queueDropship($order, $supplierId)) {
                 return redirect()->route('checkout.confirmation', ['order' => $order->id])
                     ->with('warning', 'Order placed but an error occurred while queuing the supplier order. Our team will follow up.');

@@ -22,7 +22,7 @@
     @endif
 
     <!-- Styles -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(app(\App\Support\StorefrontTheme::class)->entries())
     @livewireStyles
     @stack('styles')
 </head>

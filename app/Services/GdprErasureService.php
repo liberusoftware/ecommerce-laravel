@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ContactRequest;
 use App\Models\Order;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
@@ -44,6 +45,7 @@ class GdprErasureService
             // Personal data with no accounting value — delete outright.
             $user->paymentMethods()->delete();
             $user->wishlist()->delete();
+            ContactRequest::where('email', $user->email)->delete();
 
             // User-authored content (Art. 17).
             if ($customer !== null) {

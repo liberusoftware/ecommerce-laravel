@@ -1,22 +1,12 @@
 {{-- One fieldset per attribute. The chosen combination fills variant_id; the
      server re-resolves it and prices it, so nothing here is trusted. --}}
+@props(['product'])
+
 @php
-    $tax = app(\App\Services\TaxCalculator::class);
-    $attributes = collect($product->variant_attributes ?? [])->pluck('name')->all();
-    $variants = $product->variants->map(fn ($variant) => [
-        'id' => $variant->id,
-        'values' => array_column($variant->attribute_values, 'value', 'name'),
-        'label' => $variant->label(),
-        'price' => \App\Support\Money::format($tax->displayAmount($product, $variant->sellingPrice())),
-        'available' => $variant->isPurchasable(),
-        'stock' => $variant->tracksInventory() ? $variant->inventory_count : null,
-        'sku' => $variant->sku,
-    ])->values();
-    $selected = collect($attributes)->mapWithKeys(fn ($name) => [$name => null])->all();
-    $preselected = $variants->firstWhere('id', (int) old('variant_id'));
-    foreach ($product->variant_attributes ?? [] as $attribute) {
-        $selected[$attribute['name']] = $preselected['values'][$attribute['name']] ?? (count($attribute['values']) === 1 ? $attribute['values'][0] : null);
-    }
+    $picker = app(\App\View\Storefront\ProductPresenter::class)->variantPicker($product, old('variant_id'));
+    $attributes = array_column($picker['attributes'], 'name');
+    $variants = $picker['variants'];
+    $selected = $picker['selected'];
 @endphp
 
 <div x-data="{
@@ -36,7 +26,7 @@
     }"
      x-init="$watch('variant', v => $dispatch('variant-changed', v))"
      class="mb-6 flex flex-col gap-5">
-    @foreach ($product->variant_attributes ?? [] as $attribute)
+    @foreach ($picker['attributes'] as $attribute)
         <fieldset x-cloak>
             <legend class="form-label">
                 {{ $attribute['name'] }}<span class="text-muted" x-show="selected[@js($attribute['name'])]">:
@@ -50,10 +40,11 @@
                                name="variant_choice[{{ $loop->parent->index }}]"
                                value="{{ $value }}"
                                x-model="selected[@js($attribute['name'])]">
-                        <span class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-stroke px-4 py-2 text-label
-                                     peer-checked:border-primary-700 peer-checked:bg-primary-50 peer-checked:text-primary-800
-                                     peer-focus-visible:ring-2 peer-focus-visible:ring-primary-600"
+                        <span class="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border border-stroke px-4 py-2 text-label
+                                     peer-checked:border-primary-700 peer-checked:bg-primary-700 peer-checked:font-semibold peer-checked:text-white
+                                     peer-focus-visible:ring-2 peer-focus-visible:ring-primary-600 peer-focus-visible:ring-offset-2"
                               :class="offered(@js($attribute['name']), @js($value)) ? 'text-ink' : 'text-muted line-through'">
+                            <i class="fa-solid fa-check text-xs" aria-hidden="true" x-show="selected[@js($attribute['name'])] === @js($value)"></i>
                             {{ $value }}
                         </span>
                         <span class="sr-only" x-show="! offered(@js($attribute['name']), @js($value))">(unavailable with this selection)</span>

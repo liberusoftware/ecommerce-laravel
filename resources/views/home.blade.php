@@ -8,7 +8,7 @@
          made on behalf of a merchant whose policies we don't know. --}}
     <section class="border-b border-hairline">
         <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-            <h1 class="heading-1 max-w-4xl">{{ config('app.name') }}</h1>
+            <h1 class="heading-1 max-w-4xl">{{ $storeName }}</h1>
 
             <p class="prose-measure mt-6 text-lead text-muted">
                 Everything in the catalogue, listed plainly. Prices and stock are live.

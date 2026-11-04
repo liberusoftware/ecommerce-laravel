@@ -29,9 +29,10 @@ class InventoryLogAccuracyTest extends TestCase
         $updated = false;
         $competitorRanBeforeOurUpdate = null;
         DB::listen(function (QueryExecuted $query) use ($product, &$updated, &$competitorRanBeforeOurUpdate) {
-            if (str_starts_with($query->sql, 'update "products"')) {
+            $sql = str_replace('`', '"', $query->sql);
+            if (str_starts_with($sql, 'update "products"')) {
                 $updated = true;
-            } elseif ($competitorRanBeforeOurUpdate === null && str_contains($query->sql, '"inventory_count" from "products"')) {
+            } elseif ($competitorRanBeforeOurUpdate === null && str_contains($sql, '"inventory_count" from "products"')) {
                 $competitorRanBeforeOurUpdate = ! $updated;
                 DB::table('products')->where('id', $product->id)->decrement('inventory_count', 5);
             }

@@ -107,12 +107,21 @@ paths drifting apart is the failure that class exists to prevent.
 implementing `App\Interfaces\PaymentGatewayInterface`. Stripe and PayPal each have a webhook
 controller.
 
+**A product names its supplier.** `products.supplier_id` (e.g. `printful`) sends an order's lines
+for that product to the supplier through `CheckoutService::supplierFor()` and
+`DispatchDropshippingOrder`, each line by its variant's `supplier_variant_id` or SKU, whatever the
+request names. `PrintfulCatalogImporter` mirrors a Printful store as products.
+
 **Order state is a transition, not an assignment.** `Order::transitionTo()` writes the history row;
 the `Order::STATUS_*` constants are the vocabulary. Never assign `status` directly.
 
 **GraphQL is code-first** (webonyx), one schema in `app/GraphQL/StorefrontSchema.php`, wrapped by
 `ExecutionDeadline`. Cart mutations mirror the REST cart controller's stock guard and `user_id`
 scoping.
+
+**Storefront presentation is themeable per channel.** `channels.theme` selects `themes/<name>/`,
+whose views override the core's by path; `ProductPresenter` hands views prices and stock already
+decided. See [`docs/THEMES.md`](./docs/THEMES.md).
 
 **Modules live in their own repositories** and are registered by `liberusoftware/module-manager`.
 `modules/` in this host holds the manager only.
@@ -125,6 +134,7 @@ scoping.
 | [`docs/CONFORMANCE.md`](./docs/CONFORMANCE.md) | A dated snapshot of the gap between this repo and the reference design. Not edited |
 | [`docs/MIGRATION_PLAN.md`](./docs/MIGRATION_PLAN.md) | Living. Sequences the structural work and records each wave as it lands |
 | [`docs/MODULE_DEVELOPMENT.md`](./docs/MODULE_DEVELOPMENT.md) | Package, repository and namespace naming; the dependency rules |
+| [`docs/THEMES.md`](./docs/THEMES.md) | Storefront themes: per-channel view overrides, tokens, the presentation contract |
 | [`docs/adr/`](./docs/adr/) | One decision per file |
 | [`docs/agents/`](./docs/agents/) | Issue tracker, triage labels, domain docs |
 

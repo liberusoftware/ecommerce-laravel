@@ -248,4 +248,18 @@ class ProductVariantServiceTest extends TestCase
         $this->assertArrayHasKey('variants.0.id', $errors);
         $this->assertEquals(10, $other->variants()->first()->price);
     }
+
+    public function test_saving_again_without_changes_keeps_every_sku_and_combination(): void
+    {
+        $tee = $this->variableProduct(['Size' => ['S', 'M']], [
+            $this->row(['Size' => 'S'], 20, 5, ['sku' => 'TEE-S']),
+            $this->row(['Size' => 'M'], 22, 5, ['sku' => 'TEE-M']),
+        ]);
+        $rows = $tee->variants->map(fn ($v) => ['id' => $v->id, 'attribute_values' => $v->attribute_values, 'sku' => $v->sku, 'price' => $v->price, 'track_inventory' => true, 'is_active' => true])->all();
+
+        app(ProductVariantService::class)->sync($tee, $this->attributes(['Size' => ['S', 'M']]), $rows);
+
+        $this->assertSame(['TEE-S', 'TEE-M'], $tee->variants()->pluck('sku')->all());
+        $this->assertNotContains(null, $tee->variants()->pluck('combination_key')->all());
+    }
 }

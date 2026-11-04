@@ -3,6 +3,7 @@
 namespace App\Services\Facebook;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Support\Money;
 
 /**
@@ -12,6 +13,17 @@ use App\Support\Money;
 class CatalogItemMapper
 {
     public static function retailerIdForProduct(Product $product): string
+    {
+        return 'product-'.$product->id;
+    }
+
+    public static function retailerIdForVariant(ProductVariant $variant): string
+    {
+        return 'variant-'.$variant->id;
+    }
+
+    /** Ties a product's variant items together, so Meta shows them as one product. */
+    public static function itemGroupId(Product $product): string
     {
         return 'product-'.$product->id;
     }
@@ -35,6 +47,26 @@ class CatalogItemMapper
         ];
     }
 
+    /** One item per variant: its own price and availability, grouped under the product. */
+    public static function forVariant(Product $product, ProductVariant $variant, string $retailerId): array
+    {
+        return [
+            'method' => 'UPDATE',
+            'data' => [
+                'id' => $retailerId,
+                'item_group_id' => self::itemGroupId($product),
+                'title' => trim($product->name.' - '.$variant->label(), ' -'),
+                'description' => self::description($product),
+                'availability' => $variant->isInStock() ? 'in stock' : 'out of stock',
+                'condition' => 'new',
+                'price' => self::money($variant->sellingPrice(), $product),
+                'link' => self::link($product),
+                'image_link' => self::image($product),
+                'brand' => $product->store?->name ?? config('app.name'),
+            ] + self::variantFields($variant),
+        ];
+    }
+
     /** A real unlist — the Catalog item goes away, unlike a sold-out flip. */
     public static function deleteRequest(string $retailerId): array
     {
@@ -42,6 +74,17 @@ class CatalogItemMapper
             'method' => 'DELETE',
             'data' => ['id' => $retailerId],
         ];
+    }
+
+    /** Meta's own variant fields, where an attribute is one of them. */
+    private static function variantFields(ProductVariant $variant): array
+    {
+        $fields = ['colour' => 'color', 'color' => 'color', 'size' => 'size', 'material' => 'material', 'pattern' => 'pattern'];
+
+        return collect($variant->attribute_values ?? [])
+            ->mapWithKeys(fn (array $pair) => [$fields[strtolower(trim($pair['name']))] ?? '' => $pair['value']])
+            ->except([''])
+            ->all();
     }
 
     private static function description(Product $product): string

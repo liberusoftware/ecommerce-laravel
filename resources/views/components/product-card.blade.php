@@ -1,34 +1,18 @@
 @props(['product'])
 
 @php
-    $stock = (int) $product->inventory_count;
-    $threshold = (int) ($product->low_stock_threshold ?? 0);
-
-    // Product::isLowStock() reports true for sold-out stock too (0 <= threshold),
-    // which is why the old card badged sold-out items "Low Stock". Split explicitly.
-    $isOut = ! $product->isInStock();
-    $isLow = ! $isOut && $product->tracksInventory() && $stock <= $threshold;
-
-    // review_count / rating_avg_rating come from the controller's eager loads;
-    // the method calls are the fallback for any caller that didn't eager-load.
-    $reviewCount = $product->review_count ?? $product->getTotalReviews();
-    // An unrated product's eager-loaded average is null, which still counts as loaded.
-    $rating = (float) (array_key_exists('rating_avg_rating', $product->getAttributes())
-        ? $product->rating_avg_rating
-        : $product->getAverageRating());
-
-    $requiresChoice = $product->requiresChoice();
-    $price = \App\Support\Money::format($product->sellingPrice());
-    $fromPrice = $product->hasVariantPriceRange();
-    $image = $product->image_url ?: asset('images/placeholder-product.svg');
+    // Prices, stock state and ratings come from the presenter; this view only lays them out.
+    $card = app(\App\View\Storefront\ProductPresenter::class)->card($product);
+    $isOut = $card['stock_state'] === 'out';
+    $isLow = $card['stock_state'] === 'low';
 @endphp
 
 <article class="group flex flex-col">
     {{-- One link over image + title: one tab stop, and the accessible name comes
          from the title text, so the image carries alt="" rather than repeating it. --}}
-    <a href="{{ route('products.show', $product) }}" class="flex flex-col rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2">
+    <a href="{{ $card['url'] }}" class="flex flex-col rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2">
         <span class="relative block aspect-square overflow-hidden rounded-lg border border-hairline bg-surface">
-            <img src="{{ $image }}"
+            <img src="{{ $card['image'] }}"
                  alt=""
                  aria-hidden="true"
                  loading="lazy"
@@ -42,30 +26,30 @@
         </span>
 
         <h3 class="mt-4 text-body font-medium text-ink transition-colors group-hover:text-primary-700">
-            {{ $product->name }}
+            {{ $card['name'] }}
         </h3>
     </a>
 
-    @if (filled($product->short_description ?? $product->description))
+    @if ($card['summary'])
         <p class="mt-1 line-clamp-2 text-label text-muted">
-            {{ Str::limit(strip_tags($product->short_description ?: $product->description), 80) }}
+            {{ $card['summary'] }}
         </p>
     @endif
 
     {{-- Ratings render only when reviews exist. Five empty stars on a shop with no
          reviews is decoration pretending to be data. --}}
-    @if ($reviewCount > 0)
+    @if ($card['review_count'] > 0)
         <p class="mt-2 flex items-center gap-1.5 text-label">
             <span class="text-primary-700" aria-hidden="true">
-                @for ($i = 1; $i <= 5; $i++)<span class="{{ $i <= round($rating) ? '' : 'text-hairline' }}">&#9733;</span>@endfor
+                @for ($i = 1; $i <= 5; $i++)<span class="{{ $i <= round($card['rating']) ? '' : 'text-hairline' }}">&#9733;</span>@endfor
             </span>
             <span class="data text-caption text-muted">
-                {{ number_format($rating, 1) }}
+                {{ number_format($card['rating'], 1) }}
             </span>
             <span class="sr-only">
-                {{ number_format($rating, 1) }} out of 5, {{ $reviewCount }} {{ Str::plural('review', $reviewCount) }}
+                {{ number_format($card['rating'], 1) }} out of 5, {{ $card['review_count'] }} {{ Str::plural('review', $card['review_count']) }}
             </span>
-            <span class="data text-caption text-muted" aria-hidden="true">({{ $reviewCount }})</span>
+            <span class="data text-caption text-muted" aria-hidden="true">({{ $card['review_count'] }})</span>
         </p>
     @endif
 
@@ -74,9 +58,9 @@
     <div class="mt-auto flex flex-wrap items-end justify-between gap-3 pt-4">
         <div class="min-w-0">
             <p class="data text-title font-semibold text-ink">
-                @if ($fromPrice)<span class="text-label font-normal text-muted">From </span>@endif{{ $price }}
-                @if ($product->isOnSale())
-                    <s class="ml-1 text-label font-normal text-muted"><span class="sr-only">Was </span>{{ \App\Support\Money::format($product->price) }}</s>
+                @if ($card['from_price'])<span class="text-label font-normal text-muted">From </span>@endif{{ $card['price'] }}
+                @if ($card['was_price'])
+                    <s class="ml-1 text-label font-normal text-muted"><span class="sr-only">Was </span>{{ $card['was_price'] }}</s>
                 @endif
             </p>
 
@@ -84,25 +68,25 @@
                 <p class="text-caption text-muted">Unavailable</p>
             @elseif ($isLow)
                 <p class="text-caption text-warning-700">
-                    <span class="data">{{ $stock }}</span> left
+                    <span class="data">{{ $card['stock'] }}</span> left
                 </p>
             @else
                 <p class="text-caption text-muted">In stock</p>
             @endif
         </div>
 
-        @if ($requiresChoice && ! $isOut)
+        @if ($card['requires_choice'] && ! $isOut)
             {{-- A variant or a required option has to be chosen first, which happens on the product page. --}}
-            <a href="{{ route('products.show', $product) }}" class="btn btn-primary btn-sm shrink-0">
+            <a href="{{ $card['url'] }}" class="btn btn-primary btn-sm shrink-0">
                 Choose options
-                <span class="sr-only">: {{ $product->name }}</span>
+                <span class="sr-only">: {{ $card['name'] }}</span>
             </a>
         @else
-            <form action="{{ route('cart.add', $product) }}" method="POST" class="shrink-0">
+            <form action="{{ $card['add_url'] }}" method="POST" class="shrink-0">
                 @csrf
                 <button type="submit" class="btn btn-primary btn-sm" @disabled($isOut)>
                     {{ $isOut ? 'Sold out' : 'Add to cart' }}
-                    <span class="sr-only">: {{ $product->name }}</span>
+                    <span class="sr-only">: {{ $card['name'] }}</span>
                 </button>
             </form>
         @endif

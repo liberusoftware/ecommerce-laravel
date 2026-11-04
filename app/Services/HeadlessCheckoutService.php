@@ -46,6 +46,17 @@ class HeadlessCheckoutService
             throw new CheckoutException('A drop-shipped order needs a recipient name and email.');
         }
 
+        // The products name their supplier; a client may only pick one for a plain drop-ship, and only a configured one.
+        $requested = $input['supplierId'] ?? 'dropxl';
+        if ($isDropship && ! array_key_exists($requested, config('dropshipping.suppliers', []))) {
+            throw new CheckoutException('Unknown supplier.');
+        }
+        $fromProducts = $this->checkoutService->supplierFor($cart);
+        $supplierId = $fromProducts ?? ($isDropship ? $requested : null);
+        if ($fromProducts !== null && (blank($input['shippingAddress'] ?? null) || blank($input['city'] ?? null) || blank($input['postalCode'] ?? null))) {
+            throw new CheckoutException('This order ships from a supplier, which needs a street address, city and postal code.');
+        }
+
         $subtotal = (float) $cart->sum(fn (CartItem $i) => (float) $i->price * $i->quantity);
         [$shippingCost, $carrier, $service, $quoteId] = $this->resolveShipping($input, $user);
 
@@ -76,6 +87,11 @@ class HeadlessCheckoutService
                 'user_id' => $user->id,
                 'customer_email' => $user->email,
                 'billing_country' => $country,
+                'shipping_address' => $input['shippingAddress'] ?? null,
+                'shipping_name' => $input['shippingName'] ?? $user->name,
+                'shipping_city' => $input['city'] ?? null,
+                'shipping_state' => $input['state'] ?? null,
+                'shipping_postal_code' => $input['postalCode'] ?? null,
                 'vat_number' => $vatNumber,
                 'reverse_charge' => $reverseCharge,
                 'shipping_carrier' => $carrier,
@@ -105,8 +121,8 @@ class HeadlessCheckoutService
 
         // Post-payment fulfilment (shared with the web checkout).
         $this->checkoutService->grantDownloads($order);
-        if ($isDropship) {
-            $this->checkoutService->queueDropship($order, $input['supplierId'] ?? 'dropxl');
+        if ($supplierId !== null) {
+            $this->checkoutService->queueDropship($order, $supplierId);
         }
 
         CartItem::where('user_id', $user->id)->delete();
