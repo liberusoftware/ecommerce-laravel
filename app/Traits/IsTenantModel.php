@@ -3,10 +3,9 @@
 namespace App\Traits;
 
 use App\Models\Store;
-use App\Models\Team;
 use App\Services\StoreContext;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Liberu\Foundation\Tenancy\Concerns\BelongsToTeam;
 
 /**
  * Marks a model as belonging to a `Team`, and — from now on — writes it.
@@ -38,6 +37,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 trait IsTenantModel
 {
+    use BelongsToTeam;
+
     public static function bootIsTenantModel(): void
     {
         static::creating(function (Model $model) {
@@ -49,10 +50,5 @@ trait IsTenantModel
             $model->team_id ??= (isset($model->store_id) ? Store::query()->whereKey($model->store_id)->value('team_id') : null)
                 ?? StoreContext::teamForWrites();
         });
-    }
-
-    public function team(): BelongsTo
-    {
-        return $this->belongsTo(Team::class);
     }
 }
