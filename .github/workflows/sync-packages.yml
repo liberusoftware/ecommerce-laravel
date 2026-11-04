@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   sync:
-    if: github.repository_owner == 'liberusoftware'
+    if: github.repository == 'liberusoftware/ecommerce-laravel'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment: packagist
