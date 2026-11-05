@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ContactRequest;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductRating;
@@ -33,6 +34,7 @@ class GdprSymmetryTest extends TestCase
         PaymentMethod::create(['user_id' => $user->id, 'name' => 'Visa …4242', 'details' => 'tok_x']);
         ProductReview::create(['product_id' => $product->id, 'customer_id' => $customer->id, 'comments' => 'Lovely']);
         ProductRating::create(['product_id' => $product->id, 'customer_id' => $customer->id, 'rating' => 5]);
+        ContactRequest::create(['name' => $user->name, 'email' => $user->email, 'message' => 'Where is my parcel?']);
 
         $user->wishlist_share_token = 'a-published-share-token';
         $user->save();
@@ -67,10 +69,13 @@ class GdprSymmetryTest extends TestCase
             'payment_methods' => $export['payment_methods'],
             'reviews' => $export['reviews'],
             'ratings' => $export['ratings'],
+            'contact_messages' => $export['contact_messages'],
         ]);
-        $this->assertCount(4, $disclosed, 'the fixture must actually populate these, or this proves nothing');
+        $this->assertCount(5, $disclosed, 'the fixture must actually populate these, or this proves nothing');
 
+        $email = $user->email;
         app(GdprErasureService::class)->erase($user);
+        $this->assertSame(0, ContactRequest::query()->withoutGlobalScopes()->where('email', $email)->count(), 'matched by the address erasure replaces');
         $after = app(GdprExportService::class)->export($user->fresh());
 
         foreach (array_keys($disclosed) as $key) {

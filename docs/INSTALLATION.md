@@ -115,6 +115,29 @@ For local testing, point `DROPXL_API_URL` at a mock endpoint returning:
 
 The API URL and key are read through `config('services.dropxl.url')` and `config('services.dropxl.key')`, both fed from `DROPXL_API_URL` and `DROPXL_API_KEY`.
 
+### Products a supplier fulfils (Printful)
+
+A product whose `supplier_id` is set (for example `printful`) is fulfilled by that supplier: an order
+containing it goes there automatically, whatever the checkout form names, and only that supplier's
+lines are sent. The checkout then requires the delivery name, city and postcode. Each variant is
+sent by its `supplier_variant_id` (Printful's sync variant id) when set, otherwise by its SKU as
+Printful's external id.
+
+```dotenv
+PRINTFUL_API_TOKEN=xxx
+PRINTFUL_STORE_ID=          # only for an account-level token
+```
+
+`php artisan printful:import-products` imports the Printful store's sync products as made-to-order
+products, one variant per Printful sync variant (Colour and Size), priced at Printful's retail price,
+with its mockups in the gallery. Re-running it updates in place. `--product=<id>` imports one product,
+and `--onto=<local id>` maps it onto an existing product, matching variants by their options. The
+command is not scheduled by the core; a site that wants its catalogue kept in step schedules it.
+
+Imports are uncategorised unless `dropshipping.suppliers.printful.categories` maps category names to
+keywords, for example `'Headwear' => ['keywords' => ['cap', 'beanie']]`; the first category whose
+keywords appear in the product or variant names is used, and `'default' => true` catches the rest.
+
 ---
 
 ## Where configuration lives

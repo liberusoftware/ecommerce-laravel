@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ContactMessage;
+use App\Models\ContactRequest;
 use App\Models\Store;
 use App\Settings\GeneralSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
+use Throwable;
 
 class ContactController extends Controller
 {
@@ -39,19 +41,26 @@ class ContactController extends Controller
             'message.min' => 'Please add a little more detail so we can help.',
         ]);
 
-        // The store's own inbox; the platform's only when the merchant has not set one.
-        Mail::to(Store::current()?->email ?: $settings->site_email)->send(new ContactMessage(
-            senderName: $validated['name'],
-            senderEmail: $validated['email'],
-            contactSubject: ($validated['subject'] ?? null) ?: 'No subject',
-            body: $validated['message'],
-        ));
+        $enquiry = ContactRequest::create($validated);
+
+        // The message is kept either way; mail is the merchant's notice of it.
+        // MAIL_CONTACT_TO keeps the form's inbox apart from the address the shop publishes.
+        try {
+            Mail::to(config('mail.contact_to') ?: Store::current()?->email ?: $settings->site_email)->send(new ContactMessage(
+                senderName: $enquiry->name,
+                senderEmail: $enquiry->email,
+                contactSubject: $enquiry->subject ?: 'No subject',
+                body: $enquiry->message,
+            ));
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return redirect()->route('contact')->with('success', $this->confirmation());
     }
 
     private function confirmation(): string
     {
-        return 'Thanks — your message is on its way. We usually reply within one working day.';
+        return 'Thanks — your message is on its way.';
     }
 }

@@ -114,7 +114,12 @@ class ProductOptionCheckoutTest extends TestCase
         $this->assertSame([
             ['choice_id' => $this->choice($this->size, 'Large')->id, 'group' => 'Size', 'name' => 'Large', 'price_adjustment' => 0.2],
             ['choice_id' => $this->choice($this->type, 'Battered')->id, 'group' => 'Type', 'name' => 'Battered', 'price_adjustment' => 0.2],
-        ], $line->options);
+        ], array_map(function (array $option) {
+            // MySQL's JSON type does not keep key order.
+            ksort($option);
+
+            return $option;
+        }, $line->options));
     }
 
     public function test_web_checkout_charges_the_configured_price_and_freezes_the_line(): void

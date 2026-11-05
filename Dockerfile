@@ -26,8 +26,9 @@ RUN install-php-extensions intl sockets zip bcmath
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy composer files
+# Copy composer files, and the path repository composer.json points at
 COPY composer.json composer.lock ./
+COPY modules/users-roles ./modules/users-roles
 
 # Install composer dependencies (no autoloader yet, will optimize in final stage)
 RUN composer install \

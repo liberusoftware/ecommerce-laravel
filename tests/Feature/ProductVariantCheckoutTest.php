@@ -207,6 +207,26 @@ class ProductVariantCheckoutTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
+    public function test_a_parent_taken_down_cannot_be_bought_through_an_active_variant(): void
+    {
+        $this->webAdd('S / Black');
+        Sanctum::actingAs(User::factory()->create());
+        $this->graphqlAdd('S / White');
+        $this->tee->update(['status' => Product::STATUS_DRAFT]);
+
+        $this->assertStringContainsString('no longer available', $this->graphqlCheckout()['errors'][0]['message']);
+        $this->assertNotNull($this->graphqlAdd('S / Black')['errors'] ?? null);
+        $this->postJson('/api/cart', ['product_id' => $this->tee->id, 'variant_id' => $this->id('S / Black'), 'quantity' => 1])->assertNotFound();
+
+        auth()->forgetGuards();
+        $this->webCheckout()->assertSessionHas('error', fn (string $m) => str_contains($m, 'no longer available'));
+        $this->webAdd('S / White')->assertSessionHas('error', 'This product is not available.');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertNull($this->gateway->chargedAmount);
+        $this->assertSame(5, $this->variantOf($this->tee, 'S / Black')->inventory_count);
+    }
+
     public function test_stock_taken_by_someone_else_is_refused_on_both_paths_and_nothing_is_charged(): void
     {
         $this->webAdd('M / Black');

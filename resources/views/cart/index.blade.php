@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Cart — '.config('app.name'))
+@section('title', 'Cart — '.$storeName)
 
 @section('content')
     @livewire('shopping-cart')

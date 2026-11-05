@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ContactRequest;
 use App\Models\Order;
 use App\Models\ProductRating;
 use App\Models\ProductReview;
@@ -71,6 +72,11 @@ class GdprExportService
             'reviews' => $customer ? $this->reviews($customer->id) : [],
             'ratings' => $customer ? $this->ratings($customer->id) : [],
             'wishlist' => $this->wishlist($user),
+            'contact_messages' => ContactRequest::where('email', $user->email)->latest('id')->get()->map(fn (ContactRequest $m) => [
+                'subject' => $m->subject,
+                'message' => $m->message,
+                'sent_at' => optional($m->created_at)->toIso8601String(),
+            ])->all(),
         ];
     }
 

@@ -12,7 +12,7 @@ class StripeGatewaySubscriptionTest extends TestCase
     {
         config(['services.stripe.secret' => 'sk_test_unused']);
 
-        $result = (new StripeGateway)->processSubscription('plan_1', []);
+        $result = app(StripeGateway::class)->processSubscription('plan_1', []);
 
         $this->assertFalse($result['success']);
         $this->assertArrayNotHasKey('subscription_id', $result);

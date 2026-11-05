@@ -93,6 +93,31 @@ class ProductVariantFormTest extends TestCase
         $this->assertSame([18.0, 18.0], $product->variantPriceRange(), 'An inactive variant is not on sale.');
     }
 
+    public function test_a_merchant_sets_every_price_and_fills_empty_skus_in_one_go(): void
+    {
+        $page = Livewire::test(CreateProduct::class)
+            ->fillForm($this->product() + ['sku' => 'TOTE', 'variant_attributes' => [
+                ['name' => 'Colour', 'values' => ['Natural', 'Black']],
+                ['name' => 'Size', 'values' => ['Small', 'Large']],
+            ]])
+            ->callAction($this->generate());
+        $keys = array_keys($page->get('data.variants'));
+        $page->set("data.variants.{$keys[1]}.sku", 'KEEP-ME')
+            ->set("data.variants.{$keys[3]}.is_active", false)
+            ->callAction(TestAction::make('setVariantPrices')->schemaComponent('variantActions'), ['price' => 21.5])
+            ->callAction(TestAction::make('fillVariantSkus')->schemaComponent('variantActions'));
+
+        $rows = $page->get('data.variants');
+        $this->assertEquals([21.5, 21.5, 21.5, 21.5], array_column($rows, 'price'));
+        $this->assertSame(['TOTE-NATURAL-SMALL', 'KEEP-ME', 'TOTE-BLACK-SMALL', 'TOTE-BLACK-LARGE'], array_column($rows, 'sku'));
+        $page->assertSee('4 variants, 3 on sale');
+
+        $page->call('create')->assertHasNoFormErrors();
+        $product = Product::withoutGlobalScopes()->where('slug', 'canvas-tote')->sole();
+        $this->assertSame(['TOTE-NATURAL-SMALL', 'KEEP-ME', 'TOTE-BLACK-SMALL', 'TOTE-BLACK-LARGE'], $product->variants->pluck('sku')->all());
+        $this->assertSame([21.5, 21.5], $product->variantPriceRange());
+    }
+
     public function test_regenerating_keeps_what_the_merchant_already_entered(): void
     {
         $page = Livewire::test(CreateProduct::class)

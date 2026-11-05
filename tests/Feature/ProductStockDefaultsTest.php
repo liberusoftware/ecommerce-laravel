@@ -93,7 +93,7 @@ class ProductStockDefaultsTest extends TestCase
         $this->actingAs($admin, 'sanctum')->postJson('/api/products', $base + ['name' => 'Font', 'is_downloadable' => true])->assertCreated();
         $this->actingAs($admin, 'sanctum')->postJson('/api/products', $base + ['name' => 'Licence', 'is_downloadable' => true, 'track_inventory' => true])->assertCreated();
 
-        $this->assertSame(['Poster' => true, 'Font' => false, 'Licence' => true], Product::pluck('track_inventory', 'name')->map(fn ($v) => (bool) $v)->all());
+        $this->assertSame(['Poster' => true, 'Font' => false, 'Licence' => true], Product::orderBy('id')->pluck('track_inventory', 'name')->map(fn ($v) => (bool) $v)->all());
     }
 
     public function test_the_product_form_follows_the_downloadable_switch(): void

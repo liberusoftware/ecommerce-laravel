@@ -99,4 +99,65 @@ class BackInStockNotificationTest extends TestCase
 
         Notification::assertNothingSent();
     }
+
+    public function test_signed_in_shopper_subscribes_without_supplying_an_email(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 0]);
+        $user = User::factory()->create(['email' => 'buyer@example.com']);
+
+        $this->actingAs($user)
+            ->post(route('products.notify-me', $product))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('stock_notifications', [
+            'product_id' => $product->id,
+            'email' => 'buyer@example.com',
+            'user_id' => $user->id,
+            'notified' => false,
+        ]);
+    }
+
+    public function test_a_form_post_redirects_back_with_a_confirmation(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 0]);
+
+        $this->from(route('products.show', $product))
+            ->post(route('products.notify-me', $product), ['email' => 'want@example.com'])
+            ->assertRedirect(route('products.show', $product))
+            ->assertSessionHas('success');
+    }
+
+    public function test_a_guest_form_post_without_an_email_reports_the_error(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 0]);
+
+        $this->from(route('products.show', $product))
+            ->post(route('products.notify-me', $product))
+            ->assertRedirect(route('products.show', $product))
+            ->assertSessionHasErrors('email');
+
+        $this->assertSame(0, StockNotification::count());
+    }
+
+    public function test_a_posted_user_id_does_not_let_a_guest_skip_the_email(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 0]);
+        $someoneElse = User::factory()->create();
+
+        $this->post(route('products.notify-me', $product), ['user_id' => $someoneElse->id])
+            ->assertSessionHasErrors('email');
+
+        $this->assertSame(0, StockNotification::count());
+    }
+
+    public function test_json_clients_still_get_json(): void
+    {
+        $product = Product::factory()->create(['inventory_count' => 0]);
+
+        $this->postJson(route('products.notify-me', $product), ['email' => 'api@example.com'])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+        $this->postJson(route('products.notify-me', $product))->assertUnprocessable();
+    }
 }

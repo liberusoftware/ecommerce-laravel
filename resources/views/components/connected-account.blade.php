@@ -28,7 +28,7 @@
     </div>
 
     @error($provider['id'].'_connect_error')
-    <div class="text-sm font-semibold text-red-500 px-3 mt-2">
+    <div class="text-sm font-semibold text-danger-600 px-3 mt-2">
         {{ $message }}
     </div>
     @enderror

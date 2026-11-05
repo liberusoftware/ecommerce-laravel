@@ -19,30 +19,29 @@ class ProductController extends Controller
      */
     public function notifyMe(Request $request, Product $product)
     {
+        // The identity comes from the session; a posted user_id must not waive the email.
         $validated = $request->validate([
-            'email' => 'required_without:user_id|nullable|email',
+            'email' => [$request->user() ? 'nullable' : 'required', 'email'],
         ]);
-
-        $email = $request->user()?->email ?? ($validated['email'] ?? null);
-
-        if (! $email) {
-            return response()->json(['success' => false, 'message' => 'An email address is required.'], 422);
-        }
 
         StockNotification::firstOrCreate(
             [
                 'product_id' => $product->id,
-                'email' => $email,
+                'email' => $request->user()?->email ?? $validated['email'],
                 'notification_type' => 'back_in_stock',
                 'notified' => false,
             ],
             ['user_id' => $request->user()?->id]
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'You will be notified when this product is back in stock.',
-        ]);
+        $message = 'You will be notified when this product is back in stock.';
+
+        // A theme can post an ordinary form; it needs somewhere to land.
+        if (! $request->expectsJson()) {
+            return back()->with('success', $message);
+        }
+
+        return response()->json(['success' => true, 'message' => $message]);
     }
 
     public function index(Request $request)

@@ -78,7 +78,6 @@
 
                     <div class="flex flex-wrap items-center gap-4 pt-1">
                         <x-button>Send message</x-button>
-                        <p class="text-label text-muted">We usually reply within one working day.</p>
                     </div>
                 </form>
             </div>

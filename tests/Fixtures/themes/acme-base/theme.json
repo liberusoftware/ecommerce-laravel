@@ -1,0 +1,5 @@
+{
+    "name": "acme-base",
+    "type": "public",
+    "parent": "theme-ecommerce"
+}

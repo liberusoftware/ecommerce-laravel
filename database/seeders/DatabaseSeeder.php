@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
 
         // Sample products, orders and customers. This sat in the baseline
         // chain, so `db:seed --force` created demo data in production.
-        if (! app()->isProduction()) {
+        if (! app()->isProduction() && config('seeding.demo_catalogue')) {
             $this->call(DummyDataSeeder::class);
         }
 

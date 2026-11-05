@@ -236,6 +236,25 @@ class CheckoutService
     }
 
     /**
+     * The one supplier that fulfils the cart's physical lines, from the products themselves.
+     * Null when the merchant ships everything, or when lines would go to more than one supplier.
+     *
+     * @param  iterable<object{product: ?Product}>  $items
+     */
+    public function supplierFor(iterable $items): ?string
+    {
+        $suppliers = collect($items)->map(fn ($item) => $item->product)->filter()
+            ->reject(fn (Product $product) => $product->is_downloadable)
+            ->pluck('supplier_id')->filter()->unique();
+
+        if ($suppliers->count() > 1) {
+            Log::warning('Cart spans suppliers '.$suppliers->implode(', ').'; not drop-shipped automatically.');
+        }
+
+        return $suppliers->count() === 1 ? $suppliers->first() : null;
+    }
+
+    /**
      * Queue supplier placement for a drop-shipped order. Returns true when queued;
      * on failure it records SUPPLIER_FAILED + notifies staff and returns false (never
      * throws — the order is already paid). Callers decide how to surface the outcome.
@@ -243,9 +262,10 @@ class CheckoutService
     public function queueDropship(Order $order, string $supplierId): bool
     {
         try {
-            $order->update(['supplier_id' => $supplierId]);
-            DispatchDropshippingOrder::dispatch($order->id, $supplierId);
+            $order->update(['supplier_id' => $supplierId, 'is_dropshipped' => true]);
+            // Queued first: the job places only queued orders, and a sync queue runs it right here.
             $order->transitionTo(Order::STATUS_SUPPLIER_QUEUED, notes: "Supplier order queued ({$supplierId})");
+            DispatchDropshippingOrder::dispatch($order->id, $supplierId);
 
             return true;
         } catch (Throwable $e) {

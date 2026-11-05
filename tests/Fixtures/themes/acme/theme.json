@@ -1,0 +1,10 @@
+{
+    "name": "acme",
+    "display_name": "Acme (test fixture)",
+    "type": "public",
+    "parent": "acme-base",
+    "assets": {
+        "css": ["resources/css/app.css"],
+        "js": ["resources/js/app.js"]
+    }
+}

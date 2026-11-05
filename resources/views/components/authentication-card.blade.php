@@ -15,7 +15,7 @@
         {{-- inline-block + py-1: a standalone link, so it owes WCAG 2.5.8's 24px
              and can't claim the inline-in-a-sentence exception. --}}
         <a href="{{ route('home') }}" class="inline-block rounded py-1 text-muted underline underline-offset-4 hover:text-primary-700">
-            {{ __('Back to :store', ['store' => config('app.name')]) }}
+            {{ __('Back to :store', ['store' => $storeName]) }}
         </a>
     </p>
 </div>

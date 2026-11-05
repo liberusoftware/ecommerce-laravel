@@ -7,8 +7,8 @@
 ![](https://img.shields.io/badge/Filament-5-informational?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgeG1sbnM6dj0iaHR0cHM6Ly92ZWN0YS5pby9uYW5vIj48cGF0aCBkPSJNMCAwaDQ4djQ4SDBWMHoiIGZpbGw9IiNmNGIyNWUiLz48cGF0aCBkPSJNMjggN2wtMSA2LTMuNDM3LjgxM0wyMCAxNWwtMSAzaDZ2NWgtN2wtMyAxOEg4Yy41MTUtNS44NTMgMS40NTQtMTEuMzMgMy0xN0g4di01bDUtMSAuMjUtMy4yNUMxNCAxMSAxNCAxMSAxNS40MzggOC41NjMgMTkuNDI5IDYuMTI4IDIzLjQ0MiA2LjY4NyAyOCA3eiIgZmlsbD0iIzI4MjQxZSIvPjxwYXRoIGQ9Ik0zMCAxOGg0YzIuMjMzIDUuMzM0IDIuMjMzIDUuMzM0IDEuMTI1IDguNUwzNCAyOWMtLjE2OCAzLjIwOS0uMTY4IDMuMjA5IDAgNmwtMiAxIDEgM2gtNXYyaC0yYy44NzUtNy42MjUuODc1LTcuNjI1IDItMTFoMnYtMmgtMnYtMmwyLTF2LTQtM3oiIGZpbGw9IiMyYTIwMTIiLz48cGF0aCBkPSJNMzUuNTYzIDYuODEzQzM4IDcgMzggNyAzOSA4Yy4xODggMi40MzguMTg4IDIuNDM4IDAgNWwtMiAyYy0yLjYyNS0uMzc1LTIuNjI1LS4zNzUtNS0xLS42MjUtMi4zNzUtLjYyNS0yLjM3NS0xLTUgMi0yIDItMiA0LjU2My0yLjE4N3oiIGZpbGw9IiM0MDM5MzEiLz48cGF0aCBkPSJNMzAgMThoNGMyLjA1NSA1LjMxOSAyLjA1NSA1LjMxOSAxLjgxMyA4LjMxM0wzNSAyOGwtMyAxdi0ybC00IDF2LTJsMi0xdi00LTN6IiBmaWxsPSIjMzEyODFlIi8+PHBhdGggZD0iTTI5IDI3aDN2MmgydjJoLTJ2MmwtNC0xdi0yaDJsLTEtM3oiIGZpbGw9IiMxNTEzMTAiLz48cGF0aCBkPSJNMzAgMThoNHYzaC0ydjJsLTMgMSAxLTZ6IiBmaWxsPSIjNjA0YjMyIi8+PC9zdmc+&&color=fdae4b&link=https://filamentphp.com)
 ![](https://img.shields.io/badge/Livewire-4-informational?style=flat&logo=Livewire&color=fb70a9)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Open Source Love](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/liberusoftware/ecommerce-laravel)
-[![Latest Release](https://img.shields.io/github/v/release/liberusoftware/ecommerce-laravel?include_prereleases)](https://github.com/liberusoftware/ecommerce-laravel/releases)
+[![Open Source Love](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament)
+[![Latest Release](https://img.shields.io/github/v/release/liberusoftware/project-ecommerce-laravel-filament?include_prereleases)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/releases)
 
 ---
 
@@ -22,9 +22,9 @@
 [![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/liberugroup)
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://www.github.com/liberusoftware)
 
-[![Install](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/install.yml/badge.svg)](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/install.yml)
-[![Tests](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/tests.yml/badge.svg)](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/tests.yml)
-[![Docker](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/main.yml/badge.svg)](https://github.com/liberusoftware/ecommerce-laravel/actions/workflows/main.yml)
+[![Install](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/install.yml/badge.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/install.yml)
+[![Tests](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/tests.yml/badge.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/tests.yml)
+[![Docker](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/main.yml/badge.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/main.yml)
 [![Codecov](https://codecov.io/gh/liberusoftware/ecommerce-laravel/branch/main/graph/badge.svg)](https://codecov.io/gh/liberusoftware/ecommerce-laravel)
 
 ---
@@ -86,7 +86,7 @@ Powered by **Filament 5**, the admin panel provides resources for managing:
 PHP 8.5+ · Composer · Node.js 20+ · MySQL, MariaDB or PostgreSQL · Docker (optional)
 
 ```bash
-git clone https://github.com/liberusoftware/ecommerce-laravel.git
+git clone https://github.com/liberusoftware/project-ecommerce-laravel-filament.git
 cd ecommerce-laravel
 chmod +x setup.sh
 ./setup.sh
@@ -127,7 +127,7 @@ Liberu Ecommerce is part of the wider **Liberu** open-source ecosystem. All proj
 | CMS | [liberu-cms/cms-laravel](https://github.com/liberu-cms/cms-laravel) | Content management features and modular page administration. |
 | Control Panel | [liberu-control-panel/control-panel-laravel](https://github.com/liberu-control-panel/control-panel-laravel) | Administration/control-panel components for managing services. |
 | CRM | [liberu-crm/crm-laravel](https://github.com/liberu-crm/crm-laravel) | Customer relationship management features and integrations. |
-| E-commerce | [liberusoftware/ecommerce-laravel](https://github.com/liberusoftware/ecommerce-laravel) | E-commerce storefront, product and order management (this repo). |
+| E-commerce | [liberusoftware/ecommerce-laravel](https://github.com/liberusoftware/project-ecommerce-laravel-filament) | E-commerce storefront, product and order management (this repo). |
 | Genealogy | [liberu-genealogy/genealogy-laravel](https://github.com/liberu-genealogy/genealogy-laravel) | Family tree and genealogy features built on Laravel. |
 | Maintenance | [liberu-maintenance/maintenance-laravel](https://github.com/liberu-maintenance/maintenance-laravel) | Scheduling, tracking and reporting for maintenance tasks. |
 | Real Estate | [liberu-real-estate/real-estate-laravel](https://github.com/liberu-real-estate/real-estate-laravel) | Property listings and real-estate management features. |
@@ -218,3 +218,42 @@ The source project and its lockfile are not rewritten by publication. Different
 projects publishing the same directory name share a destination repository;
 coordinate their package contents. Run the publisher's local tests with
 `python3 -m unittest discover -s .github/scripts -p 'test_sync_packages.py'`.
+
+<!-- presentation-family:begin -->
+## Project family and presentation options
+
+This repository hosts **Ecommerce with Laravel and Filament**. Catalogs, checkout, orders and fulfillment. Its existing installation instructions and manifests govern this application. The other presentations are independent skeletons derived from their matching Boilerplate foundation; repository availability does not establish product feature parity.
+
+### Other Laravel and Filament projects
+
+| Project | Scope |
+| --- | --- |
+| [Boilerplate](https://github.com/liberusoftware/project-boilerplate-laravel-filament) | Shared application foundation and module composition |
+| [Accounting ERP](https://github.com/liberusoftware/project-accounting-erp-laravel-filament) | Ledgers, tax, reporting and finance workflows |
+| [Automation](https://github.com/liberusoftware/project-automation-laravel-filament) | AI gateways, approvals, rules and integrations |
+| [Billing](https://github.com/liberusoftware/project-billing-laravel-filament) | Subscriptions, pricing, payments and provisioning |
+| [Browser Game](https://github.com/liberusoftware/project-browser-game-laravel-filament) | Game worlds, players and community workflows |
+| [CMS](https://github.com/liberusoftware/project-cms-laravel-filament) | Content authoring, publishing and delivery |
+| [Control Panel](https://github.com/liberusoftware/project-control-panel-laravel-filament) | Infrastructure and hosting operations |
+| [CRM](https://github.com/liberusoftware/project-crm-laravel-filament) | Relationships, sales pipelines and customer service |
+| [Enterprise SAP](https://github.com/liberusoftware/project-enterprise-sap-laravel-filament) | Enterprise workspace and cross-product orchestration |
+| [Genealogy](https://github.com/liberusoftware/project-genealogy-laravel-filament) | Family trees, research, evidence and collaboration |
+| [Liberu Platform](https://github.com/liberusoftware/project-liberu-official-laravel-filament) | Official sites, staff applications and platform composition |
+| [Maintenance](https://github.com/liberusoftware/project-maintenance-laravel-filament) | Assets, work orders, schedules and field operations |
+| [Music DAW](https://github.com/liberusoftware/project-music-daw-laravel-filament) | Composition, recording, sequencing and audio production |
+| [Real Estate](https://github.com/liberusoftware/project-real-estate-laravel-filament) | Listings, sales, lettings and agency operations |
+| [Social Network](https://github.com/liberusoftware/project-social-network-laravel-filament) | Profiles, feeds, communities and moderation |
+
+### Other presentations for Ecommerce
+
+- [Laravel · Inertia · Vue](https://github.com/liberusoftware/project-ecommerce-laravel-inertia-vue): Laravel routes and sessions with Vue pages over the Inertia protocol.
+- [Laravel · Inertia · React](https://github.com/liberusoftware/project-ecommerce-laravel-inertia-react): Laravel routes and sessions with React pages over the Inertia protocol.
+- [Nuxt · Vue](https://github.com/liberusoftware/project-ecommerce-nuxt-vue): Independent Vue application with Nuxt server rendering and reviewed API integration.
+- [Next.js · React](https://github.com/liberusoftware/project-ecommerce-next-react): Independent React application with explicit Next.js server/client boundaries.
+- [React Native · Expo](https://github.com/liberusoftware/project-ecommerce-mobile-react): Native iOS/Android application using React Native and Expo.
+- [Flutter · Mobile](https://github.com/liberusoftware/project-ecommerce-mobile-flutter): Flutter iOS/Android application using Dart and mobile widgets.
+- [Dart · Desktop](https://github.com/liberusoftware/project-ecommerce-dart-desktop): Dedicated Dart desktop application with a Flutter host for Linux, macOS and Windows.
+- [Dart · Mobile](https://github.com/liberusoftware/project-ecommerce-dart-mobile): Separate Dart mobile application with a Flutter host for iOS and Android.
+
+Use the [presentation implementation guides](https://github.com/liberusoftware/documentation/blob/main/guides/presentation/README.md) and [product documentation](https://github.com/liberusoftware/documentation/blob/main/projects/ecommerce/README.md) to select compatible modules, reviewed contracts and the correct deployment boundary. Laravel remains authoritative for domain rules and tenant authorization across all clients.
+<!-- presentation-family:end -->

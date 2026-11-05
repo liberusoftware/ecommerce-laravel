@@ -182,6 +182,8 @@ class ProductVariantService
             $current->except($kept)->each->delete();
             // Cleared first, so rows may trade combinations or SKUs without tripping the unique indexes.
             ProductVariant::withoutGlobalScopes()->whereKey($kept)->update(['combination_key' => null, 'sku' => null]);
+            // The loaded models must agree, or an unchanged SKU looks clean and is never written back.
+            $current->only($kept)->each(fn (ProductVariant $variant) => $variant->setRawAttributes(['combination_key' => null, 'sku' => null] + $variant->getAttributes(), true));
 
             foreach (array_values($rows) as $position => $row) {
                 $fields = [

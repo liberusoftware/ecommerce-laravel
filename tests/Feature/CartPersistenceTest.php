@@ -170,7 +170,7 @@ class CartPersistenceTest extends TestCase
 
         $this->actingAs($user);
         $contents = app(CartService::class)->contents();
-        $this->assertSame('Brass Kettle', $contents[$product->id]['name']);
+        $this->assertSame('Brass Kettle', $contents[$item->id]['name']);
     }
 
     /**

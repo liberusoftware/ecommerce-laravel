@@ -24,6 +24,7 @@ class ProductVariant extends Model
         'attribute_values',
         'combination_key',
         'sku',
+        'supplier_variant_id',
         'price',
         'track_inventory',
         'inventory_count',

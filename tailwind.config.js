@@ -15,11 +15,9 @@ export default {
         './resources/views/**/*.blade.php',
         './vendor/filament/**/*.blade.php',
         'node_modules/preline/dist/*.js',
-         "./node_modules/flowbite/**/*.js"
     ],
     plugins: [
         require('@tailwindcss/forms'),
         require('preline/plugin'),
-        require('flowbite/plugin')
       ],
 }

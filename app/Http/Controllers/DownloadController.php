@@ -27,7 +27,7 @@ class DownloadController extends Controller
         return response()->json([
             'url' => $temporaryUrl,
             'expires_in' => 300, // 5 minutes in seconds
-            'downloads_remaining' => $downloadableProduct->download_limit - $downloadableProduct->downloads_count,
+            'downloads_remaining' => $downloadableProduct->download_limit === null ? null : $downloadableProduct->download_limit - $downloadableProduct->downloads_count,
         ]);
     }
 

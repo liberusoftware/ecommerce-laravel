@@ -5,15 +5,23 @@ namespace App\Providers;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Store;
+use App\Support\StorefrontTheme;
 use BezhanSalleh\FilamentShield\Facades\FilamentShield;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\PermissionRegistrar;
+use Stripe\StripeClient;
 
 class AppServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->singleton(StorefrontTheme::class, fn ($app) => new StorefrontTheme($app['view']->getFinder(), base_path('themes')));
+        $this->app->bind(StripeClient::class, fn () => new StripeClient(config('services.stripe.secret')));
+    }
+
     public function boot(): void
     {
         // Platform permissions are named `{affix}_{subject}`, compound models with `::`
@@ -22,7 +30,8 @@ class AppServiceProvider extends ServiceProvider
             fn (string $affix, string $subject): string => Str::snake($affix).'_'.str_replace('_', '::', Str::snake($subject)),
         );
 
-        View::composer(['layouts.app', 'components.home-navbar', 'contact', 'categories.*'], function ($view) {
+        // Every view, so a theme can name the store wherever it overrides one.
+        View::composer('*', function ($view) {
             $store = Store::current();
             $view->with('currentStore', $store)->with('storeName', $store?->name ?? config('app.name'));
         });

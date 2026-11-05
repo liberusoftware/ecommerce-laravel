@@ -20,7 +20,7 @@ return new class extends Migration
         }
 
         Schema::table('customers', function (Blueprint $table) {
-            $table->integer('phone_number')->nullable()->change();
+            $table->string('phone_number', 32)->nullable()->change();
             $table->string('address')->nullable()->change();
             $table->string('city')->nullable()->change();
             $table->string('state')->nullable()->change();
