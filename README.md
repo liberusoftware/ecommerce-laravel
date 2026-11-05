@@ -8,7 +8,7 @@
 ![](https://img.shields.io/badge/Livewire-4-informational?style=flat&logo=Livewire&color=fb70a9)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Open Source Love](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament)
-[![Latest Release](https://img.shields.io/github/v/release/liberusoftware/ecommerce-laravel?include_prereleases)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/releases)
+[![Latest Release](https://img.shields.io/github/v/release/liberusoftware/project-ecommerce-laravel-filament?include_prereleases)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/releases)
 
 ---
 
