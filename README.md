@@ -25,7 +25,7 @@
 [![Install](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/install.yml/badge.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/install.yml)
 [![Tests](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/tests.yml/badge.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/tests.yml)
 [![Docker](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/main.yml/badge.svg)](https://github.com/liberusoftware/project-ecommerce-laravel-filament/actions/workflows/main.yml)
-[![Codecov](https://codecov.io/gh/liberusoftware/ecommerce-laravel/branch/main/graph/badge.svg)](https://codecov.io/gh/liberusoftware/ecommerce-laravel)
+[![Codecov](https://codecov.io/gh/liberusoftware/project-ecommerce-laravel-filament/branch/main/graph/badge.svg)](https://codecov.io/gh/liberusoftware/project-ecommerce-laravel-filament)
 
 ---
 
